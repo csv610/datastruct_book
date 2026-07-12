@@ -6,59 +6,73 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 
 ---
 
-## Why This Book?
+## Comparative Assessment
 
-The landscape of data structures and algorithms textbooks is rich and well-established. This book does not seek to replace the classics — it builds on them. Below is an honest assessment of where this edition sits relative to the most widely used references and courses, and what it offers that others do not.
+This book is the third edition of Sartaj Sahni's *Data Structures, Algorithms, and Applications in C++*, first published in 1998. The second edition remains widely assigned in university courses, but its C++ code predates C++11 and its coverage omits several topics that have since become standard. This edition modernizes the codebase, fills those gaps, and repositions the book as a self-contained two-semester text. The comparison below is an honest assessment of where it stands relative to the most widely used references.
 
 ### Comparison with Established Textbooks
 
-| | **This Book (3rd Ed.)** | **Sahni (2nd Ed.)** | **Knuth (TAOCP)** | **Brass (*Advanced DS*)** | **Cormen (CLRS)** |
-|---|---|---|---|---|---|
-| **Language** | C++20 | C++ (pre-C++11) | Assembly / MIX | Pseudocode | Pseudocode |
-| **RAII / Smart Pointers** | Yes, throughout | No | No | No | No |
-| **Modern C++ Features** | Concepts, ranges, `constexpr`, coroutines | None | N/A | N/A | N/A |
-| **Probabilistic Structures** | Full chapter (Bloom, HLL, Count-Min) | Not covered | Partial | Not covered | Not covered |
-| **Segment / Fenwick Trees** | Full treatment with lazy propagation | Not covered | Partial | Not covered | Not covered |
-| **Suffix Arrays & LCP** | Doubling algorithm, Kasai's | Not covered | Suffix trees | Not covered | Not covered |
-| **Max Flow** | Ford-Fulkerson, Edmonds-Karp, Dinic's | Not covered | Extensive | Not covered | Ford-Fulkerson only |
-| **Benchmarking** | Google Benchmark, `std::chrono` | Not covered | N/A | N/A | Not covered |
-| **STL Connections** | Every structure mapped to STL equivalent | Limited | N/A | N/A | Not covered |
-| **Exercises** | 3-tier (drill / application / research) | 2-tier | Extensive | Research-focused | 2-tier |
-| **Practical Applications** | Per-section real-world use cases | Some | Theoretical | Few | Few |
+| | **This Book (3rd Ed.)** | **Sahni (2nd Ed.)** | **Knuth (TAOCP)** | **Cormen (CLRS)** | **Sedgewick (4th Ed.)** | **Brass (*Advanced DS*)** | **Goodrich & Tamassia** |
+|---|---|---|---|---|---|---|---|
+| **Language** | C++20 | C++ (pre-C++11) | MMIX assembly | Pseudocode | Java | Pseudocode | Pseudocode / Java |
+| **RAII / Smart Pointers** | Yes, throughout | No | No | No | No | No | No |
+| **Modern C++ Features** | Concepts, ranges, `constexpr`, coroutines | None | N/A | N/A | N/A | N/A | N/A |
+| **Probabilistic Structures** | Full chapter (Bloom, HLL, Count-Min) | Not covered | Partial | Chapter 13 (skip lists, universal hashing) | Not covered | Not covered | Not covered |
+| **Segment / Fenwick Trees** | Full treatment with lazy propagation | Not covered | Partial | Not covered | Not covered | Not covered | Not covered |
+| **Suffix Arrays & LCP** | Doubling algorithm, Kasai's | Not covered | Suffix trees | Not covered | Not covered | Not covered | Not covered |
+| **Max Flow** | Ford-Fulkerson, Edmonds-Karp, Dinic's | Not covered | Extensive | Ford-Fulkerson, Edmonds-Karp | Not covered | Not covered | Not covered |
+| **Benchmarking** | Google Benchmark, `std::chrono` | Not covered | N/A | Not covered | Empirical performance (Chapter 1) | N/A | Not covered |
+| **STL Connections** | Every structure mapped to STL equivalent | Limited | N/A | N/A | Java Collections mapped | N/A | Java Collections mapped |
+| **Exercises** | 3-tier (drill / application / research) | 2-tier | Extensive | 4-tier (research included) | Varies by chapter | Research-focused | 3-tier |
+| **Practical Applications** | Per-section real-world use cases | Some | Theoretical | Moderate | Strong (real-world data) | Few | Moderate |
 
 ### Detailed Assessment
 
-**Sartaj Sahni — *Data Structures, Algorithms, and Applications in C++***
+**Sartaj Sahni — *Data Structures, Algorithms, and Applications in C++* (2nd Ed.)**
 
-Sahni's book is the direct ancestor of this edition, and its strengths are well known: clear exposition, complete working code, and a balance between theory and implementation that few textbooks achieve. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and interview preparation. This third edition preserves Sahni's pedagogical structure while modernizing every line of code and filling the gaps that twenty years of software engineering have exposed.
+Sahni's book is the direct ancestor of this edition, and its strengths are well known: clear exposition, complete working code, and a balance between theory and implementation that few textbooks achieve. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and technical interviews. This third edition preserves Sahni's pedagogical structure while modernizing every line of code and filling the gaps that twenty years of software engineering have exposed.
 
 **Donald Knuth — *The Art of Computer Programming***
 
-Knuth's work is the definitive theoretical reference for algorithm analysis. Its depth on sorting, searching, and mathematical analysis is unmatched. However, TAOCP is not a teaching textbook in the conventional sense — it is an encyclopedic reference that assumes significant mathematical maturity and does not provide compilable implementations in any modern language. This book targets a different reader: the undergraduate or practitioner who needs to *understand, implement, and use* data structures in production C++ code. Where Knuth proves theorems, this book provides working code alongside the proofs.
+Knuth's work is the definitive theoretical reference for algorithm analysis. Its depth on sorting, searching, and mathematical analysis is unmatched. TAOCP includes compilable code (MMIX assembly), but the language is archaic by design and not intended for practical implementation. The book assumes significant mathematical maturity and is structured as an encyclopedic reference rather than a teaching textbook. This book targets a different reader: the undergraduate or practitioner who needs to *understand, implement, and use* data structures in modern C++. Where Knuth proves theorems in full generality, this book provides working code alongside the proofs.
+
+**Thomas Cormen et al. — *Introduction to Algorithms* (CLRS)**
+
+CLRS is the most widely assigned algorithms textbook worldwide, and its strengths are substantial: rigorous proofs, broad coverage, and excellent exercises at multiple levels. It does cover probabilistic data structures (skip lists, universal hashing) and includes four tiers of exercises that escalate from routine to research-level. Its limitations are that it uses pseudocode throughout, does not provide implementations in any compilable language, and treats data structures primarily as a vehicle for algorithm analysis rather than as engineering artifacts with concrete memory layouts and performance characteristics. This book treats data structures and algorithms as equally important, providing both the theoretical analysis and the working C++ implementation.
+
+**Robert Sedgewick — *Algorithms* (4th Ed.)**
+
+Sedgewick's book is the closest comparator in terms of teaching philosophy: it pairs theory with complete, compilable implementations (in Java) and includes empirical performance measurement. Its treatment of sorting and searching is particularly strong, and its use of real-world datasets for benchmarking is a genuine strength. The limitations are language-specific (Java rather than C++), and it does not cover several topics this edition addresses: segment trees, Fenwick trees, suffix arrays, max-flow algorithms, or probabilistic data structures like Bloom filters and HyperLogLog. The coverage of balanced trees is also more limited. This book fills those gaps while offering the same theory-plus-implementation pairing that makes Sedgewick effective.
 
 **Peter Brass — *Advanced Data Structures***
 
-Brass excels at covering structures that most textbooks omit: finger trees, van Emde Boas layouts, fusion trees, and cache-oblivious structures. Its treatment is rigorous and valuable for graduate-level study. However, it assumes the reader already has a solid foundation in basic data structures, provides no implementations, and does not connect theory to practical engineering. This book covers the advanced topics that Brass omits (probabilistic structures, max-flow, suffix arrays) while also covering the fundamentals that Brass skips, making it suitable as a single-semester or two-semester primary text.
+Brass excels at covering structures that most textbooks omit: finger trees, van Emde Boas layouts, fusion trees, and cache-oblivious structures. Its treatment is rigorous and valuable for graduate-level study. However, it assumes the reader already has a solid foundation in basic data structures, provides no implementations, and does not connect theory to practical engineering. It also covers some topics this edition addresses (partial coverage of suffix structures, for instance), but does so at a higher level of abstraction. This book targets a broader audience — including undergraduates encountering these structures for the first time — and provides working implementations alongside the analysis.
+
+**Michael Goodrich & Roberto Tamassia — *Data Structures and Algorithms in C++***
+
+Goodrich and Tamassia's book is a well-organized introductory text that covers the standard core topics with Java implementations. Its strength is its clear, systematic presentation and its companion website with additional materials. It does not, however, cover the more advanced topics this edition addresses (segment trees, suffix arrays, probabilistic structures, max-flow) and uses pseudocode rather than compilable C++ for its more complex algorithms.
+
+### Course Materials
 
 **MIT 6.006 / 6.046 (Erik Demaine)**
 
-MIT's courses are outstanding for building algorithmic intuition. The lecture notes and problem sets are freely available and widely used. However, they are course materials, not a textbook — they are incomplete without the lectures, they use pseudocode rather than compilable code, and they do not cover data structure implementation in any specific language. This book provides what the MIT courses do not: a self-contained, language-specific reference that a student can use independently, with every algorithm available as working C++ that can be compiled, tested, and profiled.
+MIT's courses are well-regarded for building algorithmic intuition. The lecture notes and problem sets are freely available and widely used. They are course materials, not a textbook — they are incomplete without the lectures, they use pseudocode rather than compilable code, and they do not cover data structure implementation in any specific language. This book provides a self-contained, language-specific reference that a student can use independently.
 
 **Stanford CS161 (Tim Roughgarden)**
 
-Roughgarden's course (and his accompanying book *Algorithms Illuminated*) is exceptionally clear on algorithm design paradigms — divide and conquer, dynamic programming, greedy methods. His treatment of graph algorithms is particularly strong. The limitation is scope: CS161 focuses on algorithms, not data structures. It does not cover hash table internals, balanced tree rotations, union-find, or implementation-level details. This book treats data structures and algorithms as equally important, providing both the "what" (structures) and the "how" (design methods).
+Roughgarden's course (and his accompanying book *Algorithms Illuminated*) is clear on algorithm design paradigms — divide and conquer, dynamic programming, greedy methods. His treatment of graph algorithms is strong. The limitation is scope: CS161 focuses on algorithms, not data structures. It does not cover hash table internals, balanced tree rotations, union-find, or implementation-level details.
 
 **Berkeley CS170**
 
-Berkeley's course is well-regarded for its applied focus and strong problem sets. It covers many of the same algorithmic paradigms as MIT 6.046 but with more emphasis on practical applications. Like MIT's offering, however, it is not a textbook and does not provide a systematic, self-contained treatment of data structure implementation. The problem sets are excellent but rely on external lectures for exposition.
+Berkeley's course is well-regarded for its applied focus and strong problem sets. It covers many of the same algorithmic paradigms as MIT 6.046 but with more emphasis on practical applications. Like MIT's offering, it is not a textbook and does not provide a systematic, self-contained treatment of data structure implementation.
 
 ### What This Book Adds
 
-1. **A complete C++20 codebase.** Every data structure is implemented with modern idioms — RAII, smart pointers, concepts, `std::span`, move semantics — that reflect how C++ is actually written in 2026. Readers learn both the data structure and the language features that make it safe and efficient.
+1. **A complete C++20 codebase.** Every data structure is implemented with modern idioms — RAII, smart pointers, concepts, `std::span`, move semantics — that reflect how C++ is written today. Readers learn both the data structure and the language features that make it safe and efficient.
 
-2. **Coverage gaps filled.** Probabilistic data structures (Bloom filters, HyperLogLog, Count-Min sketch), segment trees with lazy propagation, suffix arrays, and Dinic's max-flow algorithm are covered in full, with proofs and implementations. These topics appear in competitive programming, systems interviews, and production systems but are absent from most textbooks at this level.
+2. **Coverage gaps filled.** Probabilistic data structures (Bloom filters, HyperLogLog, Count-Min sketch), segment trees with lazy propagation, suffix arrays, and Dinic's max-flow algorithm are covered in full, with proofs and implementations. These topics appear in competitive programming, systems design, and production systems but are absent from most textbooks at this level.
 
-3. **Performance measurement as a first-class topic.** Chapter 3 treats benchmarking with the same rigor as algorithm analysis — `std::chrono`, Google Benchmark, profiling tools, and the pitfalls of microbenchmarking. No other textbook at this level includes this.
+3. **Performance measurement as a first-class topic.** Chapter 3 treats benchmarking with the same rigor as algorithm analysis — `std::chrono`, Google Benchmark, profiling tools, and the pitfalls of microbenchmarking. Sedgewick's book includes empirical performance analysis in Java; this book does the same for C++ with modern tooling.
 
 4. **STL as a teaching tool.** After implementing each structure from scratch, the book shows the corresponding STL container or algorithm and discusses the design tradeoffs. This bridges the gap between "learning how it works" and "knowing when to use the standard library."
 
@@ -66,7 +80,7 @@ Berkeley's course is well-regarded for its applied focus and strong problem sets
 
 ### Honest Limitations
 
-No book is without tradeoffs. This edition does not cover cache-oblivious structures, finger trees, or persistence — topics that Brass and some advanced courses address. The probabilistic chapter provides foundations but does not reach the depth of a specialized reference like Mitzenmacher & Upfal. The max-flow chapter covers the essential algorithms but omits push-relabel and recent developments in flow decomposition. These are conscious scope decisions, not oversights — the goal was a single volume that is comprehensive enough for a full course without becoming unwieldy.
+No book is without tradeoffs. This edition does not cover cache-oblivious structures, finger trees, or persistence — topics that Brass and some advanced courses address. The probabilistic chapter provides foundations but does not reach the depth of a specialized reference like Mitzenmacher & Upfal. The max-flow chapter covers the essential algorithms but omits push-relabel and recent developments in flow decomposition. Unlike CLRS and Sedgewick, this book does not yet have a companion website, instructor slides, or solution manual — resources that are standard for university adoption. These are conscious scope decisions and known gaps, not oversights — the goal was a single volume comprehensive enough for a full course without becoming unwieldy.
 
 ---
 
