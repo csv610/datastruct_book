@@ -4,7 +4,7 @@
   <img src="tex/frontpage.png" alt="Book Cover" width="480"/>
 </p>
 
-**Third Edition — A Modern, C++20 Approach**
+**First Edition — A Modern, C++20 Approach**
 
 A comprehensive textbook covering fundamental and advanced data structures, algorithm-design paradigms, and modern C++ programming practices. This repository contains the full book content (chapters, TeX sources) and complete, compilable C++ code examples for every data structure and algorithm presented.
 
@@ -12,11 +12,11 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 
 ## Comparative Assessment
 
-This book is the third edition of Sartaj Sahni's *Data Structures, Algorithms, and Applications in C++*, first published in 1998. The second edition remains widely assigned in university courses, but its C++ code predates C++11 and its coverage omits several topics that have since become standard. This edition modernizes the codebase, fills those gaps, and repositions the book as a self-contained two-semester text. The comparison below is an honest assessment of where it stands relative to the most widely used references.
+This book draws on the legacy of Sartaj Sahni's *Data Structures, Algorithms, and Applications in C++*, first published in 1998. Sahni's second edition remains widely assigned in university courses, but its C++ code predates C++11 and its coverage omits several topics that have since become standard. This first edition modernizes the codebase, fills those gaps, and positions the book as a self-contained two-semester text. The comparison below is an honest assessment of where it stands relative to the most widely used references.
 
 ### Comparison with Established Textbooks
 
-| | **This Book (3rd Ed.)** | **Sahni (2nd Ed.)** | **Knuth (TAOCP)** | **Cormen (CLRS)** | **Sedgewick (4th Ed.)** | **Brass (*Advanced DS*)** | **Goodrich & Tamassia** |
+| | **This Book (1st Ed.)** | **Sahni (2nd Ed.)** | **Knuth (TAOCP)** | **Cormen (CLRS)** | **Sedgewick (4th Ed.)** | **Brass (*Advanced DS*)** | **Goodrich & Tamassia** |
 |---|---|---|---|---|---|---|---|
 | **Language** | C++20 | C++ (pre-C++11) | MMIX assembly | Pseudocode | Java | Pseudocode | Pseudocode / Java |
 | **RAII / Smart Pointers** | Yes, throughout | No | No | No | No | No | No |
@@ -34,7 +34,7 @@ This book is the third edition of Sartaj Sahni's *Data Structures, Algorithms, a
 
 **Sartaj Sahni — *Data Structures, Algorithms, and Applications in C++* (2nd Ed.)**
 
-Sahni's book is the direct ancestor of this edition, and its strengths are well known: clear exposition, complete working code, and a balance between theory and implementation that few textbooks achieve. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and technical interviews. This third edition preserves Sahni's pedagogical structure while modernizing every line of code and filling the gaps that twenty years of software engineering have exposed.
+Sahni's book is the direct ancestor of this edition, and its strengths are well known: clear exposition, complete working code, and a balance between theory and implementation that few textbooks achieve. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and technical interviews. This edition preserves Sahni's pedagogical structure while modernizing every line of code and filling the gaps that twenty years of software engineering have exposed.
 
 **Donald Knuth — *The Art of Computer Programming***
 
@@ -226,7 +226,7 @@ pdflatex book.tex
 
 ## License
 
-This repository contains the source material for *Data Structures, Algorithms, and Applications in C++ (3rd Edition)*. All rights reserved by the author.
+This repository contains the source material for *Data Structures, Algorithms, and Applications in C++ (1st Edition)*. All rights reserved by the author.
 
 ## Contributing
 
