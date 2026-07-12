@@ -786,6 +786,249 @@ modulo partitioning.
     varying cache-hit rates.
 \end{enumerate}
 
+%% ============================================================
+%% INDUSTRIAL PERSPECTIVES (merged from former Chapter 24)
+%% ============================================================
+
+\section{Industrial Perspectives}
+
+Every data structure and algorithm in this book was chosen because it appears in real systems. But not all are equally important in practice. The table below provides an honest assessment of each topic's industrial relevance, rated on a three-point scale:
+
+\begin{center}
+\begin{tabular}{cl}
+\toprule
+Rating & Meaning \\
+\midrule
+\textbf{3 -- High} & Used daily in production systems at scale \\
+\textbf{2 -- Medium} & Used in specific domains or as building blocks \\
+\textbf{1 -- Low} & Primarily educational, theoretical, or superseded \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These ratings reflect the state of industry in 2025. A rating of ``Low'' does not mean a topic is unimportant for learning---it means you are unlikely to encounter it in production code.
+
+%% --- Master Relevance Table ---
+
+\subsection{Complete Relevance Table}
+
+\begin{center}
+\small
+\begin{tabular}{lcl}
+\toprule
+\textbf{Data Structure / Algorithm} & \textbf{Rating} & \textbf{Primary Industrial Use} \\
+\midrule
+\multicolumn{3}{l}{\textit{Linear Structures}} \\
+\midrule
+Arrays / Dynamic Arrays & 3 & Everywhere (std::vector, database pages) \\
+Linked Lists & 2 & Kernel internals, LRU caches \\
+Stacks & 3 & Compilers, DFS, undo/redo, call stacks \\
+Queues & 3 & BFS, message queues, task scheduling \\
+Deques & 3 & Sliding window, BFS, schedulers \\
+Circular Buffers & 3 & Ring buffers, networking, producer-consumer \\
+Gap Buffers & 1 & Text editors (Emacs, vi) \\
+Unrolled Lists & 1 & Some database systems \\
+Finger Trees & 1 & Functional programming (Haskell) \\
+Ropes & 1 & Text editors, some languages \\
+\midrule
+\multicolumn{3}{l}{\textit{Hashing}} \\
+\midrule
+Hash Tables (Chaining) & 3 & Ubiquitous (databases, caches, compilers) \\
+Hash Tables (Open Addressing) & 3 & High-performance systems (Google, Redis) \\
+Cuckoo Hashing & 2 & Concurrent hash tables, network routers \\
+Robin Hood Hashing & 2 & Some STL implementations \\
+Swiss Table & 3 & Google Abseil, high-performance C++ \\
+Skip Lists & 3 & Redis sorted sets, concurrent data structures \\
+Count-Min Sketch & 2 & Stream processing, network monitoring \\
+Merkle Trees (Hash Trees) & 3 & Blockchain, distributed systems, Git \\
+Extendible Hashing & 2 & Database file organizations \\
+Distributed Hash Table & 2 & P2P systems, CDNs \\
+\midrule
+\multicolumn{3}{l}{\textit{Search Trees}} \\
+\midrule
+Binary Search Trees & 3 & Foundation for all balanced trees \\
+AVL Trees & 3 & Database indexing, some std::set \\
+Red-Black Trees & 3 & Java TreeMap, C++ std::map, Linux CFS \\
+B-Trees & 3 & Databases (PostgreSQL, MySQL), filesystems \\
+B+-Trees & 3 & Database indexing, NTFS, ext4 \\
+B*-Trees & 2 & Some database systems \\
+Scapegoat Trees & 1 & Educational \\
+Treaps & 2 & Concurrent data structures, some databases \\
+Splay Trees & 1 & Some caching systems, mostly educational \\
+Van Emde Boas Trees & 1 & Theoretical, some integer-specific systems \\
+Weight-Balanced Trees & 1 & Some database systems \\
+(a,b)-Trees & 2 & B-tree variants in databases \\
+Top-Down Red-Black & 2 & Implementation variant \\
+Finger Trees & 1 & Functional programming niche \\
+Partial Rebuilding & 1 & Educational \\
+Optimal BST & 1 & Educational \\
+\midrule
+\multicolumn{3}{l}{\textit{Spatial Trees}} \\
+\midrule
+K-d Trees & 3 & Graphics, ML, nearest neighbor search \\
+Quadtrees & 2 & 2D spatial indexing, games \\
+Octrees & 2 & 3D graphics, game engines \\
+R-Trees & 3 & GIS, database spatial indexing (PostGIS) \\
+BSP Trees & 1 & Game rendering, mostly replaced \\
+Range Trees & 2 & Computational geometry \\
+\midrule
+\multicolumn{3}{l}{\textit{Graph Structures}} \\
+\midrule
+Adjacency Matrix & 3 & Dense graphs, Floyd-Warshall \\
+Adjacency List & 3 & Sparse graphs, most applications \\
+Hypergraphs & 1 & Specialized (circuit design) \\
+BDDs & 1 & Formal verification, circuit design \\
+Winged Edge & 1 & Mesh representation, CAD \\
+\midrule
+\multicolumn{3}{l}{\textit{Graph Algorithms}} \\
+\midrule
+BFS & 3 & Shortest paths, web crawling, social networks \\
+DFS & 3 & Topological sort, SCC, cycle detection \\
+Dijkstra's Algorithm & 3 & GPS, routing, networks \\
+Bellman-Ford & 2 & Routing with negative weights \\
+Floyd-Warshall & 2 & All-pairs, small graphs \\
+Prim's MST & 3 & Network design, clustering \\
+Kruskal's MST & 3 & Network design, clustering \\
+Topological Sort & 3 & Build systems, task scheduling, compilers \\
+Strongly Connected Components & 3 & Web graph analysis, compilers \\
+A* Search & 3 & Games, robotics, GPS navigation \\
+Graph Coloring & 2 & Scheduling, register allocation \\
+Eulerian Path & 1 & Postal routing, puzzles \\
+Articulation Points / Bridges & 2 & Network reliability \\
+\midrule
+\multicolumn{3}{l}{\textit{String Algorithms}} \\
+\midrule
+Tries & 3 & Autocomplete, IP routing, spell checking \\
+KMP & 2 & Text search (replaced by suffix arrays) \\
+Rabin-Karp & 2 & Plagiarism detection, multi-pattern search \\
+Boyer-Moore & 2 & Text editors (grep) \\
+Suffix Arrays & 3 & Search engines, bioinformatics \\
+Suffix Trees & 2 & Replaced by suffix arrays in most cases \\
+Aho-Corasick & 2 & IDS, antivirus, plagiarism detection \\
+Z-Algorithm & 1 & Replaced by suffix arrays \\
+Document Retrieval & 3 & Search engines (Google, Bing) \\
+DC3/Skew Algorithm & 2 & Suffix array construction \\
+\midrule
+\multicolumn{3}{l}{\textit{Range Query Structures}} \\
+\midrule
+Sparse Table & 2 & Static RMQ \\
+Segment Tree & 3 & Databases, competitive programming, range queries \\
+Fenwick Tree & 3 & Inversion counting, range sums \\
+Interval Tree & 2 & Scheduling, interval overlap \\
+Square Root Decomposition & 2 & Competitive programming \\
+2D Fenwick Tree & 2 & Image processing \\
+Orthogonal Range Trees & 2 & Computational geometry \\
+Segment Tree Beats & 1 & Competitive programming \\
+\midrule
+\multicolumn{3}{l}{\textit{Sorting Algorithms}} \\
+\midrule
+Insertion Sort & 3 & Small arrays, nearly sorted, std::sort fallback \\
+Selection Sort & 1 & Educational \\
+Bubble Sort & 1 & Educational \\
+Merge Sort & 3 & Stable sort, external sort, Java Arrays.sort \\
+Quick Sort & 3 & std::sort, most common general-purpose sort \\
+Heap Sort & 2 & Guaranteed O(n log n), introsort fallback \\
+Radix Sort & 3 & Database engines, string sorting \\
+Counting Sort & 2 & Integer sorting \\
+Bucket Sort & 2 & Uniform distribution sorting \\
+\midrule
+\multicolumn{3}{l}{\textit{Greedy Algorithms}} \\
+\midrule
+Huffman Coding & 3 & Compression (ZIP, JPEG, MP3, HTTP/2) \\
+Activity Selection & 2 & Scheduling \\
+Fractional Knapsack & 1 & Educational \\
+Job Sequencing & 2 & Task scheduling \\
+\midrule
+\multicolumn{3}{l}{\textit{Dynamic Programming}} \\
+\midrule
+0/1 Knapsack & 2 & Resource allocation \\
+Matrix Chain Multiplication & 2 & Database query optimization \\
+LCS & 3 & Diff tools, bioinformatics, version control \\
+Edit Distance & 3 & Spell checking, DNA alignment, fuzzy search \\
+Coin Change & 2 & Financial systems \\
+LIS & 2 & Patience sorting, scheduling \\
+Floyd-Warshall (DP) & 2 & All-pairs shortest paths \\
+\midrule
+\multicolumn{3}{l}{\textit{Probabilistic Structures}} \\
+\midrule
+Bloom Filter & 3 & Databases, CDNs, networking (Google, Meta) \\
+HyperLogLog & 3 & Analytics (Redis, PostgreSQL, BigQuery) \\
+MinHash & 2 & Document similarity, deduplication \\
+LSH & 2 & Similarity search, recommendation systems \\
+Consistent Hashing & 3 & Distributed systems, CDNs, DynamoDB \\
+\midrule
+\multicolumn{3}{l}{\textit{Network Flow}} \\
+\midrule
+Max Flow / Min Cut & 2 & Transportation, scheduling, image segmentation \\
+Bipartite Matching & 2 & Assignment problems, scheduling \\
+Min-Cost Max-Flow & 2 & Logistics, supply chain \\
+\midrule
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% --- Tier Descriptions ---
+
+\subsection{Tier 3 --- High Relevance: The Industrial Workhorses}
+
+These data structures and algorithms are used daily in production systems at companies like Google, Meta, Amazon, Microsoft, Netflix, and virtually every technology company.
+
+\textbf{Hash tables} are the single most important data structure in industry. They power database index lookups (MySQL, PostgreSQL, MongoDB), caching (Redis, Memcached, CDN edge caches), compiler symbol tables, web server session management, network router forwarding tables, and operating system process tables. Google's Abseil library uses Swiss Table hash maps, which are 2--3$\times$ faster than \texttt{std::unordered\_map}.
+
+\textbf{B-trees and B+-trees} are the backbone of every major database and filesystem. PostgreSQL uses B+-trees as the default index type; MySQL InnoDB's clustered index is a B+-tree; ext4 and NTFS use B-trees for directory indexing. A single PostgreSQL query can traverse millions of B+-tree nodes per second.
+
+\textbf{Red-black trees} are the default balanced tree in most standard libraries: Java's \texttt{TreeMap}, C++'s \texttt{std::map}, and Linux's Completely Fair Scheduler. The Linux kernel's CFS scheduler traverses a red-black tree of millions of processes millions of times per second.
+
+\textbf{Segment trees and Fenwick trees} power real-time analytics and range queries in database engines, competitive programming, image processing, and time-series databases.
+
+\textbf{Graph algorithms} (BFS, DFS, Dijkstra, MST, topological sort, SCC) are essential infrastructure. Google Maps uses a variant of Dijkstra's on a graph with 100 million+ intersections.
+
+\textbf{Tries} power Google's autocomplete (3.5 billion queries/day), IP routing, and spell checking. \textbf{Bloom filters} are used by Chrome (malicious URL detection), Cassandra (SSTable lookup), and Bitcoin (SPV verification). \textbf{Consistent hashing} is the foundation of DynamoDB, Cassandra, CDNs, and Memcached.
+
+\subsection{Tier 2 --- Medium Relevance: Domain Specialists}
+
+\textbf{Skip lists} are the backbone of Redis sorted sets and LevelDB/RocksDB memtables. \textbf{Suffix arrays} have replaced suffix trees for text indexing and bioinformatics (BWA aligns 1 billion DNA reads in 2 hours). \textbf{Max flow} solves transportation, image segmentation, and airline scheduling problems. \textbf{HyperLogLog} counts 1 billion distinct elements in 12~KB (Redis, PostgreSQL, BigQuery). \textbf{Persistent data structures} underpin Git, undo systems, and MVCC in databases. \textbf{LSM trees} power LevelDB, RocksDB, Cassandra, and InfluxDB---RocksDB processes 10 million writes/second on a single SSD.
+
+\subsection{Tier 1 --- Low Relevance: Educational and Theoretical}
+
+\textbf{Splay trees} have good amortized performance but are mostly superseded by red-black trees. \textbf{Van Emde Boas trees} achieve $O(\lg \lg u)$ but hash tables are faster in practice. \textbf{Fusion trees} prove a theoretical lower bound is achievable but have no practical implementation. \textbf{Selection sort and bubble sort} are purely educational. The ``low relevance'' structures are not wasted knowledge---understanding them builds deep theoretical intuition that makes you a better engineer.
+
+%% --- Decision Matrix ---
+
+\subsection{What to Learn for Industry}
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Career Path} & \textbf{Must-Know Structures} \\
+\midrule
+Backend Engineering & Hash tables, B-trees, sorting, BFS/DFS, Dijkstra \\
+Database Engineering & B+-trees, LSM trees, hash indexes, external sort \\
+Search Engineering & Tries, suffix arrays, inverted indices, Bloom filters \\
+Game Development & K-d trees, A*, quaternions, spatial hashing \\
+Machine Learning & Sparse matrices, hash tables, k-d trees, LSH \\
+Distributed Systems & Consistent hashing, Bloom filters, vector clocks \\
+Embedded Systems & Circular buffers, bit arrays, succinct structures \\
+Competitive Programming & Segment trees, Fenwick trees, union-find, DP \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Industrial Perspectives---Exercises}
+
+\begin{enumerate}
+\item \textbf{Industry survey.} Pick a large open-source project (e.g., Linux kernel, Redis, PostgreSQL, Chromium). Identify 10 data structures it uses. Classify each by relevance rating.
+
+\item \textbf{Startup stack.} You are building a real-time analytics platform processing 1 million events/second. Which data structures from this book would you choose for: (a) counting unique visitors, (b) maintaining top-$k$ trending topics, (c) storing user profiles with fast lookup, (d) detecting duplicate events?
+
+\item \textbf{Database internals.} Explain why B+-trees are preferred over red-black trees for database indexing, even though red-black trees have better worst-case bounds. What role does caching play?
+
+\item \textbf{Distributed design.} You are designing a distributed cache with 100 nodes. Explain why consistent hashing is essential and what happens without it when a node fails.
+
+\item \textbf{Trade-off analysis.} For each tier-2 structure, identify one system where it is irreplaceable and one system where a tier-1 alternative could work. Justify your choices.
+\end{enumerate}
+
 \section{References and Further Reading}
 
 \begin{itemize}
@@ -820,4 +1063,24 @@ modulo partitioning.
 
     \item Conchon, S.\ and Filliâtre, J.-C.\ (2008).  A Persistent
     Union-Find Data Structure.  \emph{Proc.\ ML Workshop on ML}, 37--46.
+
+    \item Bender, M. A., Farach-Colton, M., and Kim, B.\ (2019).  Engineering
+    a Cache-Oblivious Sort that is Fast in Practice.  \emph{Workshop on Algorithm
+    Engineering and Experiments (ALENEX)}.
+
+    \item Dean, J.\ and Barroso, L. A.\ (2013).  The Tail at Scale.
+    \emph{Communications of the ACM}, 56(2):74--83.
+
+    \item Bloom, B. H.\ (1970).  Space/Time Trade-offs in Hash Coding with
+    Allowable Errors.  \emph{Communications of the ACM}, 13(7):422--426.
+
+    \item Kirsch, A.\ and Mitzenmacher, M.\ (2006).  Less Hashing, Same
+    Performance: Building a Better Bloom Filter.  \emph{ACM Transactions on
+    Algorithms}, 2(4):589--605.
+
+    \item Leis, V.\ et al.\ (2013).  The Adaptive Radix Tree: Practical Indexing
+    for Main-Memory Database Systems.  \emph{IEEE ICDE}.
+
+    \item Stonebraker, M.\ et al.\ (2005).  C-Store: A Column-Oriented DBMS.
+    \emph{VLDB}.
 \end{itemize}
