@@ -12,7 +12,7 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 
 ## Comparative Assessment
 
-This book draws on the legacy of Sartaj Sahni's *Data Structures, Algorithms, and Applications in C++*, first published in 1998. Sahni's second edition remains widely assigned in university courses, but its C++ code predates C++11 and its coverage omits several topics that have since become standard. This first edition modernizes the codebase, fills those gaps, and positions the book as a self-contained two-semester text. The comparison below is an honest assessment of where it stands relative to the most widely used references.
+This book is an original, self-contained text on data structures and algorithms in modern C++. It is written for undergraduate and early graduate students who need to understand, implement, and reason about data structures in production-quality C++20 code. The comparison below is an honest assessment of where it stands relative to the most widely used references.
 
 ### Comparison with Established Textbooks
 
@@ -34,7 +34,7 @@ This book draws on the legacy of Sartaj Sahni's *Data Structures, Algorithms, an
 
 **Sartaj Sahni — *Data Structures, Algorithms, and Applications in C++* (2nd Ed.)**
 
-Sahni's book is the direct ancestor of this edition, and its strengths are well known: clear exposition, complete working code, and a balance between theory and implementation that few textbooks achieve. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and technical interviews. This edition preserves Sahni's pedagogical structure while modernizing every line of code and filling the gaps that twenty years of software engineering have exposed.
+Sahni's book is a well-known reference in this space, and its strengths are clear: complete working code and a balance between theory and implementation. The second edition, however, predates C++11. Its code uses raw `new`/`delete`, manual memory management, and C-style idioms that do not reflect how C++ is written in practice today. It also does not cover segment trees, probabilistic data structures, suffix arrays, or modern max-flow algorithms — topics that have become standard in competitive programming, systems design, and technical interviews. This book covers all of these, written from scratch in modern C++20.
 
 **Donald Knuth — *The Art of Computer Programming***
 
