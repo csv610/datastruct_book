@@ -1,5 +1,9 @@
 # Data Structures, Algorithms, and Applications in C++
 
+<p align="center">
+  <img src="tex/frontpage.png" alt="Book Cover" width="480"/>
+</p>
+
 **Third Edition — A Modern, C++20 Approach**
 
 A comprehensive textbook covering fundamental and advanced data structures, algorithm-design paradigms, and modern C++ programming practices. This repository contains the full book content (chapters, TeX sources) and complete, compilable C++ code examples for every data structure and algorithm presented.
