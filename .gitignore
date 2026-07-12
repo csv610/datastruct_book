@@ -1,0 +1,10 @@
+*.log
+*.aux
+*.idx
+*.ilg
+*.ind
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
