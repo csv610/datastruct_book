@@ -1,0 +1,11 @@
+Binomial heap with 13 nodes: 13 = 8 + 4 + 1 = B3 + B2 + B0
+
+B3 (8 nodes):    B2 (4 nodes):    B0 (1 node):
+    [4]              [3]             [5]
+    /|\             / \
+  [3][2][1]       [2] [1]
+  /| |  |         |
+[1][1][0][0]     [1]
+
+All roots form the root list, linked left-to-right.
+Minimum element is the smallest root: [3] from B2.

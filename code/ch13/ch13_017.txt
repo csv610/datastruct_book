@@ -1,0 +1,27 @@
+Standard Trie (edges store one char each):
+
+            (root)
+           / | \ \
+          r  .  .  .
+          |
+          o
+          |
+          m
+         / \
+        a   u
+       / \   \
+      n   s   l
+      |       |
+      e       u
+              |
+              s
+
+Radix Tree (same keys, compressed):
+
+                    (root)
+                  /    |    \
+            [roman]  [rub]  [...]
+            /    \     |   \
+        [e]      [us] [en] [icon]
+                               |
+                           [undus]

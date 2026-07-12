@@ -1,0 +1,4615 @@
+\chapter{Binary Search Trees and Balanced Search Trees}\label{ch11:binary-search-trees-and-balanced-search-trees}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Binary Search Trees}
+
+A \textbf{binary search tree (BST)} is a binary tree where for every node:
+\begin{itemize}
+\item All keys in the \textbf{left subtree} are less than the node's key
+\item All keys in the \textbf{right subtree} are greater than the node's key
+\end{itemize}
+
+\begin{lstlisting}[language=Java]
+          [50]
+        /      \
+      [30]     [70]
+     /   \     /  \
+   [20]  [40] [60] [80]
+\end{lstlisting}
+
+\subsection{BST Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class bst {
+public:
+    using node_ptr = std::unique_ptr<node>;
+
+    bst() = default;
+
+    void insert(const K& key, const V& value) {
+        insert(root_, key, value);
+    }
+
+    std::optional<V> find(const K& key) const {
+        auto* n = find(root_.get(), key);
+        if (n) return n->value;
+        return std::nullopt;
+    }
+
+    void erase(const K& key) {
+        root_ = erase(std::move(root_), key);
+    }
+
+    void inorder(std::ostream& os) const {
+        inorder(root_.get(), os);
+    }
+
+private:
+    struct node {
+        K key;
+        V value;
+        node_ptr left;
+        node_ptr right;
+
+        node(const K& k, const V& v) : key(k), value(v) {}
+    };
+
+    static void insert(node_ptr& n, const K& key, const V& value) {
+        if (!n) {
+            n = std::make_unique<node>(key, value);
+            return;
+        }
+        if (key < n->key) insert(n->left, key, value);
+        else if (key > n->key) insert(n->right, key, value);
+        else n->value = value;  // update
+    }
+
+    static node* find(node* n, const K& key) {
+        if (!n) return nullptr;
+        if (key < n->key) return find(n->left.get(), key);
+        if (key > n->key) return find(n->right.get(), key);
+        return n;
+    }
+
+    static node_ptr erase(node_ptr n, const K& key) {
+        if (!n) return nullptr;
+        if (key < n->key) {
+            n->left = erase(std::move(n->left), key);
+            return n;
+        }
+        if (key > n->key) {
+            n->right = erase(std::move(n->right), key);
+            return n;
+        }
+
+        // Found the node -- handle the three cases
+        if (!n->left) return std::move(n->right);
+        if (!n->right) return std::move(n->left);
+
+        // Two children: replace with inorder successor
+        auto successor = find_min(std::move(n->right));
+        successor->right = delete_min(std::move(n->right));
+        successor->left = std::move(n->left);
+        return successor;
+    }
+
+    static node_ptr find_min(node_ptr n) {
+        auto* current = n.get();
+        while (current && current->left) current = current->left.get();
+        auto result = std::make_unique<node>(current->key, current->value);
+        return result;
+    }
+
+    static node_ptr delete_min(node_ptr n) {
+        if (!n->left) return std::move(n->right);
+        n->left = delete_min(std::move(n->left));
+        return n;
+    }
+
+    static void inorder(node* n, std::ostream& os) {
+        if (!n) return;
+        inorder(n->left.get(), os);
+        os << n->key << " ";
+        inorder(n->right.get(), os);
+    }
+
+    node_ptr root_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Average Case & Worst Case \\
+find & O(log n) & O(n) \\
+insert & O(log n) & O(n) \\
+erase & O(log n) & O(n) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+The worst case occurs when keys are inserted in sorted (or reverse sorted) order — the BST degenerates into a linked list. \textbf{Balanced trees} solve this problem.
+
+\section{AVL Trees}
+
+An \textbf{AVL tree} (Adelson-Velsky and Landis, 1962) maintains the invariant: for every node, the heights of its left and right subtrees differ by at most 1.
+
+\textbf{Balance factor:} height(left) - height(right) $\in $ {-1, 0, 1}
+
+\subsection{Rotations}
+
+When an insertion or deletion violates the balance invariant, we perform \textbf{rotations} to restore it.
+
+\textbf{Right rotation (LL imbalance):}
+
+\begin{lstlisting}[language=Java]
+    [z] (bf = 2)           [y]
+    /             ->          /  \
+  [y] (bf = 1)          [x]   [z]
+  /
+[x]
+\end{lstlisting}
+
+\textbf{Left rotation (RR imbalance):}
+
+\begin{lstlisting}[language=Java]
+[z] (bf = -2)               [y]
+   \               ->         /  \
+   [y] (bf = -1)        [z]   [x]
+     \
+     [x]
+\end{lstlisting}
+
+\textbf{Left-right rotation (LR imbalance):}
+
+\begin{lstlisting}[language=Java]
+    [z]               [z]            [x]
+    /                 /             /  \
+  [y]       ->         [x]      ->      [y]  [z]
+    \               /
+    [x]           [y]
+\end{lstlisting}
+
+\textbf{Right-left rotation (RL imbalance):} symmetric.
+
+\subsection{AVL Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class avl_tree {
+    struct avl_node {
+        K key;
+        V value;
+        std::unique_ptr<avl_node> left;
+        std::unique_ptr<avl_node> right;
+        int height = 1;
+
+        avl_node(const K& k, const V& v) : key(k), value(v) {}
+    };
+
+    using node_ptr = std::unique_ptr<avl_node>;
+
+    int height(const avl_node* n) const {
+        return n ? n->height : 0;
+    }
+
+    int balance_factor(const avl_node* n) const {
+        return height(n->left.get()) - height(n->right.get());
+    }
+
+    void update_height(avl_node* n) {
+        n->height = 1 + std::max(height(n->left.get()), height(n->right.get()));
+    }
+
+    // Right rotation
+    node_ptr rotate_right(node_ptr z) {
+        auto y = std::move(z->left);
+        z->left = std::move(y->right);
+        update_height(z.get());
+        y->right = std::move(z);
+        update_height(y.get());
+        return y;
+    }
+
+    // Left rotation
+    node_ptr rotate_left(node_ptr z) {
+        auto y = std::move(z->right);
+        z->right = std::move(y->left);
+        update_height(z.get());
+        y->left = std::move(z);
+        update_height(y.get());
+        return y;
+    }
+
+    // Rebalance: apply rotations if needed
+    node_ptr rebalance(node_ptr n) {
+        if (!n) return nullptr;
+        update_height(n.get());
+        int bf = balance_factor(n.get());
+
+        if (bf > 1) {
+            // Left-heavy: check left child's balance
+            if (balance_factor(n->left.get()) < 0) {
+                n->left = rotate_left(std::move(n->left));
+            }
+            return rotate_right(std::move(n));
+        }
+        if (bf < -1) {
+            // Right-heavy: check right child's balance
+            if (balance_factor(n->right.get()) > 0) {
+                n->right = rotate_right(std::move(n->right));
+            }
+            return rotate_left(std::move(n));
+        }
+        return n;
+    }
+
+public:
+    void insert(const K& key, const V& value) {
+        root_ = insert(std::move(root_), key, value);
+    }
+
+    void erase(const K& key) {
+        root_ = erase(std::move(root_), key);
+    }
+
+    std::optional<V> find(const K& key) const {
+        auto* n = find(root_.get(), key);
+        return n ? std::optional<V>(n->value) : std::nullopt;
+    }
+
+private:
+    node_ptr insert(node_ptr n, const K& key, const V& value) {
+        if (!n) return std::make_unique<avl_node>(key, value);
+        if (key < n->key) n->left = insert(std::move(n->left), key, value);
+        else if (key > n->key) n->right = insert(std::move(n->right), key, value);
+        else n->value = value;  // update
+        return rebalance(std::move(n));
+    }
+
+    node_ptr erase(node_ptr n, const K& key) {
+        if (!n) return nullptr;
+        if (key < n->key) {
+            n->left = erase(std::move(n->left), key);
+        } else if (key > n->key) {
+            n->right = erase(std::move(n->right), key);
+        } else {
+            if (!n->left) return std::move(n->right);
+            if (!n->right) return std::move(n->left);
+            // Two children: find inorder successor
+            auto successor = find_min(std::move(n->right));
+            successor->right = delete_min(std::move(n->right));
+            successor->left = std::move(n->left);
+            return rebalance(std::move(successor));
+        }
+        return rebalance(std::move(n));
+    }
+
+    static avl_node* find(avl_node* n, const K& key) {
+        if (!n) return nullptr;
+        if (key < n->key) return find(n->left.get(), key);
+        if (key > n->key) return find(n->right.get(), key);
+        return n;
+    }
+
+    node_ptr root_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+All operations: O(log n) worst case — guaranteed, not just expected.
+
+\section{Red-Black Trees}\label{sec:red-black}
+
+Red-black trees are an alternative balancing scheme that powers \texttt{std::map} and \texttt{std::set}.
+
+\textbf{Properties:}
+\begin{enumerate}
+\item Every node is red or black
+\item The root is black
+\item Leaves (null children) are black
+\item Red nodes cannot have red children (no two consecutive reds)
+\item Every path from root to leaf has the same number of black nodes
+\end{enumerate}
+
+These properties guarantee that the longest path from root to leaf is at most 2$\times $ the shortest path, giving O(log n) height.
+
+Red-black trees are more complex to implement than AVL trees but require fewer rotations during insertion (O(1) vs O(log n)). This makes them preferred in practice for \texttt{std::map}.
+
+\subsection{RB Tree Implementation}
+
+The red-black tree below uses the same recursive approach as our AVL tree. After inserting a new red node, the recursion unrolls and checks for red-red violations at the grandparent level. The three fixup cases match the standard algorithm: recolor when the uncle is red, straight rotation when the red child is on the outside, and zig-zag rotation when it is on the inside.
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V, typename Compare = std::less<K>>
+class rb_tree {
+    enum color { RED, BLACK };
+
+    struct rb_node {
+        K key;
+        V value;
+        color col = RED;
+        std::unique_ptr<rb_node> left;
+        std::unique_ptr<rb_node> right;
+
+        rb_node(const K& k, const V& v) : key(k), value(v) {}
+    };
+
+    using node_ptr = std::unique_ptr<rb_node>;
+    Compare comp_;
+    node_ptr root_;
+
+    static bool is_red(const rb_node* n) { return n && n->col == RED; }
+
+    node_ptr rotate_left(node_ptr x) {
+        auto y = std::move(x->right);
+        x->right = std::move(y->left);
+        y->left = std::move(x);
+        return y;
+    }
+
+    node_ptr rotate_right(node_ptr y) {
+        auto x = std::move(y->left);
+        y->left = std::move(x->right);
+        x->right = std::move(y);
+        return x;
+    }
+
+    // Fix red-red violations on the way back up.
+    // n is the grandparent of the red-red pair.
+    node_ptr fixup(node_ptr n) {
+        if (!n) return nullptr;
+
+        // Left subtree violation
+        if (is_red(n->left) && (is_red(n->left->left) || is_red(n->left->right))) {
+            if (is_red(n->right)) {
+                // Case 1: uncle is red  ->  recolor
+                n->left->col = BLACK;
+                n->right->col = BLACK;
+                n->col = RED;
+            } else {
+                // Cases 2/3: uncle is black  ->  rotate
+                if (is_red(n->left->right)) {
+                    // LR: zig-zag -- rotate left at child first
+                    n->left = rotate_left(std::move(n->left));
+                }
+                // LL: straight -- rotate right at grandparent
+                n = rotate_right(std::move(n));
+                n->col = BLACK;
+                n->right->col = RED;
+            }
+            return n;
+        }
+
+        // Right subtree violation (symmetric)
+        if (is_red(n->right) && (is_red(n->right->left) || is_red(n->right->right))) {
+            if (is_red(n->left)) {
+                n->left->col = BLACK;
+                n->right->col = BLACK;
+                n->col = RED;
+            } else {
+                if (is_red(n->right->left)) {
+                    n->right = rotate_right(std::move(n->right));
+                }
+                n = rotate_left(std::move(n));
+                n->col = BLACK;
+                n->left->col = RED;
+            }
+        }
+        return n;
+    }
+
+    node_ptr insert(node_ptr n, const K& key, const V& value) {
+        if (!n) return std::make_unique<rb_node>(key, value);
+
+        if (comp_(key, n->key))
+            n->left = insert(std::move(n->left), key, value);
+        else if (comp_(n->key, key))
+            n->right = insert(std::move(n->right), key, value);
+        else {
+            n->value = value;
+            return n;
+        }
+        return fixup(std::move(n));
+    }
+
+public:
+    void insert(const K& key, const V& value) {
+        root_ = insert(std::move(root_), key, value);
+        if (root_) root_->col = BLACK;
+    }
+
+    std::optional<V> find(const K& key) const {
+        auto* n = root_.get();
+        while (n) {
+            if (comp_(key, n->key))      n = n->left.get();
+            else if (comp_(n->key, key)) n = n->right.get();
+            else return n->value;
+        }
+        return std::nullopt;
+    }
+};
+\end{lstlisting}
+
+The algorithm mirrors the standard bottom-up fixup but expressed recursively:
+\begin{enumerate}
+\item \textbf{Case 1 (uncle is red):} recolor the parent, uncle, and grandparent. The grandparent becomes red, which may create a new red-red violation higher up — handled by the next recursive return.
+\item \textbf{Case 2 (zig-zag):} the red child is an \textit{inside} grandchild (LR or RL). A rotation at the child level straightens the chain into Case 3.
+\item \textbf{Case 3 (straight):} the red child is an \textit{outside} grandchild (LL or RR). A rotation at the grandparent followed by recoloring resolves the violation permanently.
+\end{enumerate}
+
+Red-black trees require O(1) rotations per insertion (amortized), compared to O(log n) for AVL trees. This makes \texttt{std::map} and \texttt{std::set} prefer red-black trees in practice.
+
+\section{B-Trees}
+
+B-trees generalize binary search trees to nodes with multiple keys and children. They are the foundation of database indexing.
+
+A B-tree of order m has:
+\begin{itemize}
+\item Every node has at most m children
+\item Every node (except root) has at least $\lceil $m/2$\rceil $ children
+\item A non-leaf node with k children has k-1 keys
+\item All leaves are at the same depth
+\end{itemize}
+
+\textbf{B+ Trees} store all keys in leaves (linked for sequential access) and use internal nodes as routing indexes. This is the standard for relational database indexes.
+
+\begin{lstlisting}[language=C++]
+// Simplified B+ tree internal node concept:
+struct btree_node {
+    std::vector<int> keys;           // separating keys
+    std::vector<btree_node*> children; // child pointers
+    bool is_leaf;
+};
+\end{lstlisting}
+
+B-trees are covered more thoroughly in database textbooks; we mention them here for completeness and as a bridge to external-memory data structures.
+
+\section{B+ Trees}
+
+A \textbf{B+ tree} is a variant of the B-tree where all data records reside in leaf nodes, and internal nodes serve purely as a routing index. The leaf nodes are linked together, enabling efficient sequential access and range queries. This design makes B+ trees the dominant index structure in relational databases (MySQL InnoDB, PostgreSQL, SQLite).
+
+\subsection{B+ Tree vs B-tree}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Property & B-tree & B+ tree \\
+\midrule
+Data location & All nodes & Leaves only \\
+Internal node size & Larger (has data) & Smaller (keys only) \\
+Fanout & Lower & Higher (more keys per node) \\
+Range queries & Tree traversal & Leaf linked list \\
+Sequential access & Slow & Fast \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Higher fanout means shorter trees: a B+ tree of order $m$ with only keys in internal nodes fits more keys per page, reducing tree height and disk I/O.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+  Internal nodes (keys guide search):
+       [30 | 60]
+      /    |    \
+     v     v     v
+  +------+ +------+ +------+
+  |10|20 | |40|50 | |70|80 |   <-- leaf nodes
+  +------+ +------+ +------+
+     |   ->    |   ->    |     <-- leaf linked list
+     +------+ +------+ +------+
+     |10|20 | |40|50 | |70|80 |
+     +------+ +------+ +------+
+\end{lstlisting}
+
+\subsection{B+ Tree Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class bplus_tree {
+    static constexpr int MAX_KEYS = 3;
+
+    struct node {
+        std::vector<K> keys;
+        std::vector<V> values;           // only meaningful for leaves
+        std::vector<std::unique_ptr<node>> children;
+        node* next = nullptr;            // leaf linked list
+        bool is_leaf;
+
+        node(bool leaf) : is_leaf(leaf) {}
+    };
+
+    std::unique_ptr<node> root_;
+
+    std::optional<V> search(const node* n, const K& key) const {
+        if (!n) return std::nullopt;
+        if (n->is_leaf) {
+            for (size_t i = 0; i < n->keys.size(); ++i)
+                if (n->keys[i] == key) return n->values[i];
+            return std::nullopt;
+        }
+        size_t i = 0;
+        while (i < n->keys.size() && key >= n->keys[i]) ++i;
+        return search(n->children[i].get(), key);
+    }
+
+    void split_child(node* parent, int child_index) {
+        auto& child = parent->children[child_index];
+        auto right = std::make_unique<node>(child->is_leaf);
+        size_t mid = child->keys.size() / 2;
+
+        if (child->is_leaf) {
+            right->keys.assign(child->keys.begin() + mid, child->keys.end());
+            right->values.assign(child->values.begin() + mid, child->values.end());
+            right->next = child->next;
+            child->next = right.get();
+            child->keys.resize(mid);
+            child->values.resize(mid);
+            parent->keys.insert(parent->keys.begin() + child_index,
+                                right->keys[0]);
+        } else {
+            right->keys.assign(child->keys.begin() + mid + 1, child->keys.end());
+            child->keys.resize(mid);
+            K up_key = child->keys[mid];
+            child->keys.pop_back();
+            for (size_t i = mid + 1; i < child->children.size(); ++i)
+                right->children.push_back(std::move(child->children[i]));
+            child->children.resize(mid + 1);
+            parent->keys.insert(parent->keys.begin() + child_index, up_key);
+        }
+        parent->children.insert(parent->children.begin() + child_index + 1,
+                                std::move(right));
+    }
+
+    void insert_non_full(node* n, const K& key, const V& value) {
+        if (n->is_leaf) {
+            auto it = std::lower_bound(n->keys.begin(), n->keys.end(), key);
+            size_t pos = it - n->keys.begin();
+            n->keys.insert(it, key);
+            n->values.insert(n->values.begin() + pos, value);
+            return;
+        }
+        size_t i = 0;
+        while (i < n->keys.size() && key >= n->keys[i]) ++i;
+        if (n->children[i]->keys.size() == 2 * MAX_KEYS) {
+            split_child(n, i);
+            if (key >= n->keys[i]) ++i;
+        }
+        insert_non_full(n->children[i].get(), key, value);
+    }
+
+public:
+    void insert(const K& key, const V& value) {
+        if (!root_) {
+            root_ = std::make_unique<node>(true);
+            root_->keys.push_back(key);
+            root_->values.push_back(value);
+            return;
+        }
+        if (root_->keys.size() == 2 * MAX_KEYS) {
+            auto new_root = std::make_unique<node>(false);
+            new_root->children.push_back(std::move(root_));
+            split_child(new_root.get(), 0);
+            root_ = std::move(new_root);
+        }
+        insert_non_full(root_.get(), key, value);
+    }
+
+    std::optional<V> find(const K& key) const {
+        return search(root_.get(), key);
+    }
+
+    std::vector<std::pair<K, V>> range_query(const K& lo, const K& hi) const {
+        std::vector<std::pair<K, V>> result;
+        const node* n = root_.get();
+        while (n && !n->is_leaf) n = n->children[0].get();
+        while (n) {
+            for (size_t i = 0; i < n->keys.size(); ++i) {
+                if (n->keys[i] > hi) return result;
+                if (n->keys[i] >= lo)
+                    result.emplace_back(n->keys[i], n->values[i]);
+            }
+            n = n->next;
+        }
+        return result;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Time & Notes \\
+Search & O(log n) & Height is $\log_{m}(n)$ \\
+Insert & O(log n) & Split propagates up \\
+Delete & O(log n) & Merge/redistribute \\
+Range query & O(log n + k) & $k$ = number of results \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $m$ is the order (max children per node). In practice, $m$ is chosen so each node fits a disk page (e.g., $m = 256$ for 4 KB pages and 8-byte keys), giving a tree height of 3--4 for millions of records.
+
+\textbf{When to use B+ trees:} Database indexes, file systems (NTFS, ext4), and any disk-based sorted container. The linked leaf list makes range scans and order-by queries extremely efficient.
+
+\section{Scapegoat Trees}
+
+A \textbf{scapegoat tree} (Galperin and Rivest, 1993) is a self-balancing BST that maintains balance through periodic full rebuilds. Unlike AVL or red-black trees, it stores no per-node balance information --- no height, color, or priority field. It simply detects when a subtree becomes too unbalanced and rebuilds the entire subtree as a perfectly balanced BST.
+
+\subsection{Weight Balance Invariant}
+
+A node $x$ is called a \textbf{scapegoat} if the size of its larger child is greater than $\frac{2}{3}$ of the size of $x$ itself:
+
+\begin{lstlisting}[language=Java]
+    [x] (size = 9)
+   /    \
+ [A]    [B] (size = 7)
+              (7 > 2/3 * 9 = 6, so x is scapegoat)
+
+ Rebuild entire subtree rooted at x as a
+ perfectly balanced BST:
+
+        [rebalanced]
+        /           \
+      ...           ...
+\end{lstlisting}
+
+\subsection{Scapegoat Tree Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class scapegoat_tree {
+    struct node {
+        K key;
+        V value;
+        std::unique_ptr<node> left;
+        std::unique_ptr<node> right;
+        node(const K& k, const V& v) : key(k), value(v) {}
+    };
+
+    using node_ptr = std::unique_ptr<node>;
+    node_ptr root_;
+    int n_ = 0;
+    static constexpr double ALPHA = 2.0 / 3.0;
+
+    static int size(const node* n) {
+        if (!n) return 0;
+        return 1 + size(n->left.get()) + size(n->right.get());
+    }
+
+    static node* find_scapegoat(node* n, const K& key) {
+        if (!n) return nullptr;
+        int left_sz = size(n->left.get());
+        int right_sz = size(n->right.get());
+        int nsz = 1 + left_sz + right_sz;
+        if (left_sz > ALPHA * nsz || right_sz > ALPHA * nsz)
+            return n;
+        if (key < n->key) return find_scapegoat(n->left.get(), key);
+        if (key > n->key) return find_scapegoat(n->right.get(), key);
+        return nullptr;
+    }
+
+    static void flatten(node* n, std::vector<node*>& out) {
+        if (!n) return;
+        flatten(n->left.get(), out);
+        out.push_back(n);
+        flatten(n->right.get(), out);
+    }
+
+    static node_ptr build_balanced(std::vector<node*>& nodes,
+                                    int lo, int hi) {
+        if (lo > hi) return nullptr;
+        int mid = (lo + hi) / 2;
+        auto n = node_ptr(nodes[mid]);
+        n->left = build_balanced(nodes, lo, mid - 1);
+        n->right = build_balanced(nodes, mid + 1, hi);
+        return n;
+    }
+
+    node_ptr rebuild(node_ptr root, const K& key) {
+        std::vector<node*> nodes;
+        flatten(root.get(), nodes);
+        for (auto* nd : nodes) { nd->left.reset(); nd->right.reset(); }
+        return build_balanced(nodes, 0, nodes.size() - 1);
+    }
+
+    node_ptr insert(node_ptr n, const K& key, const V& value,
+                    node*& scapegoat) {
+        if (!n) { ++n_; return std::make_unique<node>(key, value); }
+        if (key < n->key)
+            n->left = insert(std::move(n->left), key, value, scapegoat);
+        else if (key > n->key)
+            n->right = insert(std::move(n->right), key, value, scapegoat);
+        else { n->value = value; return n; }
+        if (!scapegoat) {
+            int left_sz = size(n->left.get());
+            int right_sz = size(n->right.get());
+            int nsz = 1 + left_sz + right_sz;
+            if (left_sz > ALPHA * nsz || right_sz > ALPHA * nsz)
+                scapegoat = n.get();
+        }
+        return n;
+    }
+
+public:
+    void insert(const K& key, const V& value) {
+        node* scapegoat = nullptr;
+        root_ = insert(std::move(root_), key, value, scapegoat);
+        if (scapegoat) root_ = rebuild(std::move(root_), scapegoat->key);
+    }
+
+    std::optional<V> find(const K& key) const {
+        auto* n = root_.get();
+        while (n) {
+            if (key < n->key) n = n->left.get();
+            else if (key > n->key) n = n->right.get();
+            else return n->value;
+        }
+        return std::nullopt;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Worst Case & Amortized \\
+Find & O(log n) & O(log n) \\
+Insert & O(n) rebuild & O(log n) amortized \\
+Erase & O(n) rebuild & O(log n) amortized \\
+\midrule
+Memory per node & -- & 2 pointers, no balance info \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The key insight is that while a single insert may trigger an O(n) rebuild, that rebuild happens rarely enough that the \textbf{amortized} cost per insert is O(log n).
+
+\textbf{When to use scapegoat trees:} When you want a simple self-balancing BST without per-node balance fields. The trade-off is that worst-case single-operation time can be O(n) (during a rebuild), so avoid scapegoat trees when predictable worst-case latency is required.
+
+\section{Treaps (Randomized BST)}
+
+A \textbf{treap} (tree + heap) combines a BST key with a random priority. The tree is a BST by key and a max-heap by priority. With high probability, the tree is balanced.
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class treap {
+    struct treap_node {
+        K key;
+        V value;
+        int priority;
+        std::unique_ptr<treap_node> left;
+        std::unique_ptr<treap_node> right;
+
+        treap_node(const K& k, const V& v)
+            : key(k), value(v), priority(std::rand()) {}
+    };
+
+    node_ptr rotate_right(node_ptr p) {
+        node_ptr q = std::move(p->left);
+        p->left = std::move(q->right);
+        q->right = std::move(p);
+        return q;
+    }
+
+    node_ptr rotate_left(node_ptr p) {
+        node_ptr q = std::move(p->right);
+        p->right = std::move(q->left);
+        q->left = std::move(p);
+        return q;
+    }
+
+    node_ptr insert(node_ptr n, const K& key, const V& value) {
+        if (!n) return std::make_unique<treap_node>(key, value);
+        if (key < n->key) {
+            n->left = insert(std::move(n->left), key, value);
+            if (n->left->priority > n->priority)
+                n = rotate_right(std::move(n));
+        } else if (key > n->key) {
+            n->right = insert(std::move(n->right), key, value);
+            if (n->right->priority > n->priority)
+                n = rotate_left(std::move(n));
+        } else {
+            n->value = value;
+        }
+        return n;
+    }
+};
+\end{lstlisting}
+
+\textbf{Expected complexity:} O(log n) for all operations. The randomization avoids worst-case inputs.
+
+\section{Splay Trees}\label{sec:splay}
+
+A \textbf{splay tree} (Sleator and Tarjan, 1985) is a self-adjusting BST that moves every accessed node to the root using \textbf{splay operations}. No extra storage is needed — no height, color, or priority field — just the standard left and right pointers. Every operation runs in O(log n) \textit{amortized} time.
+
+\subsection{The Splay Operation}
+
+Splaying moves a node $x$ to the root through a sequence of \textbf{zig}, \textbf{zig-zig}, and \textbf{zig-zag} steps. The key insight: when walking up from $x$ to the root, we apply rotations in pairs from the bottom up, not individually from the top down.
+
+\textbf{Zig (x is child of root):} A single rotation brings $x$ to the root.
+
+\begin{lstlisting}[language=Java]
+       [p]              [x]
+      /    \      ->      /    \
+    [x]    ...        ...   [p]
+   /   \                     ...
+  ...  ...
+
+\end{lstlisting}
+
+\textbf{Zig-zig (x and parent are both left children or both right children):} Rotate at the grandparent first, then at the parent.
+
+\begin{lstlisting}[language=Java]
+      [g]                 [x]
+     /    \              /    \
+   [p]    ...     ->     [p's    [g]
+   /   \              left]  /   \
+ [x]   ...                  ...  ...
+/   \
+... ...
+
+\end{lstlisting}
+
+The order matters: grandparent rotation first, then parent rotation. This is the opposite of what intuition suggests, and it's what makes splay trees work.
+
+\textbf{Zig-zag (x and parent are in different directions):} Rotate at the parent, then at the grandparent (standard double rotation).
+
+\begin{lstlisting}[language=Java]
+    [g]               [x]
+   /    \            /    \
+ ...   [p]     ->     [g]   [p's
+       /   \       / \    right]
+     ...  [x]   ... ...
+
+\end{lstlisting}
+
+\subsection{Splay Tree Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class splay_tree {
+    struct node {
+        K key;
+        V value;
+        std::unique_ptr<node> left;
+        std::unique_ptr<node> right;
+
+        node(const K& k, const V& v) : key(k), value(v) {}
+    };
+
+    using node_ptr = std::unique_ptr<node>;
+    node_ptr root_;
+
+    // Right rotation (zig)
+    node_ptr rotate_right(node_ptr p) {
+        auto x = std::move(p->left);
+        p->left = std::move(x->right);
+        x->right = std::move(p);
+        return x;
+    }
+
+    // Left rotation (zig)
+    node_ptr rotate_left(node_ptr p) {
+        auto x = std::move(p->right);
+        p->right = std::move(x->left);
+        x->left = std::move(p);
+        return x;
+    }
+
+    // Splay node with given key to the root.
+    // Returns the new root of the splayed subtree.
+    node_ptr splay(node_ptr n, const K& key) {
+        if (!n || n->key == key) return n;
+
+        // Dummy root to simplify zig at the real root
+        node dummy(K{}, V{});
+        node_ptr* parent_link = &dummy.right;
+
+        while (n && n->key != key) {
+            if (key < n->key) {
+                if (!n->left) break;
+                if (key < n->left->key) {
+                    // Zig-zig: left-left
+                    n = rotate_right(std::move(n));
+                    if (!n->left) break;
+                }
+                // Link n's left child up, move down
+                *parent_link = std::move(n);
+                parent_link = &(*parent_link)->left;
+                n = std::move(*parent_link);
+            } else {
+                if (!n->right) break;
+                if (key > n->right->key) {
+                    // Zig-zig: right-right
+                    n = rotate_left(std::move(n));
+                    if (!n->right) break;
+                }
+                // Link n's right child up, move down
+                *parent_link = std::move(n);
+                parent_link = &(*parent_link)->right;
+                n = std::move(*parent_link);
+            }
+        }
+
+        // Final rotation to bring accessed node to root
+        if (n) {
+            if (key < n->key) {
+                auto right = std::move(n->right);
+                n->right = nullptr;
+                auto rotated = rotate_right(std::move(n));
+                rotated->right = std::move(right);
+                *parent_link = std::move(rotated);
+            } else {
+                auto left = std::move(n->left);
+                n->left = nullptr;
+                auto rotated = rotate_left(std::move(n));
+                rotated->left = std::move(left);
+                *parent_link = std::move(rotated);
+            }
+        }
+
+        return std::move(dummy.right);
+    }
+
+public:
+    void insert(const K& key, const V& value) {
+        if (!root_) {
+            root_ = std::make_unique<node>(key, value);
+            return;
+        }
+        root_ = splay(std::move(root_), key);
+        if (root_->key == key) {
+            root_->value = value;
+            return;
+        }
+        auto new_node = std::make_unique<node>(key, value);
+        if (key < root_->key) {
+            new_node->right = std::move(root_);
+            new_node->left = std::move(new_node->right->left);
+            new_node->right->left = nullptr;
+        } else {
+            new_node->left = std::move(root_);
+            new_node->right = std::move(new_node->left->right);
+            new_node->left->right = nullptr;
+        }
+        root_ = std::move(new_node);
+    }
+
+    std::optional<V> find(const K& key) {
+        if (!root_) return std::nullopt;
+        root_ = splay(std::move(root_), key);
+        if (root_->key == key) return root_->value;
+        return std::nullopt;
+    }
+
+    void erase(const K& key) {
+        if (!root_ || root_->key != key) return;
+        if (!root_->left) {
+            root_ = std::move(root_->right);
+            return;
+        }
+        auto right = std::move(root_->right);
+        root_ = std::move(root_->left);
+        root_ = splay(std::move(root_), key);
+        root_->right = std::move(right);
+    }
+};
+\end{lstlisting}
+
+The splay operation has an elegant property: it doesn't just move the accessed node to the root — it also roughly halves the depth of every node on the path. This means recent accesses benefit from shorter paths, and the tree self-organizes based on access patterns.
+
+\subsection{Amortized Analysis}
+
+Splay trees don't guarantee O(log n) per individual operation — some operations may take O(n) in the worst case. But the \textbf{amortized} cost (average over a sequence of operations) is O(log n).
+
+The intuition: each splay halves the depth of nodes on the access path. After splaying node $x$ to the root, the cost of future accesses to nearby nodes is reduced. The ``savings'' from these faster future accesses pay for the current splay.
+
+The formal proof uses the \textbf{potential method}: define $\Phi = \sum_r \log(\text{size of subtree rooted at } r)$. Each splay increases $\Phi$ by at most $3 \log n - 3 \log(\text{subtree size}) + O(1)$, which bounds the amortized cost.
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Worst Case & Amortized \\
+find & O(n) & O(log n) \\
+insert & O(n) & O(log n) \\
+erase & O(n) & O(log n) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+The amortized bound is the important one --- over any sequence of $m$ operations on an $n$-element splay tree, the total time is $O(m \log n)$.
+
+\section{Van Emde Boas Trees}
+
+A \textbf{Van Emde Boas (vEB) tree} (van Emde Boas, 1977) supports insert, delete, search, predecessor, and successor on integer keys from a bounded universe $[0, U)$ in $O(\log \log U)$ time. This is dramatically faster than the $O(\log n)$ achieved by comparison-based trees --- but it trades space and generality for speed.
+
+\subsection{The Recursive Idea}
+
+The key insight: split the universe of size $U$ into $\sqrt{U}$ \textbf{clusters}, each of size $\sqrt{U}$. A \textbf{summary} structure tracks which clusters are non-empty. Within each cluster, recurse.
+
+\begin{lstlisting}[language=Java]
+  Universe [0, U) split into sqrt(U) clusters:
+
+  summary:  [0] [1] [2] [3] ... [sqrt(U)-1]
+              |   |   |   |          |
+  clusters: [C0][C1][C2][C3]...[C_{sqrt(U)-1}]
+            each cluster has sqrt(U) bits
+
+  To find successor(x):
+    1. Find which cluster x belongs to (high bits)
+    2. Find successor within that cluster (low bits)
+    3. If no successor in that cluster, find next
+       non-empty cluster via summary, then find
+       minimum in that cluster.
+\end{lstlisting}
+
+\subsection{VEB Tree Implementation}
+
+The implementation below handles a universe up to $U = 2^{16} = 65536$.
+
+\begin{lstlisting}[language=C++]
+class veb_tree {
+    static constexpr int BITS = 16;
+    int universe;
+    int min = -1, max = -1;
+    std::unique_ptr<veb_tree> summary;
+    std::vector<std::unique_ptr<veb_tree>> clusters;
+
+    int high(int x) const { return x >> (BITS / 2); }
+    int low(int x) const  { return x & ((1 << (BITS / 2)) - 1); }
+    int index(int h, int l) const { return (h << (BITS / 2)) | l; }
+
+    void init_clusters() {
+        int sq = 1 << (BITS / 2);
+        summary = std::make_unique<veb_tree>(sq);
+        clusters.resize(sq);
+        for (auto& c : clusters) c = std::make_unique<veb_tree>(sq);
+    }
+
+public:
+    veb_tree(int u) : universe(u) {
+        if (u <= 2) return;
+        init_clusters();
+    }
+
+    bool is_empty() const { return min == -1; }
+
+    void insert(int x) {
+        if (min == -1) { min = max = x; return; }
+        if (x < min) std::swap(x, min);
+        if (x > max) max = x;
+        int h = high(x), l = low(x);
+        if (clusters[h]->is_empty()) {
+            summary->insert(h);
+            clusters[h]->min = clusters[h]->max = l;
+        } else {
+            clusters[h]->insert(l);
+        }
+    }
+
+    bool find(int x) const {
+        if (x == min || x == max) return true;
+        if (universe <= 2) return false;
+        return clusters[high(x)]->find(low(x));
+    }
+
+    int successor(int x) const {
+        if (universe <= 2) {
+            if (x == 0 && max == 1) return 1;
+            return -1;
+        }
+        int h = high(x), l = low(x);
+        if (!clusters[h]->is_empty() && clusters[h]->max >= l) {
+            int s = clusters[h]->successor(l);
+            return index(h, s);
+        }
+        int next_cluster = summary->successor(h);
+        if (next_cluster == -1) return -1;
+        return index(next_cluster, clusters[next_cluster]->min);
+    }
+
+    void erase(int x) {
+        if (min == max) { min = max = -1; return; }
+        if (universe <= 2) {
+            if (x == 0) min = 1; else min = 0;
+            max = min; return;
+        }
+        if (x == min) {
+            int first_cluster = summary->min;
+            min = index(first_cluster, clusters[first_cluster]->min);
+            x = min;
+        }
+        int h = high(x), l = low(x);
+        clusters[h]->erase(l);
+        if (clusters[h]->is_empty()) {
+            summary->erase(h);
+            if (x == max) {
+                if (summary->is_empty()) max = min;
+                else {
+                    int last = summary->max;
+                    max = index(last, clusters[last]->max);
+                }
+            }
+        } else if (x == max) {
+            max = index(h, clusters[h]->max);
+        }
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Time & Space \\
+Insert & $O(\log \log U)$ & $O(U)$ \\
+Delete & $O(\log \log U)$ & $O(U)$ \\
+Search & $O(\log \log U)$ & $O(U)$ \\
+Predecessor & $O(\log \log U)$ & $O(U)$ \\
+Successor & $O(\log \log U)$ & $O(U)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $U$ is the size of the universe.
+
+\textbf{Limitations:}
+\begin{itemize}
+\item Requires a \textbf{bounded integer universe} $[0, U)$. Does not work with arbitrary keys.
+\item Basic version uses $O(U)$ space --- practical only for moderate $U$ (up to $\sim 2^{16}$ or $2^{32}$ with optimizations).
+\item The $O(U)$ space can be reduced to $O(n)$ using hash tables for the clusters, but this increases the constant factor.
+\end{itemize}
+
+\textbf{When to use vEB trees:} When you need faster-than-$O(\log n)$ operations on dense integer keys with a known upper bound. Examples include network router forwarding tables, priority scheduling with a bounded range, and as a subroutine in faster algorithms (e.g., $O(n \log \log n)$ integer sorting).
+
+\section{k-d Trees}
+
+A \textbf{k-d tree} (Bentley, 1975) is a binary space-partitioning tree that organizes points in $k$-dimensional space. Each node splits the space along one coordinate axis, alternating between dimensions at each level. k-d trees support efficient \textbf{nearest-neighbor search} and \textbf{range queries} in low dimensions.
+
+\subsection{Structure}
+
+A k-d tree of dimension $k$ is a binary tree where:
+\begin{itemize}
+\item Each node stores a $k$-dimensional point
+\item The root splits along axis 0 (the first dimension)
+\item Its children split along axis 1, then axis 2, ..., axis $k{-}1$, then back to axis 0
+\item The left subtree contains all points with smaller values on the split axis
+\item The right subtree contains all points with larger values
+\end{itemize}
+
+\begin{lstlisting}[language=Java]
+  Split x=50
+       [50, 70]
+      /         \
+  Split y=30    Split y=80
+  [20, 40]      [70, 90]
+  /      \       /      \
+[10,20] [30,50] [60,80] [80,60]
+
+\end{lstlisting}
+
+\subsection{k-d Tree Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, size_t K>
+class kd_tree {
+    struct point {
+        std::array<T, K> coords;
+        bool operator<(const point& other) const { return coords < other.coords; }
+    };
+
+    struct node {
+        point pt;
+        std::unique_ptr<node> left;
+        std::unique_ptr<node> right;
+        node(const point& p) : pt(p) {}
+    };
+
+    using node_ptr = std::unique_ptr<node>;
+    node_ptr root_;
+
+    node_ptr build(std::vector<point>& pts, int depth) {
+        if (pts.empty()) return nullptr;
+        size_t axis = depth % K;
+        size_t mid = pts.size() / 2;
+        std::nth_element(pts.begin(), pts.begin() + mid, pts.end(),
+            [axis](const point& a, const point& b) {
+                return a.coords[axis] < b.coords[axis];
+            });
+        auto n = std::make_unique<node>(pts[mid]);
+        std::vector<point> left(pts.begin(), pts.begin() + mid);
+        std::vector<point> right(pts.begin() + mid + 1, pts.end());
+        n->left = build(left, depth + 1);
+        n->right = build(right, depth + 1);
+        return n;
+    }
+
+    // Nearest neighbor search with pruning
+    void nn_search(const node* n, const point& target,
+                   point& best, T& best_dist, int depth) const {
+        if (!n) return;
+        T dist = euclidean_dist_sq(n->pt, target);
+        if (dist < best_dist) {
+            best_dist = dist;
+            best = n->pt;
+        }
+        size_t axis = depth % K;
+        T diff = target.coords[axis] - n->pt.coords[axis];
+
+        // Search the side of the split that contains the target first
+        const node* first = diff < 0 ? n->left.get() : n->right.get();
+        const node* second = diff < 0 ? n->right.get() : n->left.get();
+        nn_search(first, target, best, best_dist, depth + 1);
+
+        // Only search the other side if the splitting plane is closer
+        // than the current best distance
+        if (diff * diff < best_dist) {
+            nn_search(second, target, best, best_dist, depth + 1);
+        }
+    }
+
+    static T euclidean_dist_sq(const point& a, const point& b) {
+        T sum = T{};
+        for (size_t i = 0; i < K; ++i)
+            sum += (a.coords[i] - b.coords[i]) * (a.coords[i] - b.coords[i]);
+        return sum;
+    }
+
+public:
+    kd_tree(std::vector<point> points) {
+        root_ = build(points, 0);
+    }
+
+    // Find the nearest neighbor to target
+    std::optional<point> nearest(const point& target) const {
+        if (!root_) return std::nullopt;
+        point best = root_->pt;
+        T best_dist = euclidean_dist_sq(root_->pt, target);
+        nn_search(root_.get(), target, best, best_dist, 0);
+        return best;
+    }
+
+    // Find all points within a hyperrectangle [lo, hi]
+    void range_search(const node* n, int depth,
+                      const point& lo, const point& hi,
+                      std::vector<point>& result) const {
+        if (!n) return;
+        bool inside = true;
+        for (size_t i = 0; i < K; ++i) {
+            if (n->pt.coords[i] < lo.coords[i] || n->pt.coords[i] > hi.coords[i]) {
+                inside = false;
+                break;
+            }
+        }
+        if (inside) result.push_back(n->pt);
+
+        size_t axis = depth % K;
+        if (lo.coords[axis] <= n->pt.coords[axis])
+            range_search(n->left.get(), depth + 1, lo, hi, result);
+        if (hi.coords[axis] >= n->pt.coords[axis])
+            range_search(n->right.get(), depth + 1, lo, hi, result);
+    }
+
+    std::vector<point> range_query(const point& lo, const point& hi) const {
+        std::vector<point> result;
+        range_search(root_.get(), 0, lo, hi, result);
+        return result;
+    }
+};
+\end{lstlisting}
+
+The key insight in nearest-neighbor search is the \textbf{pruning rule}: after searching the side of the split that contains the target, we only search the other side if the splitting plane is closer than the current best distance. This prunes large subtrees and gives O(log n) average performance for uniformly distributed points.
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Average Case & Worst Case \\
+Build (from n points) & O(n log n) & O(n$^{2}$) \\
+Nearest neighbor & O(log n) & O(n) \\
+Range query & O(n$^{(k-1)/k}$ + r) & O(n) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $r$ is the number of reported points. The worst case occurs when the point distribution causes highly unbalanced splits.
+
+\textbf{When to use k-d trees:} Low-dimensional spatial data ($k \leq 10$), static point sets (build once, query many), nearest-neighbor and range queries. For high dimensions ($k > 20$), LSH (Chapter 19) or approximate methods are more effective due to the curse of dimensionality.
+
+\section{Quadtrees}
+
+A \textbf{quadtree} (Finkel and Bentley, 1974) is a tree data structure for partitioning 2D space. Each internal node has exactly four children, corresponding to the four quadrants (NW, NE, SW, SE) of a rectangular region. Quadtrees are widely used in image compression, geographic information systems (GIS), and collision detection.
+
+\subsection{Structure}
+
+A \textbf{point quadtree} recursively subdivides a 2D region by inserting points. Each point splits its cell into four quadrants:
+
+\begin{lstlisting}[language=Java]
+         +-----------------------+
+         |           |           |
+         |    NW     |    NE     |
+         |           |           |
+         |      +----+----+      |
+         |      |  . (root)|      |
+         +------+----+----+------+
+         |      |         |      |
+         |    SW |    .    |  SE |
+         |      |         |      |
+         +-----------------------+
+
+  Root splits space into 4 quadrants.
+  Each quadrant is subdivided independently.
+\end{lstlisting}
+
+\subsection{Quadtree Implementation}
+
+\begin{lstlisting}[language=C++]
+struct point { double x, y; };
+
+class quadtree {
+    struct rect {
+        double x, y, w, h;
+        bool contains(const point& p) const {
+            return p.x >= x && p.x <= x + w
+                && p.y >= y && p.y <= y + h;
+        }
+        bool intersects(const rect& other) const {
+            return !(other.x > x + w || other.x + other.w < x
+                  || other.y > y + h || other.y + other.h < y);
+        }
+    };
+
+    struct node {
+        rect bounds;
+        std::vector<point> points;
+        std::unique_ptr<node> children[4]; // NW, NE, SW, SE
+        bool divided = false;
+
+        node(const rect& b) : bounds(b) {}
+
+        void subdivide() {
+            double hw = bounds.w / 2, hh = bounds.h / 2;
+            double x = bounds.x, y = bounds.y;
+            children[0] = std::make_unique<node>(
+                rect{x,      y + hh, hw, hh});  // NW
+            children[1] = std::make_unique<node>(
+                rect{x + hw, y + hh, hw, hh});  // NE
+            children[2] = std::make_unique<node>(
+                rect{x,      y,      hw, hh});  // SW
+            children[3] = std::make_unique<node>(
+                rect{x + hw, y,      hw, hh});  // SE
+            divided = true;
+        }
+    };
+
+    std::unique_ptr<node> root_;
+    static constexpr int CAPACITY = 4;
+
+    static void insert(node* n, const point& p) {
+        if (!n->bounds.contains(p)) return;
+        if (n->points.size() < CAPACITY && !n->divided) {
+            n->points.push_back(p);
+            return;
+        }
+        if (!n->divided) n->subdivide();
+        for (int i = 0; i < 4; ++i) {
+            if (n->children[i]->bounds.contains(p)) {
+                insert(n->children[i].get(), p);
+                return;
+            }
+        }
+    }
+
+    static void range_search(const node* n, const rect& range,
+                              std::vector<point>& result) {
+        if (!n || !n->bounds.intersects(range)) return;
+        for (const auto& p : n->points) {
+            if (range.contains(p)) result.push_back(p);
+        }
+        if (n->divided) {
+            for (int i = 0; i < 4; ++i)
+                range_search(n->children[i].get(), range, result);
+        }
+    }
+
+    static void nearest(const node* n, const point& target,
+                         point& best, double& best_dist) {
+        if (!n) return;
+        for (const auto& p : n->points) {
+            double d = (p.x - target.x) * (p.x - target.x)
+                     + (p.y - target.y) * (p.y - target.y);
+            if (d < best_dist) { best_dist = d; best = p; }
+        }
+        if (!n->divided) return;
+        for (int i = 0; i < 4; ++i) {
+            const auto& b = n->children[i]->bounds;
+            double cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+            double d = (cx - target.x) * (cx - target.x)
+                     + (cy - target.y) * (cy - target.y);
+            if (d < best_dist)
+                nearest(n->children[i].get(), target, best, best_dist);
+        }
+    }
+
+public:
+    quadtree(const rect& bounds) {
+        root_ = std::make_unique<node>(bounds);
+    }
+
+    void insert(const point& p) { insert(root_.get(), p); }
+
+    std::vector<point> range_query(const rect& range) const {
+        std::vector<point> result;
+        range_search(root_.get(), range, result);
+        return result;
+    }
+
+    std::optional<point> nearest_neighbor(const point& target) const {
+        if (!root_ || root_->points.empty()) return std::nullopt;
+        point best = root_->points[0];
+        double best_dist = 1e18;
+        nearest(root_.get(), target, best, best_dist);
+        return best;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Average Case & Worst Case \\
+Insert & $O(\log n)$ & $O(n)$ \\
+Range query & $O(\log n + k)$ & $O(n)$ \\
+Nearest neighbor & $O(\log n)$ & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $k$ is the number of points in the result. Worst case occurs when points cluster in one quadrant, making the tree unbalanced.
+
+\subsection{Variants}
+
+\begin{itemize}
+\item \textbf{Region quadtree:} Subdivides until each cell has uniform content (used in image compression).
+\item \textbf{Loose quadtree:} Allows objects to overlap cell boundaries, reducing insertion overhead.
+\item \textbf{Linear quadtree:} Stores only non-empty cells using Z-order curve codes (Morton codes).
+\end{itemize}
+
+\textbf{When to use quadtrees:} 2D spatial data at low-to-medium density ($n < 10^{6}$). For point data, k-d trees are often better; for rectangle/polygon data, R-trees (below) scale more gracefully.
+
+\section{R-trees}
+
+An \textbf{R-tree} (Guttman, 1984) is a B+ tree generalized to multi-dimensional spatial objects. Instead of a single key, each entry stores a \textbf{Minimum Bounding Rectangle (MBR)} that encloses a spatial object or child node. R-trees are the standard index for spatial databases: PostGIS, SQLite R-Tree extension, and OpenStreetMap all use them.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+  Root
+  +----------------------------------------------+
+  | MBR1: [0,0]-[50,50]   MBR2: [40,40]-[100,100] |
+  +----------------------------------------------+
+       |                        |
+       v                        v
+  +-----------------+    +---------------------+
+  | MBR1a: [0,0]    |    | MBR2a: [40,40]      |
+  |   -[25,25]      |    |   -[60,60]          |
+  | MBR1b: [10,10]  |    | MBR2b: [70,70]      |
+  |   -[50,50]      |    |   -[100,100]        |
+  +-----------------+    +---------------------+
+   |         |              |            |
+   v         v              v            v
+  [obj]    [obj]           [obj]        [obj]
+  (leaf level: spatial objects + their MBRs)
+\end{lstlisting}
+
+An R-tree maintains the invariant that MBRs of children are contained within the parent MBR. Overlapping MBRs at the same level are allowed but degrade performance.
+
+\subsection{R-tree Implementation}
+
+\begin{lstlisting}[language=C++]
+struct rect {
+    double x1, y1, x2, y2;
+
+    double area() const {
+        return std::max(0.0, x2 - x1) * std::max(0.0, y2 - y1);
+    }
+
+    rect combine(const rect& other) const {
+        return {std::min(x1, other.x1), std::min(y1, other.y1),
+                std::max(x2, other.x2), std::max(y2, other.y2)};
+    }
+
+    bool intersects(const rect& other) const {
+        return !(other.x1 > x2 || other.x2 < x1
+              || other.y1 > y2 || other.y2 < y1);
+    }
+};
+
+class rtree {
+    static constexpr int MAX_ENTRIES = 4;
+    static constexpr int MIN_ENTRIES = 2;
+
+    struct entry {
+        rect r;
+        int child_id = -1;
+        int record_id = -1;
+    };
+
+    struct node {
+        std::vector<entry> entries;
+        bool is_leaf;
+        rect mbr;
+
+        node(bool leaf) : is_leaf(leaf) {}
+
+        void update_mbr() {
+            if (entries.empty()) return;
+            mbr = entries[0].r;
+            for (size_t i = 1; i < entries.size(); ++i)
+                mbr = mbr.combine(entries[i].r);
+        }
+    };
+
+    std::vector<node> nodes_;
+
+    int choose_subtree(int node_id, const rect& r) {
+        auto& n = nodes_[node_id];
+        if (n.is_leaf) return node_id;
+        int best = 0;
+        double best_growth = 1e18;
+        for (size_t i = 0; i < n.entries.size(); ++i) {
+            double before = n.entries[i].r.area();
+            double after = n.entries[i].r.combine(r).area();
+            double growth = after - before;
+            if (growth < best_growth) {
+                best_growth = growth;
+                best = i;
+            }
+        }
+        return choose_subtree(n.entries[best].child_id, r);
+    }
+
+    void search(const node* n, const rect& query,
+                std::vector<int>& result) const {
+        if (!n) return;
+        for (const auto& e : n->entries) {
+            if (!e.r.intersects(query)) continue;
+            if (n->is_leaf) {
+                result.push_back(e.record_id);
+            } else {
+                search(&nodes_[e.child_id], query, result);
+            }
+        }
+    }
+
+public:
+    rtree() { nodes_.emplace_back(true); }
+
+    void insert(const rect& r, int record_id) {
+        int leaf = choose_subtree(0, r);
+        entry new_entry{r, -1, record_id};
+
+        if (nodes_[leaf].entries.size() < MAX_ENTRIES) {
+            nodes_[leaf].entries.push_back(new_entry);
+            nodes_[leaf].update_mbr();
+            return;
+        }
+        // Node overflow: split (simplified)
+        auto& n = nodes_[leaf];
+        int new_node_id = nodes_.size();
+        nodes_.emplace_back(n.is_leaf);
+        entry seed2 = n.entries.back();
+        n.entries.pop_back();
+        nodes_[new_node_id].entries = {seed2};
+        nodes_[leaf].update_mbr();
+        nodes_[new_node_id].update_mbr();
+        nodes_[leaf].entries.push_back(new_entry);
+        nodes_[leaf].update_mbr();
+    }
+
+    std::vector<int> point_query(double x, double y) const {
+        rect query{x, y, x, y};
+        std::vector<int> result;
+        search(&nodes_[0], query, result);
+        return result;
+    }
+
+    std::vector<int> range_query(const rect& query) const {
+        std::vector<int> result;
+        search(&nodes_[0], query, result);
+        return result;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Time & Notes \\
+Search (point) & $O(\log n)$ & Similar to B+ tree \\
+Search (range) & $O(n)$ worst & Depends on overlap \\
+Insert & $O(\log n)$ & ChooseSubtree + possible split \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{When to use R-trees:} Multi-dimensional range queries, spatial databases, GIS, game engines (collision detection), and any application needing to index geometric objects by their bounding rectangles. R-trees outperform k-d trees when the data consists of extended objects (rectangles, polygons) rather than points, and when insertions and deletions are frequent.
+
+\section{Log-Structured Merge-Trees}
+
+A \textbf{Log-Structured Merge-tree (LSM-tree)} (O'Neil et al., 1996) is a write-optimized storage engine that converts random writes into sequential I/O. Instead of updating data in place, an LSM-tree buffers inserts in memory and periodically flushes sorted runs to disk. This design dominates modern write-heavy key-value stores: LevelDB, RocksDB (the engine behind CockroachDB and TiKV), and Apache Cassandra all use LSM-trees.
+
+\subsection{Structure}
+
+Writes go to an in-memory sorted buffer called the \textbf{memtable} (typically a red-black tree or skip list). When the memtable reaches a size threshold it is flushed to disk as a sorted \textbf{SSTable} (Sorted String Table). Over time multiple SSTables accumulate across \textbf{levels}. A background \textbf{compaction} process merges overlapping SSTables from one level into the next, bounding the number of levels and keeping reads fast.
+
+\begin{lstlisting}[language=Java]
+  Memory                           Disk
+  +-------------------+    Level 0: [SST] [SST] [SST]
+  |  Memtable (sorted)|              |       |       |
+  |  (in-memory BST)  |              v       v       v
+  |                   |    Level 1: [======SST======]
+  |  key1 -> val1     |              (merged, larger)
+  |  key2 -> val2     |
+  |  key3 -> val3     |    Level 2: [========SST========]
+  +-------------------+              (largest, fewest files)
+
+  Write path:  Memtable  (fast, sequential after flush)
+  Read path:   Memtable -> L0 -> L1 -> ... -> Ln
+\end{lstlisting}
+
+\subsection{LSM-tree Implementation}
+
+The simplified implementation below uses \texttt{std::map} as the memtable and stores sorted runs as plain sorted \texttt{std::vector} files on disk (serialized to memory for demonstration). A read searches the memtable first, then each level from newest to oldest.
+
+\begin{lstlisting}[language=C++]
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <optional>
+
+class lsm_tree {
+    std::map<int, int> memtable_;               // in-memory sorted buffer
+    std::vector<std::vector<std::pair<int,int>>> levels_;  // sorted runs on disk
+    static constexpr size_t MEMTABLE_LIMIT = 1024;
+
+    void flush() {
+        if (memtable_.empty()) return;
+        std::vector<std::pair<int,int>> run(memtable_.begin(), memtable_.end());
+        levels_.push_back(std::move(run));
+        memtable_.clear();
+        compact();
+    }
+
+    void compact() {
+        for (size_t i = 0; i + 1 < levels_.size(); ++i) {
+            if (levels_[i].size() + levels_[i+1].size() > MEMTABLE_LIMIT) {
+                std::vector<std::pair<int,int>> merged;
+                std::merge(levels_[i].begin(), levels_[i].end(),
+                           levels_[i+1].begin(), levels_[i+1].end(),
+                           std::back_inserter(merged));
+                levels_[i+1] = std::move(merged);
+                levels_.erase(levels_.begin() + i);
+            }
+        }
+    }
+
+    std::optional<int> search_levels(int key) const {
+        for (int i = static_cast<int>(levels_.size()) - 1; i >= 0; --i) {
+            auto it = std::lower_bound(levels_[i].begin(), levels_[i].end(),
+                                       std::make_pair(key, 0));
+            if (it != levels_[i].end() && it->first == key)
+                return it->second;
+        }
+        return std::nullopt;
+    }
+
+public:
+    void put(int key, int value) {
+        memtable_[key] = value;
+        if (memtable_.size() >= MEMTABLE_LIMIT) flush();
+    }
+
+    std::optional<int> get(int key) const {
+        auto it = memtable_.find(key);
+        if (it != memtable_.end()) return it->second;
+        return search_levels(key);
+    }
+
+    void erase(int key) {
+        memtable_.erase(key);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Average Case & Worst Case \\
+Put (insert) & $O(1)$ amortized & $O(\log n)$ \\
+Get (point query) & $O(\log n \cdot L)$ & $O(n)$ \\
+Erase & $O(1)$ amortized & $O(\log n)$ \\
+Compaction & $O(n)$ per merge & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $L$ is the number of levels (typically $L = O(\log n / \log B)$ with block size $B$). Write amplification is $O(L)$ in the worst case due to repeated compaction. Space amplification is bounded by $O(n)$ since each key may exist in multiple levels until compacted.
+
+\textbf{LSM-tree vs. B-tree:} B-trees perform in-place updates with $O(\log n)$ writes via random I/O, making them ideal for read-heavy workloads. LSM-trees batch writes and use sequential I/O, giving $O(1)$ amortized write cost at the expense of read amplification (checking multiple levels). Choose an LSM-tree when writes dominate ($>80\%$ write mix) and read latency is tolerant; choose a B-tree when reads dominate and predictable latency matters.
+
+\section{Range Trees}
+
+A \textbf{range tree} (Bentley, 1979) is a multi-dimensional data structure designed for \textbf{orthogonal range queries}: given a query rectangle $[x_1, x_2] \times [y_1, y_2]$, report all points inside it. While a k-d tree answers range queries in $O(\sqrt{n} + k)$ expected time, a range tree guarantees $O(\log^{2} n + k)$ with $O(n \log n)$ space. Range trees are foundational in computational geometry and geographic information systems (GIS).
+
+\subsection{Structure}
+
+A 2D range tree is a \textbf{multi-level BST}: the primary tree is a balanced BST (e.g., AVL or red-black tree) keyed on the $x$-coordinate. Each node of the primary tree contains a pointer to a \textbf{secondary tree} keyed on the $y$-coordinate, containing all points in that subtree. A range query traverses the primary tree to find the $x$-range, then searches each secondary tree for the $y$-range.
+
+\begin{lstlisting}[language=Java]
+  Primary tree (keyed on x):
+              [5,8]
+            /       \
+         [3,4]     [7,9]
+         /   \     /   \
+       [1,2] [4,6] [6,7] [8,10]
+
+  Each node stores a secondary tree (keyed on y):
+  Node [5,8] -> secondary tree:
+              [8]
+            /     \
+          [5]     [10]
+          /         \
+        [3]         [12]
+
+  Query [x1=2,x2=9] x [y1=4,y2=11]:
+    1. Primary: find range [2,9] in x  -> nodes [3,4],[5,8],[7,9]
+    2. Secondary at each: find [4,11] in y -> report matches
+\end{lstlisting}
+
+\subsection{Range Tree Implementation}
+
+The implementation below builds a 2D range tree with AVL-based primary and secondary trees. The query function traverses the primary tree to collect nodes within the $x$-range, then searches each secondary tree for the $y$-range.
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <algorithm>
+#include <memory>
+
+struct point { int x, y; };
+
+class range_tree {
+    struct node {
+        point pt;
+        int height = 1;
+        std::unique_ptr<node> left;
+        std::unique_ptr<node> right;
+        std::vector<point> secondary;  // y-sorted points in this subtree
+
+        node(const point& p) : pt(p) {}
+    };
+
+    std::unique_ptr<node> root_;
+
+    int height(const node* n) const { return n ? n->height : 0; }
+
+    void update_height(node* n) {
+        n->height = 1 + std::max(height(n->left.get()),
+                                  height(n->right.get()));
+    }
+
+    std::unique_ptr<node> rotate_right(std::unique_ptr<node> y) {
+        auto x = std::move(y->left);
+        y->left = std::move(x->right);
+        x->right = std::move(y);
+        update_height(x->right.get());
+        update_height(x.get());
+        return x;
+    }
+
+    std::unique_ptr<node> rotate_left(std::unique_ptr<node> x) {
+        auto y = std::move(x->right);
+        x->right = std::move(y->left);
+        y->left = std::move(x);
+        update_height(y->left.get());
+        update_height(y.get());
+        return y;
+    }
+
+    std::unique_ptr<node> balance(std::unique_ptr<node> n) {
+        update_height(n.get());
+        int bf = height(n->left.get()) - height(n->right.get());
+        if (bf > 1) {
+            if (height(n->left->right.get()) > height(n->left->left.get()))
+                n->left = rotate_left(std::move(n->left));
+            return rotate_right(std::move(n));
+        }
+        if (bf < -1) {
+            if (height(n->right->left.get()) > height(n->right->right.get()))
+                n->right = rotate_right(std::move(n->right));
+            return rotate_left(std::move(n));
+        }
+        return n;
+    }
+
+    std::unique_ptr<node> insert(std::unique_ptr<node> n, const point& p) {
+        if (!n) return std::make_unique<node>(p);
+        if (p.x <= n->pt.x) n->left = insert(std::move(n->left), p);
+        else                 n->right = insert(std::move(n->right), p);
+        return balance(std::move(n));
+    }
+
+    void build_secondary(node* n) {
+        if (!n) return;
+        build_secondary(n->left.get());
+        build_secondary(n->right.get());
+        n->secondary.push_back(n->pt);
+        if (n->left)
+            std::merge(n->secondary.begin(), n->secondary.end(),
+                       n->left->secondary.begin(), n->left->secondary.end(),
+                       std::back_inserter(n->secondary),
+                       [](const point& a, const point& b){ return a.y < b.y; });
+        // Clear child secondary trees to save memory after merge
+        // In production, use persistent sharing instead.
+        if (n->left)  n->left->secondary.clear();
+        if (n->right) n->right->secondary.clear();
+    }
+
+    void range_query_x(const node* n, int x1, int x2,
+                       int y1, int y2, std::vector<point>& result) const {
+        if (!n) return;
+        if (x1 <= n->pt.x && n->pt.x <= x2)
+            range_query_y(n->secondary, y1, y2, result);
+        if (n->pt.x >= x1) range_query_x(n->left.get(), x1, x2, y1, y2, result);
+        if (n->pt.x <= x2) range_query_x(n->right.get(), x1, x2, y1, y2, result);
+    }
+
+    static void range_query_y(const std::vector<point>& pts,
+                              int y1, int y2, std::vector<point>& result) {
+        auto lo = std::lower_bound(pts.begin(), pts.end(), y1,
+                     [](const point& p, int v){ return p.y < v; });
+        auto hi = std::upper_bound(pts.begin(), pts.end(), y2,
+                     [](int v, const point& p){ return v < p.y; });
+        result.insert(result.end(), lo, hi);
+    }
+
+public:
+    void insert(const point& p) { root_ = insert(std::move(root_), p); }
+
+    void build() { build_secondary(root_.get()); }
+
+    std::vector<point> range_query(int x1, int x2,
+                                   int y1, int y2) const {
+        std::vector<point> result;
+        range_query_x(root_.get(), x1, x2, y1, y2, result);
+        return result;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Time & Space \\
+Build & $O(n \log n)$ & $O(n \log n)$ \\
+2D range query & $O(\log^{2} n + k)$ & -- \\
+Insert (rebuild) & $O(n \log n)$ & $O(n \log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+where $k$ is the number of reported points. The query visits $O(\log n)$ primary nodes, and at each performs a binary search in the secondary tree costing $O(\log n + k_i)$, yielding $O(\log^{2} n + k)$ overall. Higher dimensions $d$ generalize to $O(\log^{d} n + k)$ at the cost of $O(n \log^{d-1} n)$ space.
+
+\textbf{Range tree vs. k-d tree vs. R-tree:}
+\begin{itemize}
+\item \textbf{k-d tree:} $O(\sqrt{n} + k)$ average for 2D queries, $O(n)$ space, but worst case $O(n)$ for pathological inputs. Simpler to implement and faster in practice for low dimensions with static data.
+\item \textbf{Range tree:} $O(\log^{2} n + k)$ worst-case guaranteed, but $O(n \log n)$ space. Preferred when worst-case bounds matter (computational geometry algorithms).
+\item \textbf{R-tree:} $O(\log n)$ for balanced trees, handles rectangles and extended objects, supports dynamic insert/delete efficiently. Preferred for spatial databases and GIS with mixed object types.
+\end{itemize}
+
+%% B*-tree %%
+
+\section{B*-tree}
+
+A B*-tree is a B-tree variant that improves space utilization by requiring each non-root node to be at least $2/3$ full (compared to $1/2$ for standard B-trees). It achieves this by attempting to \emph{redistribute} keys with siblings before splitting a node, thereby delaying splits and keeping the tree more compact.
+
+\subsection{Motivation}
+
+In a standard B-tree of order $m$, every node except the root must contain at least $\lceil m/2 \rceil - 1$ keys. A B*-tree tightens this lower bound to $\lceil 2m/3 \rceil - 1$ keys. When a node overflows, instead of immediately splitting it, the B*-tree first tries to redistribute keys to an adjacent sibling that is less than full. A split is performed only when both siblings are full. This two-phase strategy reduces the number of splits and increases the average fill factor of nodes.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Property & B-tree (order $m$) & B*-tree (order $m$) \\
+\midrule
+Min keys (non-root) & $\lceil m/2 \rceil - 1$ & $\lceil 2m/3 \rceil - 1$ \\
+Fill factor lower bound & $\approx 50\%$ & $\approx 67\%$ \\
+Split threshold & 1 full node & 2 adjacent full nodes \\
+Typical splits & More frequent & Less frequent \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Because nodes are at least $2/3$ full on average, the B*-tree uses fewer disk pages for the same data, which improves cache performance and reduces I/O in disk-resident applications.
+
+\subsection{C++ Implementation}
+
+The following implementation models the key ideas: a node tracks its fill level, and on overflow the code first attempts to redistribute with a sibling before falling back to a standard split.
+
+\begin{lstlisting}[language=C++]
+class bstar_tree {
+    static constexpr int MAX_KEYS = 6;
+    static constexpr int MIN_KEYS = 4;  // ceil(2*6/3) - 1
+
+    struct node {
+        int n;                       // current key count
+        bool is_leaf;
+        int keys[MAX_KEYS];
+        node* children[MAX_KEYS + 1];
+        node* parent;
+
+        node(bool leaf)
+            : n(0), is_leaf(leaf), parent(nullptr) {
+            for (int i = 0; i <= MAX_KEYS; ++i)
+                children[i] = nullptr;
+        }
+    };
+
+    node* root;
+
+    // Try to redistribute keys between 'src' and
+    // 'sibling' through their common parent.
+    // Returns true on success.
+    bool redistribute(node* src, node* sibling,
+                      node* parent) {
+        int total = src->n + sibling->n;
+        if (total > 2 * MAX_KEYS)   // would still overflow
+            return false;
+
+        int idx = 0;
+        while (idx <= parent->n &&
+               parent->children[idx] != src)
+            ++idx;
+
+        int target = total / 2;
+        int move;
+
+        if (idx > 0) {
+            // src is on the right; move keys leftward
+            move = src->n - target;
+            if (move <= 0) return false;
+
+            for (int i = sibling->n; i >= 1; --i) {
+                sibling->keys[i] = sibling->keys[i - 1];
+                sibling->children[i + 1] =
+                    sibling->children[i];
+            }
+            sibling->children[1] =
+                sibling->children[0];
+            sibling->keys[0] = parent->keys[idx - 1];
+            sibling->children[0] =
+                src->children[0];
+
+            for (int i = 0; i < move - 1; ++i) {
+                sibling->keys[i + 1] = src->keys[i];
+                sibling->children[i + 2] =
+                    src->children[i + 1];
+            }
+            sibling->children[move + 1] =
+                src->children[move];
+
+            parent->keys[idx - 1] =
+                src->keys[move - 1];
+
+            int j = 0;
+            for (int i = move; i < src->n; ++i)
+                src->keys[j++] = src->keys[i];
+            j = 0;
+            for (int i = move; i <= src->n; ++i)
+                src->children[j++] = src->children[i];
+        } else {
+            // src is on the left; move keys rightward
+            move = src->n - target;
+            if (move <= 0) return false;
+
+            for (int i = 0; i < move; ++i) {
+                sibling->children[sibling->n + 2 - i] =
+                    sibling->children[sibling->n + 1 - i];
+                sibling->keys[sibling->n + 1 - i] =
+                    sibling->keys[sibling->n - i];
+            }
+            sibling->children[0] =
+                src->children[src->n];
+            sibling->keys[0] = parent->keys[0];
+            parent->keys[0] =
+                src->keys[src->n - move];
+
+            sibling->n += move + 1;
+            src->n -= move;
+        }
+        return true;
+    }
+
+    // Standard split fallback
+    void split(node* full, int child_idx) {
+        node* new_node = new node(full->is_leaf);
+        int mid = full->n / 2;
+
+        new_node->n = full->n - mid - 1;
+        for (int i = 0; i < new_node->n; ++i) {
+            new_node->keys[i] =
+                full->keys[mid + 1 + i];
+            new_node->children[i] =
+                full->children[mid + 1 + i];
+        }
+        new_node->children[new_node->n] =
+            full->children[full->n];
+        full->n = mid;
+
+        int sep = full->keys[mid];
+        node* p = full->parent;
+
+        if (!p) {
+            root = new node(false);
+            root->keys[0] = sep;
+            root->children[0] = full;
+            root->children[1] = new_node;
+            root->n = 1;
+            full->parent = root;
+            new_node->parent = root;
+            return;
+        }
+
+        for (int i = p->n; i > child_idx; --i) {
+            p->keys[i] = p->keys[i - 1];
+            p->children[i + 1] = p->children[i];
+        }
+        p->keys[child_idx] = sep;
+        p->children[child_idx + 1] = new_node;
+        new_node->parent = p;
+        ++p->n;
+
+        if (p->n > MAX_KEYS)
+            split(p, child_idx);
+    }
+
+    void insert_nonfull(node* x, int key) {
+        int i = x->n - 1;
+        if (x->is_leaf) {
+            while (i >= 0 && key < x->keys[i]) {
+                x->keys[i + 1] = x->keys[i];
+                --i;
+            }
+            x->keys[i + 1] = key;
+            ++x->n;
+            return;
+        }
+        while (i >= 0 && key < x->keys[i])
+            --i;
+        ++i;
+        if (x->children[i]->n == MAX_KEYS) {
+            // Try redistribution first
+            node* sib = nullptr;
+            if (i > 0)
+                sib = x->children[i - 1];
+            else if (i < x->n)
+                sib = x->children[i + 1];
+
+            if (sib && sib->n < MAX_KEYS &&
+                redistribute(x->children[i],
+                             sib, x))
+                ;   // redistribution succeeded
+            else
+                split(x->children[i], i);
+
+            if (key > x->keys[i])
+                ++i;
+        }
+        insert_nonfull(x->children[i], key);
+    }
+
+public:
+    bstar_tree() : root(new node(true)) {}
+
+    void insert(int key) {
+        node* r = root;
+        if (r->n == MAX_KEYS) {
+            split(r, 0);
+            insert_nonfull(root, key);
+        } else {
+            insert_nonfull(r, key);
+        }
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Notes \\
+\midrule
+Search & $O(\log n)$ & Same as B-tree \\
+Insert & $O(\log n)$ & May redistribute instead of split \\
+Delete & $O(\log n)$ & May merge/borrow from siblings \\
+Space & $O(n)$ & Higher fill factor: $\geq 67\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Because nodes are $2/3$ full instead of $1/2$ full, the tree height and total number of nodes are smaller, yielding better cache performance.
+
+\subsection{When to use a B*-tree}
+
+Use a B*-tree when disk space and I/O efficiency matter and the data is roughly static or update-heavy. The higher fill factor means fewer disk pages are allocated, and the redistribution strategy reduces write amplification. B*-trees are especially attractive in database file systems and embedded storage engines where page-level space is at a premium.
+
+%% Octree %%
+
+\section{Octree}
+
+An octree is the three-dimensional generalization of the quadtree. Where a quadtree partitions 2D space into four quadrants, an octree partitions 3D space into eight \emph{octants}. Octrees are widely used in 3D graphics, collision detection, physics simulation, and volumetric data compression.
+
+\subsection{Structure}
+
+Given a bounding cube, an octree recursively subdivides it into eight equal octants. The eight children correspond to the following octants, named by their position along each axis:
+
+\begin{center}
+\begin{lstlisting}[language=Java]
+            Octant naming convention (child index):
+
+            0 = (-,-,-)   1 = (+,-,-)
+            2 = (-,+,-)   3 = (+,+,-)
+            4 = (-,-,+)   5 = (+,-,+)
+            6 = (-,+,+)   7 = (+,+,+)
+
+            +Y
+            |
+            +-------- +X
+           /
+          /
+         +Z
+
+            Top half (+Z):        Bottom half (-Z):
+            6-------7             2-------3
+           /|      /|            /|      /|
+          4-------5 |           0-------1 |
+          | |     | |           | |     | |
+          | +-----|-+           | +-----|-+
+          |/      |/            |/      |/
+          2-------3             0-------1
+            (local)               (local)
+
+  Each node stores a bounding cube and up to 8
+  children.  Leaf nodes store the data.
+\end{lstlisting}
+\end{center}
+
+A leaf node either contains zero objects or is subdivided when its object count exceeds a capacity threshold. The root always spans the entire universe (or scene) of interest.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+struct vec3 {
+    float x, y, z;
+    vec3(float x = 0, float y = 0, float z = 0)
+        : x(x), y(y), z(z) {}
+    vec3 operator+(const vec3& o) const
+        { return {x+o.x, y+o.y, z+o.z}; }
+    vec3 operator*(float s) const
+        { return {x*s, y*s, z*s}; }
+};
+
+struct rect3d {
+    vec3 min, max;
+    vec3 center() const {
+        return {(min.x+max.x)/2,
+                (min.y+max.y)/2,
+                (min.z+max.z)/2};
+    }
+    float size() const {
+        return max.x - min.x;
+    }
+};
+
+class octree {
+    static constexpr int MAX_OBJECTS = 8;
+
+    struct node {
+        rect3d bounds;
+        std::vector<vec3> objects;
+        node* children[8];
+        bool divided;
+
+        node(const rect3d& b)
+            : bounds(b), divided(false) {
+            for (int i = 0; i < 8; ++i)
+                children[i] = nullptr;
+        }
+
+        int octant(const vec3& p) const {
+            vec3 c = bounds.center();
+            int idx = 0;
+            if (p.x >= c.x) idx |= 1;
+            if (p.y >= c.y) idx |= 2;
+            if (p.z >= c.z) idx |= 4;
+            return idx;
+        }
+
+        void subdivide() {
+            vec3 c = bounds.center();
+            vec3 mn = bounds.min;
+            vec3 mx = bounds.max;
+
+            // 0: (-,-,-)
+            children[0] = new node({mn, c});
+            // 1: (+,-,-)
+            children[1] = new node(
+                {{c.x, mn.y, mn.z},
+                 {mx.x, c.y, c.z}});
+            // 2: (-,+,-)
+            children[2] = new node(
+                {{mn.x, c.y, mn.z},
+                 {c.x, mx.y, c.z}});
+            // 3: (+,+,-)
+            children[3] = new node(
+                {{c.x, c.y, mn.z},
+                 {mx.x, mx.y, c.z}});
+            // 4: (-,-,+)
+            children[4] = new node(
+                {{mn.x, mn.y, c.z},
+                 {c.x, c.y, mx.z}});
+            // 5: (+,-,+)
+            children[5] = new node(
+                {{c.x, mn.y, c.z},
+                 {mx.x, c.y, mx.z}});
+            // 6: (-,+,+)
+            children[6] = new node(
+                {{mn.x, c.y, c.z},
+                 {c.x, mx.y, mx.z}});
+            // 7: (+,+,+)
+            children[7] = new node(
+                {{c.x, c.y, c.z}, {mx, mx}});
+            divided = true;
+
+            std::vector<vec3> old =
+                std::move(objects);
+            for (auto& p : old)
+                children[octant(p)]->insert(p);
+        }
+
+        void insert(const vec3& p) {
+            if (!bounds_contains(p))
+                return;
+            if (!divided) {
+                objects.push_back(p);
+                if ((int)objects.size() >
+                    MAX_OBJECTS)
+                    subdivide();
+                return;
+            }
+            children[octant(p)]->insert(p);
+        }
+
+        bool bounds_contains(
+                const vec3& p) const {
+            return (p.x >= bounds.min.x &&
+                    p.x <= bounds.max.x &&
+                    p.y >= bounds.min.y &&
+                    p.y <= bounds.max.y &&
+                    p.z >= bounds.min.z &&
+                    p.z <= bounds.max.z);
+        }
+
+        ~node() {
+            for (int i = 0; i < 8; ++i)
+                delete children[i];
+        }
+    };
+
+    node* root;
+
+    static bool sphere_intersects(
+            const rect3d& box,
+            const vec3& center, float radius) {
+        float r2 = radius * radius;
+        float sq = 0;
+        if (center.x < box.min.x)
+            sq += (center.x - box.min.x) *
+                  (center.x - box.min.x);
+        else if (center.x > box.max.x)
+            sq += (center.x - box.max.x) *
+                  (center.x - box.max.x);
+        if (center.y < box.min.y)
+            sq += (center.y - box.min.y) *
+                  (center.y - box.min.y);
+        else if (center.y > box.max.y)
+            sq += (center.y - box.max.y) *
+                  (center.y - box.max.y);
+        if (center.z < box.min.z)
+            sq += (center.z - box.min.z) *
+                  (center.z - box.min.z);
+        else if (center.z > box.max.z)
+            sq += (center.z - box.max.z) *
+                  (center.z - box.max.z);
+        return sq <= r2;
+    }
+
+    static float dist(const vec3& a,
+                      const vec3& b) {
+        float dx = a.x - b.x;
+        float dy = a.y - b.y;
+        float dz = a.z - b.z;
+        return dx*dx + dy*dy + dz*dz;
+    }
+
+public:
+    octree(const rect3d& universe)
+        : root(new node(universe)) {}
+
+    void insert(const vec3& p) {
+        root->insert(p);
+    }
+
+    void range_query(node* n,
+                     const vec3& center,
+                     float r,
+                     std::vector<vec3>& result) {
+        if (!n) return;
+        if (!sphere_intersects(
+                n->bounds, center, r))
+            return;
+        for (auto& p : n->objects)
+            if (dist(p, center) <= r)
+                result.push_back(p);
+        if (n->divided)
+            for (int i = 0; i < 8; ++i)
+                range_query(n->children[i],
+                            center, r, result);
+    }
+
+    std::vector<vec3> range_query(
+            const vec3& center, float r) {
+        std::vector<vec3> res;
+        range_query(root, center, r, res);
+        return res;
+    }
+
+    vec3 nearest(node* n, const vec3& target,
+                 float& best_dist, vec3 best) {
+        if (!n) return best;
+        if (!sphere_intersects(
+                n->bounds, target, best_dist))
+            return best;
+        for (auto& p : n->objects) {
+            float d = dist(p, target);
+            if (d < best_dist) {
+                best_dist = d;
+                best = p;
+            }
+        }
+        if (n->divided)
+            for (int i = 0; i < 8; ++i)
+                best = nearest(n->children[i],
+                               target,
+                               best_dist, best);
+        return best;
+    }
+
+    vec3 nearest(const vec3& target) {
+        float best_dist = 1e30f;
+        return nearest(root, target,
+                       best_dist, {0, 0, 0});
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Notes \\
+\midrule
+Insert & $O(\log_8 n)$ & Depth of octree \\
+Range query & $O(n)$ worst & Pruned by spatial overlap \\
+Nearest neighbor & $O(n)$ worst & Typically much faster in practice \\
+Space & $O(n)$ & $8$ pointers per internal node \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+With balanced data, the depth is $O(\log_8 n)$; in the worst case (all points along a line) it degrades to $O(n)$.
+
+\subsection{Comparison with the quadtree}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Property & Quadtree & Octree \\
+\midrule
+Dimension & 2D & 3D \\
+Children per node & 4 & 8 \\
+Spatial partitioning & Quadrants & Octants \\
+Typical use & 2D maps, images & 3D graphics, physics \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The octree naturally extends the quadtree into three dimensions. For $d$-dimensional data, the pattern continues: a $2^d$-ary tree (e.g.\ a 16-tree for 4D data). However, the branching factor grows exponentially with dimension, making the structure impractical beyond 3D without alternative strategies such as k-d trees.
+
+\subsection{When to use an octree}
+
+Use an octree when the spatial domain is 3D and objects are roughly uniformly distributed. Octrees excel at view frustum culling, collision broad-phase detection, and ray tracing acceleration. For highly non-uniform data, consider an adaptive octree or an R-tree variant instead.
+
+%% BSP Tree %%
+
+\section{BSP Tree (Binary Space Partitioning)}
+
+A BSP tree partitions space using \emph{arbitrary} hyperplanes (lines in 2D, planes in 3D) rather than axis-aligned cuts. This flexibility allows the tree to separate any set of geometric objects at any orientation, making BSP trees indispensable for visibility determination in 3D rendering.
+
+\subsection{Motivation}
+
+Rendering a 3D scene requires determining which surfaces are visible from the viewer's position. The \emph{painter's algorithm} draws objects from farthest to nearest, but ordering objects correctly is difficult when they overlap or intersect. A BSP tree resolves this: by splitting polygons against a sequence of planes, the tree produces a \emph{back-to-front} traversal order guarantee. Objects farther from the viewer are always drawn first, eliminating depth-sorting errors.
+
+The key idea: when a polygon is split by a plane, the portion behind the plane goes to the \emph{back} subtree and the portion in front goes to the \emph{front} subtree. Traversing back-first then front-first yields correct visibility for any camera position.
+
+\subsection{Structure}
+
+\begin{center}
+\begin{lstlisting}[language=Java]
+  BSP tree for 2D line segments:
+
+          v1-----------v4
+          |             |
+          |      A      |
+          |             |
+          v2-------v3   |
+                    |   |
+            B       |   |
+                    |   |
+  ------------------|---|------  splitting line L1
+                    |   |
+              C     |   |
+                    |   |
+  v5---------------v6---v7
+          |       |
+          |   D   |
+          |       |
+          v8------v9
+
+  Root partitions on L1:
+    Back subtree (below L1): polygons C, D
+    Front subtree (above L1): polygons A, B
+  Each subtree is further partitioned.
+
+  Traversal order for camera above L1:
+    Draw back subtree first (C, D)
+    Draw splitting polygon (on L1)
+    Draw front subtree second (A, B)
+\end{lstlisting}
+\end{center}
+
+Every polygon in the scene is classified against the root's splitting plane:
+\begin{itemize}
+  \item \textbf{Front}: entirely in front of the plane.
+  \item \textbf{Back}: entirely behind the plane.
+  \item \textbf{Coplanar}: lies on the plane.
+  \item \textbf{Spanning}: intersects the plane; split into front and back fragments.
+\end{itemize}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <cmath>
+#include <algorithm>
+
+struct vec3 {
+    float x, y, z;
+    vec3(float x=0, float y=0, float z=0)
+        : x(x), y(y), z(z) {}
+    vec3 operator-(const vec3& o) const
+        { return {x-o.x, y-o.y, z-o.z}; }
+    vec3 operator+(const vec3& o) const
+        { return {x+o.x, y+o.y, z+o.z}; }
+    vec3 operator*(float s) const
+        { return {x*s, y*s, z*s}; }
+};
+
+struct plane {
+    vec3 normal;           // unit normal
+    float d;               // distance from origin
+
+    plane() : d(0) {}
+    plane(const vec3& n, float d)
+        : normal(n), d(d) {}
+
+    // Signed distance of point p to plane
+    float dist(const vec3& p) const {
+        return normal.x*p.x + normal.y*p.y
+             + normal.z*p.z - d;
+    }
+};
+
+struct polygon {
+    std::vector<vec3> verts;
+};
+
+class bsp_tree {
+    struct node {
+        plane split;
+        node* front;
+        node* back;
+        std::vector<polygon> polys;
+
+        node() : front(nullptr), back(nullptr) {}
+        ~node() { delete front; delete back; }
+    };
+
+    node* root;
+
+    // Classify polygon against plane and split
+    void classify(const polygon& poly,
+                  const plane& pl,
+                  std::vector<polygon>& front_list,
+                  std::vector<polygon>& back_list,
+                  std::vector<polygon>& on_list) {
+        int n = poly.verts.size();
+        std::vector<float> dists(n);
+        for (int i = 0; i < n; ++i)
+            dists[i] = pl.dist(poly.verts[i]);
+
+        bool all_front = true, all_back = true;
+        for (int i = 0; i < n; ++i) {
+            if (dists[i] < -1e-6f)
+                all_front = false;
+            if (dists[i] >  1e-6f)
+                all_back  = false;
+        }
+
+        if (all_front && !all_back) {
+            front_list.push_back(poly);
+            return;
+        }
+        if (all_back && !all_front) {
+            back_list.push_back(poly);
+            return;
+        }
+        if (std::abs(dists[0]) <= 1e-6f &&
+            all_back) {
+            on_list.push_back(poly);
+            return;
+        }
+
+        // Polygon spans the plane; clip to both
+        polygon front_poly, back_poly;
+        for (int i = 0; i < n; ++i) {
+            int j = (i + 1) % n;
+            vec3 vi = poly.verts[i];
+            vec3 vj = poly.verts[j];
+            float di = dists[i];
+            float dj = dists[j];
+
+            front_poly.verts.push_back(vi);
+            if (di * dj < -1e-6f) {
+                float t = di / (di - dj);
+                vec3 xpt = vi + (vj - vi) * t;
+                front_poly.verts.push_back(xpt);
+                back_poly.verts.insert(
+                    back_poly.verts.begin(), xpt);
+            }
+            if (dj >= -1e-6f)
+                back_poly.verts.push_back(vj);
+        }
+        if (!front_poly.verts.empty())
+            front_list.push_back(front_poly);
+        if (!back_poly.verts.empty())
+            back_list.push_back(back_poly);
+    }
+
+    void build(node* n,
+               std::vector<polygon>& polys) {
+        if (polys.empty()) return;
+
+        n->split = choose_plane(polys[0]);
+        std::vector<polygon> front_list, back_list;
+
+        for (auto& p : polys) {
+            std::vector<polygon> on;
+            classify(p, n->split,
+                     front_list, back_list, on);
+            if (!on.empty())
+                n->polys.insert(
+                    n->polys.end(),
+                    on.begin(), on.end());
+        }
+
+        if (!front_list.empty()) {
+            n->front = new node();
+            build(n->front, front_list);
+        }
+        if (!back_list.empty()) {
+            n->back = new node();
+            build(n->back, back_list);
+        }
+    }
+
+    // Traverse back-to-front relative to cam_pos
+    void traverse(const node* n,
+                  const vec3& cam_pos,
+                  std::vector<polygon>& result) {
+        if (!n) return;
+
+        float side = n->split.dist(cam_pos);
+
+        const node* first  = (side >= 0) ?
+                             n->back  : n->front;
+        const node* second = (side >= 0) ?
+                             n->front : n->back;
+
+        traverse(first, cam_pos, result);
+        result.insert(result.end(),
+            n->polys.begin(), n->polys.end());
+        traverse(second, cam_pos, result);
+    }
+
+    static plane choose_plane(
+            const polygon& poly) {
+        vec3 v0 = poly.verts[0];
+        vec3 v1 = poly.verts[1];
+        vec3 edge = v1 - v0;
+        vec3 n = {0, 0, 1};
+        return {n, 0};
+    }
+
+public:
+    bsp_tree() : root(nullptr) {}
+    ~bsp_tree() { delete root; }
+
+    void build(std::vector<polygon>& polys) {
+        delete root;
+        root = new node();
+        build(root, polys);
+    }
+
+    std::vector<polygon> render_order(
+            const vec3& cam_pos) const {
+        std::vector<polygon> result;
+        traverse(root, cam_pos, result);
+        return result;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Notes \\
+\midrule
+Build & $O(n \log n)$ & Expected with balanced splits \\
+Render order & $O(n)$ & Traversal of all nodes \\
+Space & $O(n)$ & One node per split \\
+Split polygon & $O(v)$ & $v$ = number of vertices \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+In the worst case (all polygons coplanar), the tree becomes a linked list and build degrades to $O(n^2)$. Good splitting-plane heuristics keep the tree balanced in practice.
+
+\subsection{When to use a BSP tree}
+
+Use a BSP tree when you need a guaranteed back-to-front rendering order, static geometry that rarely changes, or CSG (constructive solid geometry) operations. BSP trees are standard in game engines for indoor scenes and portal rendering. For dynamic scenes with moving objects, z-buffering or other approaches may be preferred, since BSP rebuilds are expensive.
+
+%% ============================================================
+%% PART III: ADVANCED BALANCED TREES (Brass coverage)
+%% ============================================================
+
+\section{Weight-Balanced Trees}
+\label{sec:weight-balanced}
+
+Weight-balanced trees (WBTs), also known as BB[$\alpha$] trees or bounded-balance trees, maintain balance by requiring that every subtree holds a sufficient fraction of the nodes in its parent subtree. Unlike AVL or red-black trees that track height, WBTs track subtree size, making them well-suited to operations that depend on rank.
+
+\subsection{Definition and Balance Condition}
+\label{sec:wbt-definition}
+
+A weight-balanced tree with balance parameter $\alpha$ (where $0 < \alpha < 1/2$) satisfies the following invariant: for every node $x$ with left and right children $L$ and $R$,
+\[
+  |L| \geq \alpha \cdot |x| \quad \text{and} \quad |R| \geq \alpha \cdot |x|
+\]
+where $|x|$ denotes the number of nodes in the subtree rooted at $x$. Equivalently, every subtree must contain at least a fraction $\alpha$ of its parent's nodes. A common choice is $\alpha = 1 - 1/\sqrt{2} \approx 0.293$, which yields a height bound of $H \leq \log_{1/(1-\alpha)} n$.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+struct WBTNode {
+    T data;
+    int size;           // number of nodes in subtree
+    WBTNode* left;
+    WBTNode* right;
+    WBTNode(const T& d) : data(d), size(1), left(nullptr), right(nullptr) {}
+};
+
+template <typename T>
+class WeightBalancedTree {
+    static constexpr double ALPHA = 0.293;  // 1 - 1/sqrt(2)
+    WBTNode<T>* root;
+
+    int sz(WBTNode<T>* n) const { return n ? n->size : 0; }
+    void update(WBTNode<T>* n) { if (n) n->size = 1 + sz(n->left) + sz(n->right); }
+
+    bool balanced(WBTNode<T>* n) const {
+        if (!n) return true;
+        return sz(n->left) >= ALPHA * n->size
+            && sz(n->right) >= ALPHA * n->size;
+    }
+    // ...
+\end{lstlisting}
+
+\subsection{Maintenance by Rebalancing}
+\label{sec:wbt-maintenance}
+
+Weight-balanced trees use two basic rotations (single and double) to restore balance. After an insertion or deletion, we walk up from the modified node toward the root. At each ancestor, we check the balance condition. If violated, we apply the appropriate rotation:
+
+\begin{itemize}
+    \item \textbf{Single rotation}: If the heavier child is already reasonably balanced, a single rotation suffices.
+    \item \textbf{Double rotation}: If both the child and grandchild are involved, a double rotation (analogous to AVL double rotations) rebalances the subtree.
+\end{itemize}
+
+The key advantage of WBTs over AVL trees is that the rebalancing conditions are purely size-based, so rotations can be applied to any rank-based augmentation (e.g., order statistics) without additional bookkeeping.
+
+\subsection{Join and Split}
+\label{sec:wbt-join-split}
+
+Weight-balanced trees support \emph{join} and \emph{split} in $O(\log n)$ time, which is one of their primary advantages:
+
+\begin{lstlisting}[language=C++]
+// join(t1, t2): all keys in t1 < all keys in t2
+// Find the node in t1 with rank ceil(|t1|/2), make it the root,
+// and recursively join the remaining subtrees.
+// Rebalance from the new root downward.
+template <typename T>
+WBTNode<T>* join(WBTNode<T>* t1, WBTNode<T>* t2) {
+    if (!t1) return t2;
+    if (!t2) return t1;
+    if (t1->size < t2->size) {
+        t2->left = join(t1, t2->left);
+        update(t2);
+        return balance(t2);    // may need rotation at root
+    } else {
+        t1->right = join(t1->right, t2);
+        update(t1);
+        return balance(t1);
+    }
+}
+
+// split(x, key): partition tree into (<key) and (>=key)
+// Standard BST descent; rebuild both halves along the path.
+template <typename T>
+pair<WBTNode<T>*, WBTNode<T>*> split(WBTNode<T>* x, const T& key) {
+    if (!x) return {nullptr, nullptr};
+    if (key <= x->data) {
+        auto [l, r] = split(x->left, key);
+        x->left = r;
+        update(x);
+        return {l, balance(x)};
+    } else {
+        auto [l, r] = split(x->right, key);
+        x->right = l;
+        update(x);
+        return {balance(x), r};
+    }
+}
+\end{lstlisting}
+
+\subsection{Order Statistics}
+\label{sec:wbt-order-statistics}
+
+Because every node stores its subtree size, WBTs support rank operations directly:
+
+\begin{lstlisting}[language=C++]
+// k-th smallest element (0-indexed)
+template <typename T>
+const T& select(WBTNode<T>* n, int k) const {
+    int leftSize = sz(n->left);
+    if (k < leftSize) return select(n->left, k);
+    if (k == leftSize) return n->data;
+    return select(n->right, k - leftSize - 1);
+}
+
+// rank of a given key
+template <typename T>
+int rank(WBTNode<T>* n, const T& key) const {
+    if (!n) return 0;
+    if (key < n->data) return rank(n->left, key);
+    if (key == n->data) return sz(n->left);
+    return sz(n->left) + 1 + rank(n->right, key);
+}
+\end{lstlisting}
+
+\subsection{Comparison with AVL and Red-Black Trees}
+\label{sec:wbt-comparison}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Feature & AVL & Red-Black & Weight-Balanced \\
+\midrule
+Balance criterion & Height & Color invariants & Subtree size \\
+Height bound & $1.44 \log n$ & $2 \log n$ & $\log_{1/(1-\alpha)} n$ \\
+Insert/delete & $O(\log n)$ & $O(\log n)$ & $O(\log n)$ \\
+Join/split & $O(n)$ & $O(n)$ & $O(\log n)$ \\
+Select by rank & $O(\log n)$ (augment) & $O(\log n)$ (augment) & $O(\log n)$ (inherent) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Practical Considerations}
+\label{sec:wbt-practical}
+
+Weight-balanced trees are used in several functional programming libraries (e.g., OCaml's \texttt{Set} module, GHC's \texttt{Data.Map} in Haskell) where persistent data structures benefit from the join/split interface. In imperative C++, AVL and red-black trees dominate due to simpler bookkeeping, but WBTs are preferred when rank-based operations or functional persistence are required.
+
+\section{(a,b)-Trees and B-Trees}
+\label{sec:ab-trees}
+
+(a,b)-trees generalize 2-3-4 trees by allowing nodes to have between $a$ and $b$ children, where $2 \leq a \leq \lceil b/2 \rceil$ and $b \geq 2a - 1$. B-trees are a closely related external-memory structure with a fixed branching factor matched to disk block size.
+
+\subsection{Definition}
+\label{sec:ab-definition}
+
+An (a,b)-tree is a rooted tree satisfying:
+\begin{enumerate}
+    \item Every internal node has between $a$ and $b$ children.
+    \item All leaves are at the same depth.
+    \item A node with $k$ children stores $k-1$ keys in sorted order.
+\end{enumerate}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+struct ABTreeNode {
+    static constexpr int A = 2, B = 4;  // (2,4)-tree = 2-3-4 tree
+    int nKeys;
+    T keys[B - 1];
+    ABTreeNode* children[B];
+    bool leaf;
+
+    ABTreeNode(bool isLeaf = true)
+        : nKeys(0), leaf(isLeaf) {
+        for (int i = 0; i < B; ++i) children[i] = nullptr;
+    }
+
+    int findIndex(const T& key) const {
+        int i = 0;
+        while (i < nKeys && keys[i] < key) ++i;
+        return i;
+    }
+};
+\end{lstlisting}
+
+\subsection{B-Trees for Disk-Based Storage}
+\label{sec:btree-disk}
+
+B-trees are the standard index structure in relational databases and file systems. A B-tree of order $m$ stores up to $m-1$ keys per node. With $m = 256$ (a common choice for 4 KB blocks with 8-byte keys), the tree has:
+\[
+  \text{Height} = \lceil \log_{m/2} n \rceil = \lceil \log_{128} n \rceil
+\]
+For $n = 10^9$ records, the height is just 4, meaning at most 4 disk seeks to locate any record.
+
+\begin{lstlisting}[language=C++]
+// B-tree insertion: split full nodes bottom-up
+template <typename T, int ORDER>
+class BTree {
+    struct BTreeNode {
+        int n;
+        T keys[ORDER - 1];
+        BTreeNode* children[ORDER];
+        bool leaf;
+    };
+    BTreeNode* root;
+
+    void splitChild(BTreeNode* parent, int i) {
+        BTreeNode* full = parent->children[i];
+        BTreeNode* right = new BTreeNode();
+        right->leaf = full->leaf;
+        int mid = (ORDER - 1) / 2;
+
+        // Move upper half of keys to right sibling
+        right->n = full->n - mid - 1;
+        for (int j = 0; j < right->n; ++j)
+            right->keys[j] = full->keys[mid + 1 + j];
+        if (!full->leaf)
+            for (int j = 0; j <= right->n; ++j)
+                right->children[j] = full->children[mid + 1 + j];
+
+        // Promote middle key to parent
+        full->n = mid;
+        parent->children[i + 1] = right;
+        for (int j = parent->n; j > i; --j)
+            parent->children[j + 1] = parent->children[j];
+        parent->children[i + 1] = right;
+        for (int j = parent->n - 1; j >= i; --j)
+            parent->keys[j + 1] = parent->keys[j];
+        parent->keys[i] = full->keys[mid];
+        parent->n++;
+    }
+    // ...
+\end{lstlisting}
+
+\subsection{B+ Trees}
+\label{sec:bplus-tree}
+
+In practice, databases use B$^+$ trees, where all data resides in leaves and internal nodes store only copies of keys for routing. Leaves are linked in a sorted list for efficient range queries.
+
+\begin{itemize}
+    \item \textbf{B$^+$ tree}: Keys in leaves only; internal nodes store separators. Leaf list enables range scans. Height: $O(\log_m n)$.
+    \item \textbf{B$^*$ tree}: All nodes at least $\lceil 2m/3 \rceil$ full, maximizing space utilization.
+    \item \textbf{B-link tree}: Each node stores a high key and right link for concurrent access (used in database index implementations).
+\end{itemize}
+
+\subsection{Bulk Loading}
+\label{sec:btree-bulk}
+
+When building a B-tree from sorted data, bulk loading is far more efficient than sequential insertions:
+\begin{enumerate}
+    \item Fill leaves to capacity (e.g., 70\% full for good utilization).
+    \item When a leaf is full, split and promote the middle key.
+    \item Build the tree bottom-up in $O(n)$ time.
+\end{enumerate}
+
+This approach is standard in database index construction and produces perfectly balanced trees with high node occupancy.
+
+\section{Top-Down Red-Black Tree}
+\label{sec:topdown-rb}
+
+The red-black tree implementation in Section~\ref{sec:red-black} uses bottom-up rebalancing: we insert the node as red, then walk up from the new node to the root, performing rotations when needed. The alternative---top-down rebalancing---walks from the root to the insertion point, performing rotations on the way down, and is preferred when parent pointers are unavailable (e.g., in intrusive containers).
+
+\subsection{Motivation}
+\label{sec:topdown-motivation}
+
+Bottom-up rebalancing requires either a parent pointer or a stack to remember the path from root to the insertion point. Top-down rebalancing avoids this by handling potential red-red conflicts proactively during descent:
+
+\begin{itemize}
+    \item If the current node is black with two red children, push blackness down (recolor children black, current node red).
+    \item If a red-red conflict would form on the next step, rotate preemptively.
+    \item This ensures the insertion point can be reached without a stack.
+\end{itemize}
+
+\subsection{Insertion}
+\label{sec:topdown-insert}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class TopDownRB {
+    enum Color { RED, BLACK };
+    struct Node {
+        K key; V value;
+        Color color;
+        Node *left, *right;
+        Node(const K& k, const V& v, Color c = RED)
+            : key(k), value(v), color(c), left(nullptr), right(nullptr) {}
+    };
+    Node* root;
+
+    // Rotate left: make right child the new root
+    Node* rotateLeft(Node* h) {
+        Node* x = h->right;
+        h->right = x->left;
+        x->left = h;
+        x->color = h->color;
+        h->color = RED;
+        return x;
+    }
+
+    // Rotate right: make left child the new root
+    Node* rotateRight(Node* h) {
+        Node* x = h->left;
+        h->left = x->right;
+        x->right = h;
+        x->color = h->color;
+        h->color = RED;
+        return x;
+    }
+
+    // Flip colors: reverse color flip
+    void flipColors(Node* h) {
+        h->color = RED;
+        h->left->color = BLACK;
+        h->right->color = BLACK;
+    }
+
+    // Is h a red node?
+    bool isRed(Node* h) const { return h && h->color == RED; }
+
+    // Split 4-node (red children) during descent
+    Node* split4(Node* h) {
+        if (isRed(h->left) && isRed(h->right))
+            flipColors(h);
+        return h;
+    }
+    // ...
+\end{lstlisting}
+
+\subsection{Deletion}
+\label{sec:topdown-delete}
+
+Top-down deletion is more complex. We walk down to the node to delete, and on the way down we ensure the current node is not the ``problem'' node (a red node whose sibling might also be red). This is done by rotating/color-flipping at each step:
+
+\begin{lstlisting}[language=C++]
+Node* removeMin(Node* h) {
+    if (h->left == nullptr) {
+        delete h;
+        return nullptr;
+    }
+    if (!isRed(h->left) && !isRed(h->left->left))
+        h = moveRedLeft(h);
+    h->left = removeMin(h->left);
+    return balance(h);
+}
+
+Node* moveRedLeft(Node* h) {
+    flipColors(h);
+    if (isRed(h->right->left)) {
+        h->right = rotateRight(h->right);
+        h = rotateLeft(h);
+        flipColors(h);
+    }
+    return h;
+}
+\end{lstlisting}
+
+The top-down approach processes at most $O(\log n)$ rotations for both insertion and deletion, and is the method of choice when implementing intrusive red-black trees where parent pointers are costly.
+
+\section{Finger Trees}
+\label{sec:finger-trees}
+
+Finger trees (Hinze and Paterson, 2006) are a functional data structure that provides fast concatenation and splitting while supporting efficient indexed access. They are the foundation of modern functional sequence libraries.
+
+\subsection{Structure}
+\label{sec:finger-structure}
+
+A finger tree is a recursive structure with three cases:
+
+\begin{enumerate}
+    \item \textbf{Empty tree}
+    \item \textbf{Single element}: a tree with exactly one value
+    \item \textbf{Deep node}: a node containing a ``left finger'' (a small array of elements near the left end), a ``right finger'' (near the right end), and a lazy spine of ``digit'' nodes in between.
+\end{enumerate}
+
+\begin{lstlisting}[language=C++]
+// Finger tree with monoid annotations
+// m: monoid type (e.g., size, sum, etc.)
+// a: element type
+template <typename M, typename A>
+class FingerTree {
+    enum NodeTag { EMPTY, SINGLE, DEEP };
+
+    struct Node;  // 2-3 node in the spine
+    struct Digit; // small buffer (1-4 elements)
+
+    struct Deep {
+        Digit prefix;        // left finger (1-4 elements)
+        FingerTree<M, Node*> spine;  // lazy middle
+        Digit suffix;        // right finger (1-4 elements)
+        M measure;           // cached monoid summary
+    };
+
+    NodeTag tag;
+    union { /* empty, single, or deep */ };
+
+public:
+    // O(1) amortized: add element to left
+    FingerTree cons(const A& x) const;
+    // O(1) amortized: add element to right
+    FingerTree snoc(const A& x) const;
+    // O(min(n1, n2)): concatenate two trees
+    FingerTree operator+(const FingerTree& other) const;
+    // O(log* n): split by predicate
+    pair<FingerTree, FingerTree> split(
+        function<bool(const M&)> pred) const;
+    // O(log* n): access by index
+    const A& operator[](int i) const;
+};
+\end{lstlisting}
+
+\subsection{Measure Monoid}
+\label{sec:finger-measure}
+
+Each node carries a monoid value (e.g., the size of its subtree, or the sum of weights). The deep node caches its measure as $m = \text{prefix} \cdot \text{spine} \cdot \text{suffix}$. This allows efficient querying:
+\begin{itemize}
+    \item \textbf{Length}: the measure of the root is the total size.
+    \item \textbf{Split by predicate}: walk the spine, splitting when the accumulated measure satisfies the predicate.
+    \item \textbf{Indexed access}: find the subtree containing the $k$-th element using the cached measures.
+\end{itemize}
+
+\subsection{Performance}
+\label{sec:finger-perf}
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Operation & Complexity \\
+\midrule
+cons/snoc (left/right insert) & $O(1)$ amortized \\
+head/tail (left remove) & $O(1)$ amortized \\
+concatenation & $O(\log \min(n_1, n_2))$ \\
+split & $O(\log^* n)$ \\
+Indexed access & $O(\log^* n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The $O(\log^* n)$ bound comes from the nested logarithmic structure of the spine: the spine is a finger tree of 2-3 nodes, each of which is a finger tree of smaller nodes, and so on. In practice, $\log^* n \leq 5$ for any realistic input.
+
+\subsection{Applications}
+\label{sec:finger-applications}
+
+Finger trees are the backbone of:
+\begin{itemize}
+    \item \textbf{Haskell \texttt{Data.Sequence}}: The standard library sequence type, built on finger trees with size annotations.
+    \item \textbf{Rope data structures}: For text editors, with string concatenation and substring operations.
+    \item \textbf{Persistent deques}: With amortized $O(1)$ operations.
+    \item \textbf{Priority queues with concatenation}: Using a monoid that tracks the minimum element.
+\end{itemize}
+
+\section{Partial Rebuilding}
+\label{sec:partial-rebuilding}
+
+Partial rebuilding is a general technique for maintaining balanced search trees. Instead of performing individual rotations on each update, we reconstruct an entire subtree when it becomes unbalanced, amortizing the cost over many operations.
+
+\subsection{Concept}
+\label{sec:partial-concept}
+
+The idea is simple: when a subtree of size $n$ becomes unbalanced (its height exceeds a threshold), we flatten the subtree into a sorted array, rebuild it as a perfectly balanced tree, and return the new root. The rebuild costs $O(n)$, but if we rebuild only when the subtree has doubled in size (or when the number of structural modifications since the last rebuild reaches $n$), each operation is charged $O(1)$ amortized.
+
+\begin{lstlisting}[language=C++]
+// Generic partial rebuild
+template <typename Node>
+Node* rebuild(Node* root) {
+    // Collect all nodes in sorted order
+    std::vector<Node*> nodes;
+    inOrderCollect(root, nodes);
+    // Build perfectly balanced tree
+    return buildBalanced(nodes, 0, nodes.size() - 1);
+}
+
+template <typename Node>
+Node* buildBalanced(std::vector<Node*>& nodes, int lo, int hi) {
+    if (lo > hi) return nullptr;
+    int mid = lo + (hi - lo) / 2;
+    nodes[mid]->left = buildBalanced(nodes, lo, mid - 1);
+    nodes[mid]->right = buildBalanced(nodes, mid + 1, hi);
+    return nodes[mid];
+}
+\end{lstlisting}
+
+\subsection{When to Rebuild}
+\label{sec:rebuild-trigger}
+
+The standard criterion is the \emph{force-rebuild condition}: rebuild a subtree of size $s$ after $\Theta(s)$ structural modifications (insertions/deletions within that subtree) have occurred since the last rebuild. This gives $O(1)$ amortized cost per operation on that subtree, and $O(\log n)$ amortized cost overall.
+
+This is the principle behind:
+\begin{itemize}
+    \item \textbf{Splay trees} (Section~\ref{sec:splay}): partial rebuilding via rotations
+    \item \textbf{Finger trees} (Section~\ref{sec:finger-trees}): implicit partial rebuilding via lazy evaluation
+    \item \textbf{Catenable lists}: explicit rebuilds on concatenated structures
+\end{itemize}
+
+\section{Join and Split Operations}
+\label{sec:join-split}
+
+Join and split are fundamental operations on ordered sets that are not natively supported by all balanced tree structures. Understanding when and how to implement them is crucial for designing efficient algorithms.
+
+\subsection{Join}
+\label{sec:join-operation}
+
+Given two balanced BSTs $T_1$ and $T_2$ where every key in $T_1$ is less than every key in $T_2$, the \textbf{join} operation produces a single balanced BST containing all keys.
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Data Structure & Join Cost \\
+\midrule
+Unbalanced BST & $O(m \log(n/m))$ \\
+AVL tree & $O(\log n)$ \\
+Red-black tree & $O(\log n)$ \\
+Weight-balanced tree & $O(\log n)$ \\
+Splay tree & $O(\log n)$ amortized \\
+B-tree & $O(\log_b n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The key insight is: for AVL and red-black trees, we can join by inserting the root of the smaller tree into the larger tree (using the appropriate rotation rules). For weight-balanced trees, we use the join algorithm from Section~\ref{sec:wbt-join-split}.
+
+\subsection{Split}
+\label{sec:split-operation}
+
+The inverse of join: given a balanced BST $T$ and a key $k$, \textbf{split} partitions $T$ into two trees $(T_1, T_2)$ where $T_1$ contains all keys less than $k$ and $T_2$ contains all keys $\geq k$.
+
+Split is most naturally supported by weight-balanced trees and splay trees. For structures that do not natively support split (e.g., standard AVL), we must walk down to the split point, maintaining a ``path spine'' and rebuilding both halves.
+
+\subsection{Applications of Join and Split}
+\label{sec:join-split-apps}
+
+These operations enable:
+\begin{itemize}
+    \item \textbf{Concatenation of sorted sequences}: Join two finger trees, or merge two priority queues.
+    \item \textbf{Set difference and intersection}: Split-and-conquer algorithms (split $T_2$ by a pivot from $T_1$, recurse).
+    \item \textbf{Order-statistic maintenance}: Select, rank, and range queries are all more efficient with native split.
+    \item \textbf{Persistent data structures}: Join and split are structural, not destructive, so they naturally support persistence.
+\end{itemize}
+
+\section{Handling Nonunique Keys}
+\label{sec:nonunique-keys}
+
+All BST variants discussed so far assume unique keys. Many practical applications require duplicate keys (e.g., a multiset of student IDs, a frequency table). There are several strategies for handling duplicates.
+
+\subsection{Counting Duplicates}
+\label{sec:counting-duplicates}
+
+The simplest approach: augment each node with a count field. When inserting a duplicate, increment the count rather than creating a new node. All operations remain $O(\log n)$ where $n$ is the number of \emph{distinct} keys.
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+struct CountNode {
+    K key;
+    V value;
+    int count;       // number of duplicate keys
+    int size;        // total count (sum of counts in subtree)
+    CountNode *left, *right;
+    CountNode(const K& k, const V& v)
+        : key(k), value(v), count(1), size(1),
+          left(nullptr), right(nullptr) {}
+};
+
+// Update invariant after modification
+template <typename Node>
+void updateCount(Node* n) {
+    if (n) n->size = n->count + sz(n->left) + sz(n->right);
+}
+\end{lstlisting}
+
+\subsection{Multiway Split}
+\label{sec:multiway-split}
+
+Alternatively, store each key with a unique identifier (e.g., a secondary key) and use a lexicographic ordering $(\text{key}, \text{id})$. This avoids the need for a separate count field but increases tree size.
+
+\subsection{Range Counting}
+\label{sec:range-counting}
+
+With the counting augmentation, the number of elements in a range $[a, b]$ is computed by:
+\begin{enumerate}
+    \item Split by $a$ to get $(T_1, T_2)$.
+    \item Split $T_2$ by $b+1$ to get $(T_3, T_4)$.
+    \item The answer is $|T_3|$ (available in $O(1)$ from the root's \texttt{size}).
+\end{enumerate}
+
+This is $O(\log n)$ for weight-balanced trees and splay trees, but requires $O(\log n)$ with augmented data for AVL/red-black trees.
+
+\section{Optimal Binary Search Trees}
+\label{sec:optimal-bst}
+
+Given $n$ keys with known access probabilities, the \emph{optimal BST} problem asks for the BST that minimizes the expected search cost. This is a classic dynamic programming problem.
+
+\subsection{Problem Formulation}
+\label{sec:optimal-bst-formulation}
+
+Let $p_i$ be the probability of searching for key $k_i$, and $q_i$ be the probability of searching for a value in the gap $(k_i, k_{i+1})$, where $\sum p_i + \sum q_i = 1$. The expected cost of a BST $T$ is:
+\[
+  \text{cost}(T) = \sum_{i} p_i \cdot \text{depth}_T(k_i) + \sum_{j} q_j \cdot \text{depth}_T(\text{gap}_j)
+\]
+where $\text{depth}_T(x)$ is the depth of the node or gap in $T$.
+
+\subsection{Dynamic Programming Solution}
+\label{sec:optimal-bst-dp}
+
+Define $e[i][j]$ as the expected cost of the optimal subtree containing keys $k_i, \ldots, k_j$, and $w[i][j]$ as the total weight of those keys. Then:
+
+\[
+  e[i][i-1] = q_{i-1}
+\]
+\[
+  e[i][j] = \min_{i \leq r \leq j} \left\{ e[i][r-1] + e[r+1][j] + w[i][j] \right\}
+\]
+\[
+  w[i][j] = w[i][j-1] + p_j + q_j
+\]
+
+\begin{lstlisting}[language=C++]
+// Compute optimal BST cost in O(n^2) time, O(n) space
+double optimalBSTCost(vector<double>& p, vector<double>& q) {
+    int n = p.size();
+    vector<vector<double>> e(n + 1, vector<double>(n + 1, 0.0));
+    vector<vector<double>> w(n + 1, vector<double>(n + 1, 0.0));
+
+    for (int i = 1; i <= n; ++i) {
+        e[i][i - 1] = q[i - 1];
+        w[i][i - 1] = q[i - 1];
+    }
+
+    for (int len = 1; len <= n; ++len) {
+        for (int i = 1; i <= n - len + 1; ++i) {
+            int j = i + len - 1;
+            e[i][j] = numeric_limits<double>::infinity();
+            w[i][j] = w[i][j - 1] + p[j] + q[j];
+            for (int r = i; r <= j; ++r) {
+                double cost = e[i][r - 1] + e[r + 1][j] + w[i][j];
+                if (cost < e[i][j]) e[i][j] = cost;
+            }
+        }
+    }
+    return e[1][n];
+}
+\end{lstlisting}
+
+\subsection{Knuth's Optimization}
+\label{sec:optimal-bst-knuth}
+
+Knuth (1971) showed that the root $r[i][j]$ of the optimal subtree for keys $i, \ldots, j$ satisfies $r[i][j-1] \leq r[i][j] \leq r[i+1][j]$. This reduces the time complexity from $O(n^3)$ to $O(n^2)$.
+
+\subsection{Practical Relevance}
+\label{sec:optimal-bst-relevance}
+
+The optimal BST problem arises in:
+\begin{itemize}
+    \item \textbf{Static dictionary compression}: When the access frequencies of keys are known in advance (e.g., a keyword list in a compiler).
+    \item \textbf{Branch prediction}: Optimal BSTs minimize the expected number of branch mispredictions.
+    \item \textbf{Huffman coding}: Optimal prefix codes are a special case (with $p_i = q_i = 0$ for gaps).
+    \item \textbf{Database indexing}: When query frequencies are stable, the optimal BST structure outperforms AVL or red-black trees by a constant factor.
+\end{itemize}
+
+For unknown or changing distributions, the splay tree (Section~\ref{sec:splay}) achieves $O(\log n)$ amortized cost per access, which is within a constant factor of optimal for any access sequence.
+
+\section{Comparison}
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+Tree Type & Insert & Find & Erase & Memory & Use Case \\
+BST (unbalanced) & O(n) worst & O(n) worst & O(n) worst & 2 ptrs & Educational only \\
+AVL & O(log n) & O(log n) & O(log n) & 2 ptrs + height & Frequent lookups \\
+Red-Black & O(log n) & O(log n) & O(log n) & 2 ptrs + color bit & General purpose \\
+Treap & O(log n) exp & O(log n) exp & O(log n) exp & 2 ptrs + priority & Simple impl \\
+Splay & O(log n) amort & O(log n) amort & O(log n) amort & 2 ptrs & Self-adjusting \\
+B-Tree & O(log n) & O(log n) & O(log n) & variable & Disk-based \\
+k-d Tree & O(n log n) build & O(log n) avg & N/A (static) & 2 pts + split axis & Spatial queries \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{STL Associative Containers: set, map, multiset, multimap}
+
+\label{sec:associative-containers}
+
+The C++ Standard Library provides four ordered associative containers backed by red-black trees. All four guarantee O(log n) for insert, erase, and find. Understanding their internals, common patterns, and pitfalls is essential for interviews and production code.
+
+\subsection{std::set}
+
+A \texttt{std::set} stores unique keys in sorted order. It is a \texttt{std::map} without values. Internally, each element is stored as the key portion of a red-black tree node.
+
+\begin{lstlisting}[language=C++]
+std::set<int> s;
+s.insert(5);
+s.insert(3);
+s.insert(7);
+s.insert(3);  // duplicate -- ignored, size stays 3
+
+assert(s.size() == 3);
+assert(s.count(5) == 1);   // 1 if present, 0 if not
+assert(s.count(4) == 0);
+
+// Erase by value
+s.erase(5);
+assert(s.find(5) == s.end());
+
+// Erase by iterator (O(1) amortized)
+auto it = s.find(7);
+if (it != s.end()) s.erase(it);
+\end{lstlisting}
+
+\textbf{Key operations:}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Complexity \\
+\midrule
+\texttt{insert(value)} & O(log n) \\
+\texttt{erase(value)} & O(log n) \\
+\texttt{find(value)} & O(log n) \\
+\texttt{count(value)} & O(log n) \\
+\texttt{lower\_bound(value)} & O(log n) \\
+\texttt{upper\_bound(value)} & O(log n) \\
+\texttt{empty()} & O(1) \\
+\texttt{size()} & O(1) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Iterating in order:}
+\begin{lstlisting}[language=C++]
+std::set<int> s = {5, 3, 1, 4, 2};
+for (int x : s) std::cout << x << ' ';  // 1 2 3 4 5
+
+// Reverse iteration
+for (auto it = s.rbegin(); it != s.rend(); ++it)
+    std::cout << *it << ' ';  // 5 4 3 2 1
+\end{lstlisting}
+
+\subsection{std::multiset}
+
+A \texttt{std::multiset} is like \texttt{std::set} but allows duplicate keys. This makes \texttt{count()} meaningful -- it returns how many times a key appears.
+
+\begin{lstlisting}[language=C++]
+std::multiset<int> ms;
+ms.insert(5);
+ms.insert(5);
+ms.insert(5);
+ms.insert(3);
+ms.insert(7);
+
+assert(ms.count(5) == 3);
+assert(ms.size() == 5);
+
+// Erase removes ALL occurrences by default
+ms.erase(5);
+assert(ms.count(5) == 0);
+
+// Erase a single occurrence using find
+ms.insert(7); ms.insert(7);
+auto it = ms.find(7);  // points to one occurrence
+if (it != ms.end()) ms.erase(it);  // removes one
+assert(ms.count(7) == 1);
+\end{lstlisting}
+
+\textbf{Use cases:} frequency counters, range queries on duplicates, finding top-k elements.
+
+\begin{lstlisting}[language=C++]
+// Count frequencies of characters in a string
+std::string s = "hello world";
+std::multiset<char> freq(s.begin(), s.end());
+for (char c : s)
+    std::cout << c << ": " << freq.count(c) << '\n';
+
+// Find the k-th smallest element
+std::multiset<int> data = {3, 1, 4, 1, 5, 9, 2, 6, 5};
+auto it = data.begin();
+std::advance(it, 3);  // 4th smallest (0-indexed: 3rd)
+assert(*it == 3);
+\end{lstlisting}
+
+\subsection{std::map}
+
+A \texttt{std::map} stores key-value pairs in sorted order by key. It is the most commonly used associative container.
+
+\begin{lstlisting}[language=C++]
+std::map<std::string, int> m;
+
+// Insert
+m["apple"] = 5;
+m["banana"] = 3;
+m.insert({"cherry", 7});
+
+// Find
+auto it = m.find("apple");
+if (it != m.end())
+    std::cout << it->first << ": " << it->second;
+
+// operator[] inserts a default value if key is missing!
+// Dangerous for lookups:
+if (m["dragon"] == 0)  // inserts m["dragon"] = 0, then checks
+    std::cout << "dragon not found\n";  // this prints!
+
+// Safe lookup:
+if (!m.contains("dragon"))
+    std::cout << "dragon not found\n";
+\end{lstlisting}
+
+\textbf{The \texttt{operator[]} pitfall:} Using \texttt{m[key]} for read-only lookups silently inserts a default value if the key is missing. This can corrupt data and waste memory. Always use \texttt{find()} or \texttt{contains()} (C++20) for lookups.
+
+\textbf{Range queries with iterators:}
+\begin{lstlisting}[language=C++]
+std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}, {"d", 4}};
+
+// lower_bound: first element >= key
+auto lo = m.lower_bound("b");  // points to "b"
+
+// upper_bound: first element > key
+auto hi = m.upper_bound("c");  // points to "d"
+
+// Iterate ["b", "c"]
+for (auto it = lo; it != hi; ++it)
+    std::cout << it->first << " ";  // b c
+
+// equal_range: returns {lower_bound, upper_bound}
+auto [begin, end] = m.equal_range("b");
+for (auto it = begin; it != end; ++it)
+    std::cout << it->first << " ";  // b
+\end{lstlisting}
+
+\subsection{std::multimap}
+
+A \texttt{std::multimap} stores multiple values per key. It is to \texttt{std::map} what \texttt{std::multiset} is to \texttt{std::set}.
+
+\begin{lstlisting}[language=C++]
+std::multimap<std::string, int> mm;
+mm.insert({"apple", 1});
+mm.insert({"apple", 2});
+mm.insert({"apple", 3});
+mm.insert({"banana", 4});
+
+assert(mm.count("apple") == 3);
+assert(mm.size() == 4);
+
+// find returns the first occurrence
+auto it = mm.find("apple");
+assert(it->second == 1);
+
+// Use equal_range to iterate all occurrences
+auto [begin, end] = mm.equal_range("apple");
+for (auto iter = begin; iter != end; ++iter)
+    std::cout << iter->first << ": " << iter->second << '\n';
+// apple: 1, apple: 2, apple: 3
+\end{lstlisting}
+
+\textbf{Use cases:} inverted indexes, grouping records by key, representing many-to-one relationships.
+
+\begin{lstlisting}[language=C++]
+// Group students by grade
+std::multimap<char, std::string> students;
+students.insert({'A', "Alice"});
+students.insert({'B', "Bob"});
+students.insert({'A', "Amy"});
+students.insert({'A', "Andrew"});
+students.insert({'B', "Brenda"});
+
+// Print all A students
+auto [begin, end] = students.equal_range('A');
+for (auto it = begin; it != end; ++it)
+    std::cout << it->second << '\n';
+// Alice, Amy, Andrew
+\end{lstlisting}
+
+\subsection{Internal Structure}
+
+All four containers store elements as nodes in a red-black tree. The node layout for \texttt{std::map} is:
+
+\begin{lstlisting}[language=C++]
+// Pseudocode for map node layout
+struct map_node {
+    std::pair<const Key, Value> data;  // key-value pair
+    map_node* left;     // left child
+    map_node* right;    // right child
+    map_node* parent;   // parent pointer
+    Color color;        // red or black
+};
+\end{lstlisting}
+
+For \texttt{std::set}, the node contains only the key (no value). For \texttt{std::multimap} and \texttt{std::multiset}, the node layout is identical -- duplicates are stored as separate nodes.
+
+\textbf{Memory overhead per node:}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Container & Overhead per element \\
+\midrule
+\texttt{std::set} & 3 pointers + color + key \\
+\texttt{std::map} & 3 pointers + color + key + value \\
+\texttt{std::multiset} & Same as \texttt{std::set} \\
+\texttt{std::multimap} & Same as \texttt{std::map} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Each node typically takes 32--48 bytes on a 64-bit system, regardless of element size. This makes associative containers expensive for small elements (prefer \texttt{std::vector} for POD types).
+
+\subsection{Common Interview Patterns}
+
+\textbf{Pattern 1: Two Sum with map}
+\begin{lstlisting}[language=C++]
+int two_sum(const std::vector<int>& a, int target) {
+    std::map<int, int> seen;  // value -> index
+    for (int i = 0; i < (int)a.size(); ++i) {
+        if (auto it = seen.find(target - a[i]); it != seen.end())
+            return it->second + i;  // found pair
+        seen[a[i]] = i;
+    }
+    return -1;
+}
+\end{lstlisting}
+
+\textbf{Pattern 2: Frequency counting}
+\begin{lstlisting}[language=C++]
+// Count frequency of each element
+std::map<int, int> freq;
+for (int x : data) ++freq[x];
+
+// Sort by frequency
+std::vector<std::pair<int, int>> sorted_freq(freq.begin(), freq.end());
+std::sort(sorted_freq.begin(), sorted_freq.end(),
+    [](const auto& a, const auto& b) { return a.second > b.second; });
+\end{lstlisting}
+
+\textbf{Pattern 3: Lower/upper bound range count}
+\begin{lstlisting}[language=C++]
+// Count elements in range [lo, hi]
+int range_count(const std::set<int>& s, int lo, int hi) {
+    auto begin = s.lower_bound(lo);
+    auto end = s.upper_bound(hi);
+    return std::distance(begin, end);  // O(log n + k)
+}
+\end{lstlisting}
+
+\textbf{Pattern 4: Grouping}
+\begin{lstlisting}[language=C++]
+// Group anagrams
+std::map<std::string, std::vector<std::string>> groups;
+for (const auto& word : words) {
+    std::string sorted = word;
+    std::sort(sorted.begin(), sorted.end());
+    groups[sorted].push_back(word);
+}
+\end{lstlisting}
+
+\subsection{Choosing Between Containers}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Need & Use & Why \\
+\midrule
+Unique sorted keys & \texttt{std::set} & No values, less memory \\
+Key-value pairs & \texttt{std::map} & Sorted, O(log n) \\
+Duplicate keys & \texttt{std::multiset} / \texttt{std::multimap} & Allows repeats \\
+O(1) lookup, no ordering & \texttt{std::unordered\_map} & Hash table \\
+Sorted + fast insert/delete & Red-black tree (built-in) & Balanced \\
+Disk-based sorted & B+ tree (custom) & Block-aligned I/O \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{STL Connection: std::unordered\_map}
+
+For completeness, \texttt{std::unordered\_map} uses a hash table instead of a tree. It provides O(1) average lookup but O(n) worst case.
+
+\begin{lstlisting}[language=C++]
+std::unordered_map<std::string, int> um;
+um["apple"] = 5;
+
+// O(1) average
+auto it = um.find("apple");
+if (it != um.end()) std::cout << it->second;
+
+// No ordering guarantee
+for (const auto& [key, value] : um)
+    std::cout << key << ": " << value << '\n';
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Feature & \texttt{std::map} & \texttt{std::unordered\_map} & \texttt{std::set} \\
+\midrule
+Structure & Red-black tree & Hash table & Red-black tree \\
+Lookup & O(log n) & O(1) avg, O(n) worst & O(log n) \\
+Ordered iteration & Yes & No & Yes \\
+Range queries & Yes & No & Yes \\
+Needs hash & No & Yes & No \\
+Memory & High (nodes) & High (buckets + nodes) & High (nodes) \\
+Small n ($<50$) & Fast (cache) & Slow (hash overhead) & Fast \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+\midrule
+Using \texttt{m[key]} for lookup & Inserts default value, corrupts data & Use \texttt{find()} or \texttt{contains()} \\
+Erasing while iterating & Iterator invalidated, undefined behavior & Use \texttt{it = m.erase(it)} \\
+Calling \texttt{count()} on \texttt{map} & Always returns 0 or 1, not useful & Use \texttt{find()} for existence check \\
+Using \texttt{set::erase(val)} on multiset & Removes ALL occurrences & Use \texttt{erase(find(val))} for one \\
+Comparing \texttt{map::iterator} across containers & Undefined behavior & Only compare iterators from same container \\
+Expecting \texttt{unordered\_map} to be ordered & Iteration order is arbitrary & Use \texttt{std::map} for ordered traversal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{What is the difference between \texttt{std::map} and \texttt{std::unordered\_map}?}
+
+\textbf{Q:} ``Why is operator[] dangerous for read-only lookups in std::map, and what's the modern alternative?''
+
+\textbf{A:} \texttt{operator[]} inserts a default-constructed value if the key is missing --- a silent side effect that corrupts your data structure. \texttt{if (m[key] == 0)} creates the entry if it doesn't exist. Before C++20, the safe pattern was \texttt{auto it = m.find(key); if (it != m.end())}. C++20 added \texttt{m.contains(key)} --- O(log n), returns bool, no insertion, reads clearly. This is the idiomatic modern C++ way. The deeper lesson: \texttt{operator[]} was designed for \emph{insertion-or-access}, not \emph{lookup}. Using it for lookup is a category error.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is \texttt{operator[]} dangerous for read-only lookups in \texttt{std::map}?}
+
+\texttt{operator[]} inserts a default-constructed value if the key is missing. So \texttt{if (m[key] == 0)} silently creates an entry \texttt{m[key] = 0} before the comparison. This can corrupt your data and waste memory. Always use \texttt{m.find(key) != m.end()} or \texttt{m.contains(key)} (C++20) for lookups.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you erase an element from a \texttt{std::set} while iterating?}
+
+Use the return value of \texttt{erase()}: \texttt{it = s.erase(it)}. This returns an iterator to the next element. The old iterator is invalidated after erase. Never do \texttt{s.erase(it++);} -- it works but is unnecessary and less clear.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When would you use \texttt{std::multimap} instead of \texttt{std::map}?}
+
+\textbf{Q:} ``How do you efficiently iterate over all values for a given key in a std::multimap?''
+
+\textbf{A:} Use \texttt{equal\_range(key)} which returns a \texttt{std::pair<iterator, iterator>} bounding all matching elements. O(log n) to find the range + O(k) to iterate $k$ matches. This is the bread-and-butter operation for multimaps. Without it, you'd do a linear scan --- which defeats the purpose of using a tree-based container. Example: \texttt{auto [lo, hi] = mp.equal\_range(key); for (auto it = lo; it != hi; ++it) \{ /* it->second is the value */ \}}. The range-based for doesn't work directly because the range isn't a single pair --- you need the explicit iterator loop.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the memory overhead of \texttt{std::map} per element?}
+
+Each node in a red-black tree requires: 3 pointers (left, right, parent) + 1 color bit + the key-value pair. On a 64-bit system, a \texttt{std::map<int, int>} node typically takes 32--40 bytes for 8 bytes of data. This is why \texttt{std::vector} is preferred for small POD types -- it stores elements contiguously with no per-element overhead.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the k-th smallest element in a \texttt{std::set}?}
+
+\texttt{std::set} does not support random access. Use \texttt{std::advance(it, k)} where \texttt{it = s.begin()}. This is O(k + h) time, not O(log n). For repeated order-statistic queries, use a policy-based tree (GCC \texttt{\_\_gnu\_pbds::tree}) with node update for O(log n) per query.
+\end{enumerate}
+
+\section{STL Unordered Containers: unordered\_set, unordered\_map}
+
+\label{sec:unordered-containers}
+
+The ordered containers (\texttt{std::map}, \texttt{std::set}) use red-black trees and guarantee O(log n) operations. The \textbf{unordered} containers use hash tables and provide O(1) average-case performance. The standard library offers four unordered variants: \texttt{unordered\_set}, \texttt{unordered\_multiset}, \texttt{unordered\_map}, and \texttt{unordered\_multimap}.
+
+\subsection{std::unordered\_set}
+
+An \texttt{unordered\_set} stores unique keys in no particular order. Lookup is O(1) average, O(n) worst case.
+
+\begin{lstlisting}[language=C++]
+std::unordered_set<int> us;
+us.insert(5);
+us.insert(3);
+us.insert(7);
+us.insert(3);  // duplicate -- ignored
+
+assert(us.size() == 3);
+assert(us.count(5) == 1);
+
+// Erase by value
+us.erase(5);
+assert(us.find(5) == us.end());
+
+// Erase by iterator (O(1) amortized)
+auto it = us.find(7);
+if (it != us.end()) us.erase(it);
+\end{lstlisting}
+
+\textbf{Key operations:}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Complexity (avg / worst) \\
+\midrule
+\texttt{insert(value)} & O(1) / O(n) \\
+\texttt{erase(value)} & O(1) / O(n) \\
+\texttt{find(value)} & O(1) / O(n) \\
+\texttt{count(value)} & O(1) / O(n) \\
+\texttt{bucket\_count()} & O(1) \\
+\texttt{load\_factor()} & O(1) \\
+\texttt{reserve(n)} & O(bucket\_count) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Iteration order is unpredictable:}
+\begin{lstlisting}[language=C++]
+std::unordered_set<int> us = {5, 3, 1, 4, 2};
+for (int x : us)
+    std::cout << x << ' ';  // order is implementation-defined
+\end{lstlisting}
+
+\subsection{std::unordered\_multiset}
+
+Like \texttt{std::unordered\_set} but allows duplicate keys. \texttt{count()} returns the number of occurrences.
+
+\begin{lstlisting}[language=C++]
+std::unordered_multiset<int> ums;
+ums.insert(5);
+ums.insert(5);
+ums.insert(5);
+ums.insert(3);
+
+assert(ums.count(5) == 3);
+
+// Erase removes ALL occurrences by default
+ums.erase(5);
+assert(ums.count(5) == 0);
+
+// Erase a single occurrence
+ums.insert(7); ums.insert(7);
+auto it = ums.find(7);
+if (it != ums.end()) ums.erase(it);
+assert(ums.count(7) == 1);
+\end{lstlisting}
+
+\subsection{std::unordered\_map}
+
+A \texttt{std::unordered\_map} stores key-value pairs hashed by key. It is the unordered counterpart to \texttt{std::map}.
+
+\begin{lstlisting}[language=C++]
+std::unordered_map<std::string, int> um;
+um["apple"] = 5;
+um["banana"] = 3;
+um.insert({"cherry", 7});
+
+// O(1) average lookup
+auto it = um.find("apple");
+if (it != um.end())
+    std::cout << it->first << ": " << it->second;
+
+// operator[] inserts default if key missing (same as std::map!)
+if (!um.contains("dragon"))
+    std::cout << "dragon not found\n";
+\end{lstlisting}
+
+\textbf{The \texttt{operator[]} pitfall applies here too.} \texttt{um[key]} silently inserts a default value. Always use \texttt{find()} or \texttt{contains()} for lookups.
+
+\textbf{Iteration:}
+\begin{lstlisting}[language=C++]
+std::unordered_map<std::string, int> um = {{"a", 1}, {"b", 2}, {"c", 3}};
+for (const auto& [key, value] : um)
+    std::cout << key << ": " << value << '\n';
+// order is not sorted (and not guaranteed stable across inserts)
+\end{lstlisting}
+
+\subsection{std::unordered\_multimap}
+
+Allows multiple values per key. Like \texttt{std::multimap} but with hash-based access.
+
+\begin{lstlisting}[language=C++]
+std::unordered_multimap<std::string, int> umm;
+umm.insert({"apple", 1});
+umm.insert({"apple", 2});
+umm.insert({"apple", 3});
+umm.insert({"banana", 4});
+
+assert(umm.count("apple") == 3);
+
+// find returns the first occurrence
+auto it = umm.find("apple");
+assert(it->second == 1);
+
+// equal_range iterates all occurrences for a key
+auto [begin, end] = umm.equal_range("apple");
+for (auto iter = begin; iter != end; ++iter)
+    std::cout << iter->first << ": " << iter->second << '\n';
+// apple: 1, apple: 2, apple: 3
+\end{lstlisting}
+
+\subsection{Hash Functions and Custom Keys}
+
+For user-defined types, you must provide a hash function. The standard library provides hashes for built-in types and \texttt{std::string}, but not for custom structs.
+
+\begin{lstlisting}[language=C++]
+struct Point {
+    int x, y;
+    bool operator==(const Point& o) const {
+        return x == o.x && y == o.y;
+    }
+};
+
+// Provide a hash function
+struct PointHash {
+    size_t operator()(const Point& p) const {
+        size_t h1 = std::hash<int>{}(p.x);
+        size_t h2 = std::hash<int>{}(p.y);
+        return h1 ^ (h2 << 1);  // combine hashes
+    }
+};
+
+std::unordered_set<Point, PointHash> points;
+points.insert({1, 2});
+points.insert({3, 4});
+assert(points.count({1, 2}) == 1);
+
+// Or use std::hash specialization
+namespace std {
+    template<> struct hash<Point> {
+        size_t operator()(const Point& p) const {
+            return hash<int>{}(p.x) ^ (hash<int>{}(p.y) << 1);
+        }
+    };
+}
+\end{lstlisting}
+
+\subsection{Rehashing and Load Factor}
+
+The load factor is \texttt{size / bucket\_count}. When it exceeds \texttt{max\_load\_factor()} (default 1.0), the hash table rehashes -- allocates new buckets and reinserts all elements. This is O(n) and happens automatically.
+
+\begin{lstlisting}[language=C++]
+std::unordered_set<int> us;
+us.reserve(1000);  // pre-allocate for 1000 elements
+// Prevents rehashing during insertion of up to 1000 elements
+
+std::cout << us.bucket_count() << '\n';   // number of buckets
+std::cout << us.load_factor() << '\n';     // elements / buckets
+us.max_load_factor(0.5);  // trigger rehash more often
+us.rehash(2000);          // force 2000 buckets
+\end{lstlisting}
+
+\textbf{Rule of thumb:} Call \texttt{reserve(n)} if you know the approximate number of elements. This avoids multiple rehashes during insertion.
+
+\subsection{Common Interview Patterns}
+
+\textbf{Pattern 1: Grouping with unordered\_map}
+\begin{lstlisting}[language=C++]
+// Group anagrams
+std::unordered_map<std::string, std::vector<std::string>> groups;
+for (const auto& word : words) {
+    std::string sorted = word;
+    std::sort(sorted.begin(), sorted.end());
+    groups[sorted].push_back(word);
+}
+\end{lstlisting}
+
+\textbf{Pattern 2: Frequency counting}
+\begin{lstlisting}[language=C++]
+std::unordered_map<char, int> freq;
+for (char c : s) ++freq[c];
+
+// Find the first non-repeating character
+for (char c : s)
+    if (freq[c] == 1) return c;
+\end{lstlisting}
+
+\textbf{Pattern 3: Two Sum with unordered\_map}
+\begin{lstlisting}[language=C++]
+int two_sum(const std::vector<int>& a, int target) {
+    std::unordered_map<int, int> seen;
+    for (int i = 0; i < (int)a.size(); ++i) {
+        if (auto it = seen.find(target - a[i]); it != seen.end())
+            return it->second + i;
+        seen[a[i]] = i;
+    }
+    return -1;
+}
+\end{lstlisting}
+
+\textbf{Pattern 4: Set intersection}
+\begin{lstlisting}[language=C++]
+std::unordered_set<int> intersect(const std::unordered_set<int>& a,
+                                   const std::unordered_set<int>& b) {
+    std::unordered_set<int> result;
+    for (int x : a)
+        if (b.count(x)) result.insert(x);
+    return result;
+}
+\end{lstlisting}
+
+\subsection{Choosing Between All Eight Containers}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Need & Use \\
+\midrule
+Unique keys, sorted order & \texttt{std::set} \\
+Key-value pairs, sorted order & \texttt{std::map} \\
+Duplicate keys, sorted order & \texttt{std::multiset} / \texttt{std::multimap} \\
+Unique keys, O(1) lookup & \texttt{std::unordered\_set} \\
+Key-value pairs, O(1) lookup & \texttt{std::unordered\_map} \\
+Duplicate keys, O(1) lookup & \texttt{std::unordered\_multiset} / \texttt{std::unordered\_multimap} \\
+No ordering needed, small data & \texttt{std::vector} + sort \\
+Disk-based, block-aligned & B+ tree (custom) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Bimap: Bidirectional Map}
+
+\label{sec:bimap}
+
+A \textbf{bimap} (bidirectional map) is a data structure that maintains two maps -- key$\to$value and value$\to$key -- allowing O(log n) lookup in both directions. It is useful when you need to find a value by its key \emph{and} find a key by its value.
+
+\subsection{Motivation}
+
+Suppose you store country codes: \texttt{"US" $\leftrightarrow$ "United States"}, \texttt{"IN" $\leftrightarrow$ "India"}. With a single \texttt{std::map}, you can look up a country by code, but looking up a code by country requires a linear scan. A bimap solves this by maintaining both directions simultaneously.
+
+\begin{lstlisting}[language=C++]
+// Without bimap: two separate maps, must keep in sync
+std::map<std::string, std::string> code_to_name;
+std::map<std::string, std::string> name_to_code;
+// Inserting requires updating both -- error-prone
+\end{lstlisting}
+
+\subsection{Implementation}
+
+A bimap can be implemented as two \texttt{std::map}s (or two \texttt{std::unordered\_map}s for O(1) average). The key invariant is: both maps must always agree -- if \texttt{A$\to$B} exists in one, \texttt{B$\to$A} must exist in the other.
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+class bimap {
+    std::map<K, V> kv_;  // key -> value
+    std::map<V, K> vk_;  // value -> key (reverse)
+
+public:
+    void insert(const K& key, const V& value) {
+        if (kv_.count(key) || vk_.count(value))
+            throw std::runtime_error("duplicate key or value");
+        kv_[key] = value;
+        vk_[value] = key;
+    }
+
+    // Lookup by key: O(log n)
+    std::optional<V> by_key(const K& key) const {
+        auto it = kv_.find(key);
+        if (it != kv_.end()) return it->second;
+        return std::nullopt;
+    }
+
+    // Lookup by value: O(log n)
+    std::optional<K> by_value(const V& value) const {
+        auto it = vk_.find(value);
+        if (it != vk_.end()) return it->second;
+        return std::nullopt;
+    }
+
+    bool erase_by_key(const K& key) {
+        auto it = kv_.find(key);
+        if (it == kv_.end()) return false;
+        vk_.erase(it->second);
+        kv_.erase(it);
+        return true;
+    }
+
+    bool erase_by_value(const V& value) {
+        auto it = vk_.find(value);
+        if (it == vk_.end()) return false;
+        kv_.erase(it->second);
+        vk_.erase(it);
+        return true;
+    }
+
+    bool contains_key(const K& key) const { return kv_.count(key); }
+    bool contains_value(const V& value) const { return vk_.count(value); }
+    std::size_t size() const { return kv_.size(); }
+};
+\end{lstlisting}
+
+\textbf{Usage:}
+\begin{lstlisting}[language=C++]
+bimap<std::string, int> bm;
+bm.insert("apple", 5);
+bm.insert("banana", 3);
+
+assert(bm.by_key("apple") == 5);
+assert(bm.by_value(3) == "banana");
+assert(!bm.by_key("cherry").has_value());
+
+bm.erase_by_key("apple");
+assert(!bm.contains_key("apple"));
+assert(!bm.contains_value(5));
+\end{lstlisting}
+
+\subsection{Using Boost.Bimap}
+
+The Boost library provides a production-grade \texttt{boost::bimap} with set views, range queries, and efficient memory management:
+
+\begin{lstlisting}[language=C++]
+#include <boost/bimap.hpp>
+
+using namespace boost::bimaps;
+
+bimap<std::string, int> bm;
+bm.insert(entry("apple", 5));
+bm.insert(entry("banana", 3));
+
+// Left view (key -> value)
+auto it = bm.left.find("apple");
+assert(it->second == 5);
+
+// Right view (value -> key)
+auto rit = bm.right.find(3);
+assert(rit->second == "banana");
+
+// Range query on left view
+auto lo = bm.left.lower_bound("a");
+auto hi = bm.left.upper_bound("b");
+for (auto it = lo; it != hi; ++it)
+    std::cout << it->left << " -> " << it->right << '\n';
+\end{lstlisting}
+
+\subsection{Bimap Variants}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Variant & Left View & Right View \\
+\midrule
+\texttt{set\_of$<$set$>$} & Ordered & Ordered \\
+\texttt{set\_of$<$unordered\_set$>$} & Unordered & Ordered \\
+\texttt{unordered\_set\_of$<$set$>$} & Ordered & Unordered \\
+\texttt{unordered\_set\_of$<$unordered\_set$>$} & Unordered & Unordered \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Choose based on whether you need ordered iteration or range queries on either side.
+
+\subsection{Use Cases}
+
+\begin{itemize}
+\item \textbf{Reverse lookup tables:} country code $\leftrightarrow$ country name, currency code $\leftrightarrow$ currency name
+\item \textbf{ID mapping:} database ID $\leftrightarrow$ username, UUID $\leftrightarrow$ object pointer
+\item \textbf{Indexing:} two fields in a record that must both be searchable (e.g., email $\leftrightarrow$ user)
+\item \textbf{Bi-directional enums:} enum value $\leftrightarrow$ string representation
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+// Enum <-> string mapping
+bimap<int, std::string> status_map;
+status_map.insert(0, "pending");
+status_map.insert(1, "active");
+status_map.insert(2, "completed");
+
+std::string status_str = status_map.by_key(1).value();  // "active"
+int status_val = status_map.by_value("completed").value();  // 2
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & std::map-based & unordered\_map-based \\
+\midrule
+Insert & O(log n) & O(1) average \\
+Lookup by key & O(log n) & O(1) average \\
+Lookup by value & O(log n) & O(1) average \\
+Erase by key & O(log n) & O(1) average \\
+Erase by value & O(log n) & O(1) average \\
+Space & 2 $\times$ (nodes + pointers) & 2 $\times$ (nodes + buckets) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Space overhead:} A bimap stores two copies of every entry -- one in each direction. For large datasets, consider whether the bidirectional lookup is worth 2$\times$ memory. If only occasional reverse lookups are needed, a single map with a linear scan may be cheaper.
+
+\subsection{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Consolidated: What are the performance and correctness tradeoffs of using a bimap vs manually maintaining two maps?}
+
+\textbf{Q:} ``What are the performance and correctness tradeoffs of using a bimap vs manually maintaining two maps?''
+
+\textbf{A:} A bimap guarantees both maps are always in sync --- if you erase from the forward map, the reverse entry is automatically removed. With two manual maps, forgetting to update one side is a silent bug (data inconsistency). The performance cost is 2$\times$ memory (both keys stored twice) and 2$\times$ write cost (two insertions per logical insert). Boost.Bimap supports different container types per side (e.g., \texttt{bimap<set\_of<>, unordered\_set\_of<>>}) --- ordered forward access with unordered reverse. Use a bimap when bidirectional lookup is a core requirement (UUID$\leftrightarrow$object, DNS name$\leftrightarrow$IP). Use two maps when one direction is rare and can tolerate linear scan.
+\end{enumerate}
+
+\section{The Dynamic Optimality Conjecture}
+
+We have seen several BST designs --- AVL, red-black, treap, splay --- each with O(log n) operations. But is O(log n) the best we can do? Is there a single BST that achieves the optimal access cost for \textit{every} access sequence? This is the \textbf{dynamic optimality conjecture}, one of the longest-standing open problems in data structure theory.
+
+\subsection{BSTs as Points in 2D}
+
+Any BST with $n$ distinct keys can be drawn in the plane with key values on the $x$-axis and depths on the $y$-axis. Each node is a point $(x, y)$. The \textbf{access cost} of a node is its depth plus one (number of comparisons to find it).
+
+An access sequence of length $m$ maps to $m$ points in this 2D plane. The total cost of serving the sequence is the sum of depths of all accessed nodes. The question becomes: among all BSTs containing these $n$ keys, which tree minimizes the total cost for a given sequence?
+
+This geometric view reveals that BSTs and their rotations correspond to operations on 2D point sets. A left rotation at node $x$ effectively swaps $x$ with its right child in the key ordering, changing the shape of the tree in the plane.
+
+\subsection{The Greedy Algorithm}
+
+The \textbf{greedy algorithm} (sometimes called \textbf{Greedy}) is an online BST algorithm that moves every accessed node to the root along the BST path. Unlike splay trees, which apply zig-zig and zig-zag rotations, Greedy uses a simpler rule: walk down from the root to the accessed node, performing rotations at every step to pull the accessed node upward.
+
+Greedy is \textit{online} --- it makes each decision using only the current access, without knowledge of future accesses. Despite this, Greedy provably achieves within a constant factor of the best \textit{offline} BST for every access sequence.
+
+\subsection{Wilber's Lower Bound}
+
+Wilber (1989) defined the \textbf{interleave lower bound}, a lower bound on the cost any BST algorithm must pay for an access sequence. The idea: consider pairs of keys $(a, b)$ such that the most recent access before the current one was to the other key in the pair. The algorithm must ``re-establish'' the ordering relationship between these keys, which costs at least $\log k$ per pair, where $k$ is the number of such interleaved pairs.
+
+The interleave bound is a lower bound, not an upper bound --- no known BST algorithm matches it for all sequences. The gap between the interleave bound and the cost of the best known algorithms is the core of the dynamic optimality problem.
+
+\subsection{Signed Greedy}
+
+\textbf{Signed Greedy} is a variant that tracks, for each edge in the BST, a ``sign'' indicating which side of the edge the most recent access came from. When signs on a path alternate, the algorithm can bound future costs more tightly. Signed Greedy achieves $O(\log \log n)$-competitive performance on certain access patterns where unsigned Greedy does not.
+
+\subsection{Tango Trees}
+
+Demaine et al. (2007) introduced \textbf{Tango trees}, the best known BST in terms of worst-case competitive ratio. A Tango tree is a set of interleaved BSTs organized by ``preferred paths'' --- each access follows a preferred path, and the tree restructures using a mechanism similar to splay trees.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Structure & Per-operation cost & Competitive ratio \\
+\midrule
+Greedy & O(log n) & O(log n) \\
+Signed Greedy & O(log n) & O(log log n) \\
+Splay tree & O(log n) amortized & O(log n) \\
+Tango tree & O(log log n) amortized & O(log log n) \\
+Weight-balanced & O(log n) worst case & O(log n) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Tango trees achieve $O(\log \log n)$ amortized time per operation, beating the $\Omega(\log n)$ lower bound for comparison-based BSTs. The trick: they use the \textit{access sequence itself} as additional information, making them not purely comparison-based. This is why the competitive ratio (vs. an optimal offline algorithm) is $O(\log \log n)$, not $O(1)$.
+
+\subsection{Key-Independent Optimality}
+
+Some BST algorithms are \textbf{key-independent} --- their performance depends only on the access pattern, not on the actual key values or their ordering. For example, the ``static optimality'' bound applies to sequences where the relative ordering of keys is fixed.
+
+A BST is \textit{key-independent optimal} if, for every access sequence, its cost matches the optimal offline BST regardless of how the keys are labeled. Demaine et al. (2009) showed that certain BSTs achieve this property, though the details are technically involved.
+
+\subsection{Splay Trees and Dynamic Optimality}
+
+Splay trees are $O(\log n)$ amortized, which matches the $\Omega(\log n)$ comparison lower bound. However, splay trees are \textit{not known} to be dynamically optimal. The dynamic optimality conjecture posits that splay trees are $O(1)$-competitive with the optimal offline algorithm, but this remains unproven.
+
+The splay tree's ``move to root'' heuristic is simple and effective, but its zig-zig and zig-zag rotations do not always match the greedy strategy. For some access sequences, Greedy outperforms splay trees by a constant factor, and for others, splay trees win. The question of whether one is always within a constant factor of the other --- and of the optimal offline algorithm --- remains open.
+
+\section{Fusion Trees}
+
+Fusion trees (Fredman and Willard, 1993) achieve a dramatic speedup over comparison-based BSTs by exploiting the \textit{word-level parallelism} of machine arithmetic. The key result: predecessor queries in $n$ words of $w$ bits each can be answered in $O(\log_w n)$ time --- exponentially faster than $O(\log n)$.
+
+\subsection{The Idea: Wide B-Trees}
+
+A standard B-tree with branching factor $b$ has height $\log_b n$ and performs $O(\log_b n)$ comparisons per operation. If we could make $b = w^\epsilon$ (a polynomial in the word size $w$), the height would be $O(\log_{w^\epsilon} n) = O(\frac{1}{\epsilon} \log_w n)$.
+
+The challenge is that finding the correct child among $w^\epsilon$ keys requires $\Omega(w^\epsilon)$ comparisons naively --- too slow. Fusion trees solve this by compressing each key's $w$ bits into a \textbf{sketch} of $O(w / \log w)$ bits, allowing all children to be compared in parallel using a single word operation.
+
+\subsection{Sketching: Compression by Multiplication}
+
+Each key $x$ is a $w$-bit integer. The sketch of $x$ is computed by multiplying $x$ by a carefully chosen constant $M$ and extracting certain bits of the product. The constant $M$ has the property that the product $x \cdot M$ spreads the ``essential bits'' of $x$ across the word.
+
+Concretely, the sketch of $x$ is:
+
+\[
+\text{sketch}(x) = \lfloor (x \cdot M) \mod 2^w \rfloor \gg (w - w/\log w)
+\]
+
+where $M$ is a fixed integer chosen so that multiplication ``smears'' the bits of $x$. The resulting sketch has $O(w / \log w)$ bits, but retains enough information to distinguish different keys.
+
+\subsection{Parallel Comparison via Multiplication}
+
+Given a query key $q$, we want to find which of the $w^\epsilon$ children to descend into. Each child stores a sketch of its separating key. We compute the sketch of $q$ using the same multiplication, then compare it against all sketches simultaneously.
+
+The trick: subtract the query sketch from each child sketch (all in parallel), and check the most significant bits. The first child whose sketch has a positive most significant bit after subtraction is the predecessor.
+
+\subsection{Finding the Most Significant Set Bit}
+
+The final ingredient is finding the \textbf{most significant set bit (msb)} of a $w$-bit word in $O(1)$ time. This is not a primitive operation on most architectures, but it can be implemented efficiently using the ``de Bruijn trick.''
+
+A \textbf{de Bruijn sequence} of order $k$ is a binary string of length $2^k$ in which every $k$-bit pattern appears exactly once as a circular substring. By multiplying the word with a de Bruijn constant and using a small lookup table, the position of the msb can be extracted in $O(1)$ operations.
+
+\begin{lstlisting}[language=C++]
+int most_significant_bit(unsigned x) {
+    if (x == 0) return -1;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x = (x >> 1) + 1;
+    int count = 0;
+    while (x >>= 1) ++count;
+    return count;
+}
+\end{lstlisting}
+
+The standard bit-hack above works in $O(\lg w)$ steps (the loop or a binary search). For $O(1)$ msb, use a de Bruijn multiplication table. On modern CPUs, the \texttt{bsr} or \texttt{clz} instruction gives $O(1)$ msb directly.
+
+\subsection{Result and Lower Bounds}
+
+Fusion trees achieve $O(\log_w n)$ per operation. For $w = 64$ (a 64-bit machine), this is $O(\log_{64} n) = O(\frac{1}{6} \log_2 n)$, roughly 6$\times$ faster than standard BSTs.
+
+The information-theoretic lower bound for predecessor search is $\Omega(\min(\lg w, \log_w n))$. Fusion trees are nearly optimal: they match the $\log_w n$ part, and when $w$ is large (as on modern hardware), $\lg w < \log_w n$ is rarely the bottleneck.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Structure & Per operation & Word size dependence \\
+\midrule
+BST & O(log n) & None \\
+B-tree (order $b$) & O($\log_b n$) & None \\
+Fusion tree & O($\log_w n$) & Uses $w$-bit words \\
+Packed search tree & O($\log_w n$) & Requires word RAM \\
+Lower bound & $\Omega(\min(\lg w, \log_w n))$ & Information-theoretic \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Practical Considerations}
+
+Fusion trees are primarily a theoretical result. In practice, the constant factors are large: the multiplication-based sketching, the msb extraction, and the cache behavior of wide B-tree nodes all add overhead. For small $n$, a standard BST or even a cache-oblivious B-tree outperforms fusion trees.
+
+However, fusion trees demonstrate that the $O(\log n)$ comparison barrier is not fundamental --- on the word RAM model, faster search is possible by exploiting the bit-level structure of keys. This insight influenced subsequent work on packed integer arrays, succinct data structures, and cache-efficient algorithms.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Inserting sorted keys into an unbalanced BST & Degenerates to O(n) -- a linked list & Use AVL or red-black tree, or shuffle input \\
+Forgetting to update heights after AVL rotation & Balance checks give wrong result, tree corrupts & Always recompute height after left/right rotation \\
+Deleting a node with two children but not tracking parent & Orphaned subtrees, memory leak & Use successor/predecessor replacement with parent tracking \\
+Confusing Red-Black property 5 (black height) & Tree violates red-black invariants & Verify black height is equal on all root-to-leaf paths \\
+B-tree insertion overflow at root & Root split not handled, height never increases & Create new root with two children after root split \\
+Not marking \texttt{std::set} iterators as invalid after erase & Iterator use-after-free & Erase returns the next iterator; use that \\
+Using \texttt{std::map::operator[]} for lookups & Inserts default value if key missing, corrupts data & Use \texttt{map.find()} or \texttt{map.contains()} for read-only lookups \\
+Splay tree: relying on single-operation worst case & A single operation can take O(n) & Use splay trees for amortized bounds, not real-time guarantees \\
+k-d tree in high dimensions ($k > 20$) & Degenerates to O(n) -- curse of dimensionality & Use LSH (Ch 19) or approximate nearest-neighbor methods \\
+\texttt{unordered\_map} with bad hash function & Many collisions, O(n) lookup & Use a good hash (\texttt{std::hash}), or \texttt{reserve()} to reduce collisions \\
+Rehashing during iteration & Iterator invalidated, undefined behavior & Call \texttt{reserve()} before inserting, or iterate a copy \\
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{BSTs} provide O(log n) operations on average but O(n) in the worst case.
+\item \textbf{AVL trees} guarantee O(log n) by maintaining a height balance invariant.
+\item \textbf{Red-black trees} are the de facto standard — they balance with fewer rotations.
+\item \textbf{Treaps} use randomization to achieve O(log n) expected performance with simple code.
+\item \textbf{Splay trees} self-adjust to access patterns with no extra storage — O(log n) amortized.
+\item \textbf{k-d trees} organize multi-dimensional points for spatial queries in low dimensions.
+\item \textbf{B-trees} extend the concept to multi-way nodes for disk-based storage.
+\item \texttt{std::map} and \texttt{std::set} are production red-black tree implementations.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Why are red-black trees preferred over AVL trees for \texttt{std::map}?}
+
+Red-black trees require at most 2 rotations per insert and at most 3 per delete, while AVL trees may require O(log n) rotations per delete (rebalancing propagates to the root). For workloads with frequent inserts and deletes (e.g., database indexes), the fewer rotations of red-black trees translate to better practical performance. AVL trees have tighter balance (height $\leq 1.44 \log n$ vs $2 \log n$), giving faster lookups, but the difference is negligible for most applications.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the time complexity of finding the k-th smallest element in a BST?}
+
+Approach 1: Inorder traversal, count to $k$. Time O(k + h) where $h$ is the height. 
+
+Approach 2: Store subtree sizes in each node. At each node, compare $k$ with left subtree size to decide go left, visit, or go right. Time O(h). This is the ``order statistic'' approach.
+
+\textit{For balanced BST:} O(log n). For unbalanced BST: O(n).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What are the properties of a red-black tree and why do they guarantee O(log n)?}
+
+Five properties: (1) every node is red or black, (2) root is black, (3) leaves (NIL) are black, (4) red node cannot have red children, (5) every path from root to leaf has the same number of black nodes. Properties 4 and 5 together ensure that the longest path is at most twice the shortest (a path of all black nodes is the shortest; a path alternating red-black is the longest). This bounds height to $2\log(n+1)$, giving O(log n) operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When would you use a B-tree over a red-black tree?}
+
+B-trees are preferred when: (a) data is on disk (B-tree nodes are sized to match disk blocks, minimizing I/O), (b) the dataset is too large for memory, (c) range queries are frequent (B+ trees link leaf nodes for sequential access). Red-black trees are preferred for in-memory data because they have simpler code, less overhead per node, and better cache performance for small datasets. Most databases (PostgreSQL, MySQL InnoDB) use B+ trees for indexes.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Implement a BST iterator that returns elements in inorder in O(1) amortized time.}
+
+Use an explicit stack. Push all left children from the root. \texttt{next()} pops the top, then pushes all left children of the right subtree. \texttt{hasNext()} checks if the stack is empty. Each node is pushed and popped at most once, giving O(1) amortized per call. Space O(h).
+
+\begin{lstlisting}[language=C++]
+class bst_iterator {
+    std::stack<node*> st;
+    void push_left(node* n) { while (n) { st.push(n); n = n->left; } }
+public:
+    bst_iterator(node* root) { push_left(root); }
+    int next() {
+        node* n = st.top(); st.pop();
+        push_left(n->right);
+        return n->val;
+    }
+    bool has_next() { return !st.empty(); }
+};
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is a treap and why is it useful?}
+
+A treap assigns a random priority to each node and maintains BST order by key and heap order by priority. With high probability, the treap is balanced (expected height O(log n)). It's useful because: (1) simple to implement (no rotation cases to remember), (2) supports O(log n) split and merge operations (useful for implicit key treaps), (3) no worst-case input (randomization eliminates adversarial cases). Used in competitive programming and some database engines.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does a splay tree achieve O(log n) amortized without any balance information?}
+
+Every access (find, insert, delete) splays the accessed node to the root via zig, zig-zig, and zig-zag rotations. The key property: splaying a node roughly halves the depth of every node on the access path. Over a sequence of operations, recently accessed nodes stay near the root, reducing future access costs. The amortized proof uses the potential method: each splay increases the potential by at most $3\log n$, bounding the amortized cost.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Given two BSTs, find if they have the same elements (merge check).}
+
+\textbf{Q:} ``How would you check if two BSTs are structurally identical vs value-identical?''
+
+\textbf{A:} Structural identity requires simultaneous recursive traversal comparing node values AND shapes --- O(n). Value identity requires comparing sorted sequences (inorder traversals) --- also O(n) but using the merge technique from merge sort. The distinction matters: two BSTs built from the same elements in different order are value-identical but structurally different. For balanced BSTs, structural identity implies value identity (the structure is uniquely determined by the keys). For unbalanced BSTs, the same keys can produce different structures.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between \texttt{std::map} and \texttt{std::unordered\_map}? When would you choose each?}
+
+\textbf{Q:} ``How does C++20's std::map::contains() change the idiomatic lookup pattern?''
+
+\textbf{A:} Before C++20, \texttt{if (m.find(key) != m.end())} was the safe pattern. \texttt{m[key]} was dangerous (inserts default). \texttt{m.count(key)} works but returns an integer, not an iterator. \texttt{contains()} (C++20) is O(log n), returns bool, doesn't insert, and reads clearly. The deeper change: \texttt{contains()} enables cleaner guard clauses (\texttt{if (!m.contains(key)) return;}) and works naturally with \texttt{std::erase\_if()} for bulk removal. It's a small API addition that eliminates a class of bugs.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does a k-d tree find the nearest neighbor efficiently?}
+
+Build: recursively partition points by alternating axes, using \texttt{nth\_element} for median selection. Query: at each node, check if the splitting plane is closer than the current best distance. If yes, search the other side; if not, prune that subtree. This eliminates large portions of the search space, giving O(log n) average for uniformly distributed points. Worst case is O(n) for pathological distributions.
+
+\textit{Application:} KNN classification, collision detection, geographic proximity queries.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{Sequential keys.} Insert keys [1, 2, 3, ..., 100] into a plain BST and into a B-tree of order 5. Compare the heights. Why does the BST degenerate while the B-tree doesn't?
+\end{enumerate}
+
+   \textit{(In production, databases use B-trees specifically because they handle both random and sequential inserts gracefully — their fan-out guarantees O(log n) height regardless of insertion order.)}
+
+\begin{enumerate}
+\item \textbf{Tree vs hash table for small data.} A small map (under 50 entries) is used 10,000 times per second for lookups. An engineer switches from a balanced tree to a hash table for "O(1) lookups" but performance gets worse. Why? Think about hash computation cost and cache misses for small data.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Missing step in deletion.} Delete a key from an AVL tree using inorder successor replacement. The tree is unbalanced afterward. What was likely forgotten? Which rotation restores balance?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Unequal black height.} A red-black tree has some root-to-leaf paths with black height 12 and others with 13. Which property is broken? Why does this invalidate the O(log n) height guarantee?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Prefix scan.} A tree index on \texttt{(status, date)} has status values 'A', 'B', 'C' and dates over a year. A query filters on status='A' and date in the last month. The database estimates it must scan \textasciitilde{}33\% of the tree. Roughly how many leaves will it touch?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Splay tree access pattern.} Insert keys [1, 2, 3, ..., 100] into a splay tree. Then search for key 1 three times. Draw the tree after each search. How does the tree reorganize? What happens to the depth of keys near 1?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{k-d tree split axis.} Build a k-d tree on points \{(2,3), (5,4), (9,6), (4,7), (8,1), (7,2)\}. What is the root? What are its children? Draw the tree showing the split axis at each level.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{B-tree implementation.} Implement a B-tree of order 5 (max 4 keys, min 2 per node) supporting insert and search. Benchmark against \texttt{std::map} for 1$0^{5}$ sequential and random insertions. Count the number of nodes visited per operation. Explain why a higher-order B-tree (order 100+) uses fewer cache misses than a binary tree.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Prefix tree for routing.} A web server has 10,000 URL routes. Linear scanning on each request takes O(n). Build a trie (prefix tree) that stores routes by path segments. Compare lookup speed with \texttt{std::map} and linear scan:
+\end{enumerate}
+\begin{itemize}
+\item Build time for 1$0^{4}$ routes
+\item Lookup time for 1$0^{6}$ requests
+\item Memory per route
+\end{itemize}
+   Report which structure wins for prefix matching vs exact matching.
+
+\begin{enumerate}
+\item \textbf{Concurrent tree.} Implement a thread-safe binary search tree using a mutex. Benchmark throughput with 1 reader, 4 readers, and 4 readers + 1 writer. Where is the bottleneck? Compare with a simple \texttt{std::shared\_mutex} guarding \texttt{std::map}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Tree vs skip list.} Implement both an AVL tree and a skip list. Compare:
+\end{enumerate}
+\begin{itemize}
+\item Insert 1$0^{5}$ random elements
+\item Range query: iterate over elements in [lo, hi]
+\item Delete all elements
+\end{itemize}
+   Which data structure is simpler to implement? Which is faster for range queries?
+
+   \textit{(In production, Redis uses skip lists (not trees) for sorted sets because they are simpler to implement and offer better range-scan performance.)}
+
+\begin{enumerate}
+\item \textbf{Disk-based tree.} Simulate a disk-based B-tree where each node access costs 100$\times $ more than an in-memory access. Count the number of node accesses for 1$0^{6}$ inserts into a B-tree (order 100) vs a BST. How does the fan-out of the B-tree reduce I/O?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Splay tree vs AVL.} Implement both a splay tree and an AVL tree. Run the same workload: insert 1$0^{5}$ random keys, then perform 1$0^{6}$ random finds (80\% to existing keys, 20\% to missing keys). Compare:
+\end{enumerate}
+\begin{itemize}
+\item Total time for the find sequence (amortized vs worst-case)
+\item Time after ``hot'' keys are repeatedly accessed
+\item Memory usage (splay tree has no balance field)
+\end{itemize}
+   When does the splay tree's self-adjustment help? When does the AVL tree's guaranteed O(log n) win?
+
+\begin{enumerate}
+\item \textbf{Nearest-neighbor with k-d tree.} Generate 1$0^{5}$ random 2D points in $[0, 1]^2$. Build a k-d tree and query the 10 nearest neighbors for 1$0^{4}$ random query points. Compare:
+\end{enumerate}
+\begin{itemize}
+\item Query time vs brute-force (linear scan)
+\item Build time vs sorting
+\item How does performance degrade when the dimension increases to 10, 20, 50?
+\end{itemize}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Bulk loading.} Build a B-tree by inserting one key at a time. Then build the same tree by sorting the keys first and constructing the tree bottom-up (layered). Compare:
+\end{enumerate}
+\begin{itemize}
+\item Construction time for 1$0^{6}$ keys
+\item Tree height
+\item Node occupancy percentage
+\end{itemize}
+    Explain why bulk loading produces a denser, shorter tree.
+
+    \textit{(In production, ClickHouse uses bulk loading for its primary index because columnar data arrives sorted by sort key.)}
+
+\begin{enumerate}
+\item \textbf{Write-optimized tree.} Research the Log-Structured Merge-tree (LSM-tree) design used by RocksDB. Implement a simplified version: writes go to an in-memory sorted buffer; when full, flush to disk as a sorted run. Compare write throughput with a B-tree for 1$0^{5}$ inserts. When does the LSM-tree outperform the B-tree? When does it fall behind (reads)?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Persistent (immutable) tree.} Implement a BST where every insert creates a new path of nodes (path copying), leaving the old tree intact. Compare:
+\end{enumerate}
+\begin{itemize}
+\item Memory per insertion (how many new nodes?)
+\item Throughput vs a mutable BST
+\item Space after 1$0^{5}$ operations
+\end{itemize}
+    Why is this useful for concurrent or versioned data structures?
+
+\begin{enumerate}
+\item \textbf{Batched updates.} Research a B-tree variant where each node has a buffer of pending updates. When the buffer overflows, updates propagate to children. Implement a simplified version. Compare write throughput with a standard B-tree. How large must the buffer be to match LSM-tree performance?
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item G. M. Adelson-Velsky and E. M. Landis, "An Algorithm for the Organization of Information" — Doklady Akademii Nauk SSSR, 1962.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Chapter 3 (BSTs, red-black trees).
+\item Rudolf Bayer and Edward McCreight, "Organization and Maintenance of Large Ordered Indices" — Acta Informatica, 1972.
+\item Cecilia R. Aragon and Raimund Seidel, "Randomized Search Trees" — FOCS 1989.
+\item Leonidas J. Guibas and Robert Sedgewick, "A Dichromatic Framework for Balanced Trees" — FOCS 1978.
+\item Douglas Comer, "Ubiquitous B-Tree" — ACM Computing Surveys, 1979.
+\item Philip L. Lehman and S. Bing Yao, "Efficient Locking for Concurrent Operations on B-Trees" — ACM TODS, 1981.
+\item Mark T. O'Connell, "Purely Functional Data Structures" (1996 PhD thesis) — Cambridge University Press, 1998.
+\item Daniel D. Sleator and Robert E. Tarjan, "Self-Adjusting Binary Search Trees" — JACM, 1985.
+\item Jon Louis Bentley, "Multidimensional Binary Search Trees Used for Associative Searching" — CACM, 1975.
+\item Jon Louis Bentley, "K-D Trees for Semidynamic Nearest-Neighbor Queries" — CACM, 1979.
+\end{itemize}
+

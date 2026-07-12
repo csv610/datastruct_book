@@ -1,0 +1,7 @@
+node* lca(node* root, node* p, node* q) {
+    if (!root || root == p || root == q) return root;
+    node* L = lca(root->left, p, q);
+    node* R = lca(root->right, p, q);
+    if (L && R) return root;
+    return L ? L : R;
+}

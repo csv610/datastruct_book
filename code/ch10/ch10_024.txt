@@ -1,0 +1,23 @@
+Before merge: swap left/right spines
+
+Leftist tree merge (only right spine merges):
+
+  [2]          [5]           [2]
+  / \    +     /      -->   / \
+ 3   4        6            4   [5]
+                                /
+                               6
+
+Skew heap merge (swap spines after merge):
+
+  [2]          [5]           [2]
+  / \    +     /      -->   / \
+ 3   4        6            3  [5]   <-- spines swapped
+                                /
+                               [4]
+                                \
+                                 6
+
+After every merge, every node on the merged path swaps
+its left and right children. This amortized restructuring
+keeps the tree balanced without explicit rank information.

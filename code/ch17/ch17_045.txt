@@ -1,0 +1,10 @@
+dp[0] = 1  (10)
+dp[1] = 1  (9, no j with nums[j] < 9)
+dp[2] = 1  (2, no j with nums[j] < 2)
+dp[3] = 2  (5 > 2, extend dp[2])
+dp[4] = 2  (3 > 2, extend dp[2])
+dp[5] = 3  (7 > 2, extend dp[2]; also > 5, extend dp[3]; also > 3, extend dp[4])
+dp[6] = 4  (101 > 7, extend dp[5])
+dp[7] = 4  (18 > 7, extend dp[5])
+
+LIS length = 4  (e.g., 2, 5, 7, 101 or 2, 3, 7, 101)

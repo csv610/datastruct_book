@@ -1,0 +1,13 @@
+Sorted rotations of "banana$":
+
+  $ a n a n a      Last     First
+  a $ a n a n      column   column
+  a n $ a n a      ------   ------
+  a n a $ a n   -> a n n $  $ a a a
+  a n a n $ a      n a a a  a n n a
+  a n a n a $      a a n n  n a $ a
+  n a $ a n a      n $ a a  n a a $
+  n a n a $ a                  $ a n a
+
+  BWT("banana$") = "annb$aa"
+  (concatenating last column from top to bottom)

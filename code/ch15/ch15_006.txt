@@ -1,0 +1,14 @@
+Step 1: Extract A (d=0). Relax A->B(4), A->C(2).
+        dist = {A:0, B:4, C:2, D:inf, E:inf}
+
+Step 2: Extract C (d=2). Relax C->D(10), C->E(12).
+        dist = {A:0, B:4, C:2, D:10, E:12}
+
+Step 3: Extract B (d=4). Relax B->C(5, no improvement), B->D(9).
+        dist = {A:0, B:4, C:2, D:9, E:12}
+
+Step 4: Extract D (d=9). Relax D->E(11, no improvement).
+        dist = {A:0, B:4, C:2, D:9, E:11}
+
+Step 5: Extract E (d=11). No outgoing edges.
+        dist = {A:0, B:4, C:2, D:9, E:11}

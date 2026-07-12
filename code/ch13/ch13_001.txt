@@ -1,0 +1,10 @@
+Keys: "cat", "car", "dog", "do"
+
+         root
+       /      \
+      c        d
+     /        / \
+    a        o   *
+   / \      / \
+  t   r    g   *
+  *   *    *

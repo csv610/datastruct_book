@@ -1,0 +1,5 @@
+Algorithm          Recurrence          Exponent    n = 1024 digits
+-----------        ----------------    --------    ---------------
+Schoolbook         T(n) = 4T(n/2)+O(n)  2.0       ~1,048,576 mults
+Karatsuba          T(n) = 3T(n/2)+O(n)  1.585     ~  98,000 mults
+Toom-Cook 3        T(n) = 5T(n/3)+O(n)  1.465     ~  50,000 mults

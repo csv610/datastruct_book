@@ -1,0 +1,2 @@
+int x = 5;      // x is an lvalue, 5 is an rvalue
+int y = x + 2;  // (x + 2) is an rvalue

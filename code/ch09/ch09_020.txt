@@ -1,0 +1,10 @@
+// Returns LCA of u and v in the tree rooted at node.
+// Assumes both u and v exist in the tree.
+node* lca_binary_tree(node* node, node* u, node* v) {
+    if (!node || node == u || node == v)
+        return node;
+    node* L = lca_binary_tree(node->left,  u, v);
+    node* R = lca_binary_tree(node->right, u, v);
+    if (L && R) return node;   // u,v split here
+    return L ? L : R;
+}

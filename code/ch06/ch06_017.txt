@@ -1,0 +1,7 @@
+push(5)  ->  data: [5]       min: [5]       getMin -> 5
+push(3)  ->  data: [5,3]     min: [5,3]     getMin -> 3
+push(7)  ->  data: [5,3,7]   min: [5,3]     getMin -> 3
+push(2)  ->  data: [5,3,7,2] min: [5,3,2]   getMin -> 2
+pop()    ->  data: [5,3,7]   min: [5,3]     getMin -> 3
+push(8)  ->  data: [5,3,7,8] min: [5,3]     getMin -> 3
+push(2)  ->  data: [5,3,7,8,2] min: [5,3,2] getMin -> 2

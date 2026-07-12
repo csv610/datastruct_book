@@ -1,0 +1,4 @@
+A = [[A11, A12],    B = [[B11, B12],
+     [A21, A22]]         [B21, B22]]
+
+where each Aij, Bij is a 2x2 matrix.

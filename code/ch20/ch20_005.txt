@@ -1,0 +1,26 @@
+Augmenting path s->a->t: flow 5. Residual: s->a(5), a->t(0).
+Augmenting path s->b->t: flow 5. Residual: s->b(0), b->t(5).
+Augmenting path s->a->b->t: flow 5. Residual: s->a(0), a->b(10), b->t(0).
+
+Max flow = 15.
+
+Residual graph reachable from s: {s, a} (s->a has residual 5).
+Min cut: edges from {s,a} to {b,t} = s->b(capacity 5) + a->t(capacity 5) = 10?
+Wait: a->t is saturated (capacity 5, flow 5). s->b is saturated (capacity 5, flow 5).
+But max flow = 15, so min cut = 15.
+
+Let me recheck: edges from S={s,a} to T={b,t}:
+  s->b: capacity 5, flow 5 (contributes 5 to cut)
+  a->b: capacity 15, flow 10 (contributes 5 to cut)
+  a->t: capacity 5, flow 5 (contributes 5 to cut)
+Total cut capacity: 5 + 15 + 5 = 25? No, cut capacity counts CAPACITY, not residual.
+
+Min cut capacity = sum of original capacities of edges from S to T:
+  s->b: 5, a->b: 15, a->t: 5 = 25. That's not 15.
+
+Hmm, let me recompute. Actually S should be vertices reachable from s in the RESIDUAL graph:
+  s->a: residual 5 (reachable)
+  s->b: residual 0 (NOT reachable)
+  a->b: residual 10 (a is reachable, b via a->b? a->b forward residual = 15-10 = 5. YES b is reachable!)
+  So S = {s, a, b}, T = {t}.
+  Edges from S to T: a->t(5), b->t(10) = 15. Correct!

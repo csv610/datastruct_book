@@ -1,0 +1,11 @@
+Suffix tree for "banana$":
+           (root)
+          / | \
+      a$   |   na$
+     / \   |   / \
+  na$  a$  $  |   $
+  / \      |   |
+ a$  $     $   $
+
+Edges carry substrings (not single characters).
+Internal nodes split where branching occurs.

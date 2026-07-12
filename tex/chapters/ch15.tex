@@ -1,0 +1,1047 @@
+\chapter{The Greedy Method}\label{ch15:the-greedy-method}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+The \textbf{greedy method} is an algorithmic paradigm that builds a solution piece by piece, always choosing the next piece that offers the most immediate benefit. Unlike dynamic programming, which considers all subproblems, greedy algorithms make a single choice at each step and never reconsider it.
+
+Greedy algorithms are appealing because they are simple, intuitive, and often efficient. The challenge is proving correctness: when does the locally optimal choice lead to a globally optimal solution?
+
+\section{The General Method}
+
+A \textbf{greedy algorithm}\index{greedy algorithm} makes the locally optimal choice at each step, hoping to find the global optimum. For many problems, this works — the locally optimal choice leads to the globally optimal solution. For others, it does not.
+
+\subsection{Greedy Algorithm Template}
+
+\begin{lstlisting}[language=Java]
+1. Initialize solution = empty
+2. While a solution has not been found:
+   a. Select the next best candidate (locally optimal)
+   b. If the candidate is feasible, add it to the solution
+   c. If the candidate is not feasible, discard it
+3. Return solution
+\end{lstlisting}
+
+The key design decisions are: (1) what constitutes a ``greedy choice,'' and (2) how to prove that the greedy choice leads to an optimal solution.
+
+\subsection{When Greedy Works}
+
+Greedy algorithms are correct when the problem exhibits two properties:
+
+\begin{enumerate}
+\item \textbf{Optimal substructure:} an optimal solution contains optimal solutions to subproblems.\index{optimal substructure} If we remove the greedy choice from the optimal solution, the remaining pieces must form an optimal solution to the reduced subproblem.
+
+\item \textbf{Greedy choice property:} a globally optimal solution can be reached by making locally optimal choices.\index{greedy choice property} At each step, the greedy choice is part of some optimal solution — there is always an optimal solution that includes the greedy choice.
+\end{enumerate}
+
+\subsection{The Exchange Argument}
+
+The standard technique for proving greedy correctness is the \textbf{exchange argument}\index{exchange argument}:
+
+\begin{enumerate}
+\item Let OPT be an optimal solution
+\item If OPT differs from the greedy solution G, find the first point where they diverge
+\item ``Exchange'' the element in OPT with the greedy choice in G
+\item Show the exchange does not worsen the solution (and may improve it)
+\item Conclude G is also optimal
+\end{enumerate}
+
+\textbf{Worked example:} Activity selection (schedule maximum number of non-overlapping activities).
+
+Activities sorted by finish time: A(1,3), B(2,5), C(4,7), D(6,9), E(5,8).
+
+Greedy picks by earliest finish: A(1,3), C(4,7), D(6,9) — 3 activities.
+
+Suppose OPT includes B(2,5) instead of A(1,3). Since A finishes before B starts, we can replace B with A and still have a valid schedule. By the exchange argument, there is always an optimal solution containing the earliest-finishing activity.
+
+\section{Container Loading}
+
+\textbf{Problem:} We have a ship with capacity C and containers with weights w$_{1}$, w$_{2}$, ..., w$_{n}$.\index{container loading} Load as many containers as possible without exceeding capacity.
+
+\textbf{Greedy choice:} Load the lightest container first.
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> load_containers(double capacity, std::span<const double> weights) {
+    // Pair (weight, original index)
+    std::vector<std::pair<double, size_t>> items;
+    for (size_t i = 0; i < weights.size(); ++i) items.push_back({weights[i], i});
+    std::sort(items.begin(), items.end());
+
+    std::vector<size_t> loaded;
+    double current = 0;
+    for (const auto& [w, idx] : items) {
+        if (current + w <= capacity) {
+            current += w;
+            loaded.push_back(idx);
+        }
+    }
+    return loaded;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} Weights = [3, 7, 2, 5, 8, 4], capacity = 15.
+
+Sorted: [2, 3, 4, 5, 7, 8]. Greedy loads: 2+3+4+5 = 14 (4 containers). Could we do better? The only alternative with 4 containers is 2+3+4+8 = 17 (too heavy) or 2+3+5+7 = 17 (too heavy). So 4 is optimal.
+
+\textbf{Correctness:} Optimal substructure — removing the lightest container from an optimal solution gives an optimal solution for the remaining capacity. Greedy choice — if an optimal solution does not contain the lightest container, we can replace a heavier one with it.
+
+\section{The Fractional Knapsack Problem}
+
+\textbf{Problem:} Items have weights w$_{i}$ and values v$_{i}$.\index{fractional knapsack} We can take fractions of items. Maximize value for a knapsack of capacity C.
+
+\textbf{Greedy choice:} Take the item with the highest value-to-weight ratio first.
+
+\begin{lstlisting}[language=C++]
+struct item { double weight, value; };
+
+double fractional_knapsack(double capacity, std::span<const item> items) {
+    std::vector<size_t> order(items.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        return items[a].value / items[a].weight > items[b].value / items[b].weight;
+    });
+
+    double total_value = 0.0;
+    for (size_t i : order) {
+        if (capacity >= items[i].weight) {
+            capacity -= items[i].weight;
+            total_value += items[i].value;
+        } else {
+            total_value += items[i].value * (capacity / items[i].weight);
+            break;
+        }
+    }
+    return total_value;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} C = 50, items = [(Gold, 10, 600), (Silver, 20, 500), (Copper, 30, 360)].
+
+Ratios: Gold = 60, Silver = 25, Copper = 12. Greedy takes: all Gold (10kg, \$600), all Silver (20kg, \$500), 20/30 of Copper (20kg, \$240). Total = \$1340.
+
+\textbf{Complexity:} O(n log n). The 0/1 knapsack (no fractions) is not solvable by greedy — it requires dynamic programming (Chapter 17).
+
+\section{Task Scheduling}
+
+\textbf{Problem:} Schedule tasks with deadlines and profits. Each unit of time can handle one task. Maximize total profit.
+
+\textbf{Greedy choice:} Process tasks in order of decreasing profit. Schedule each task as late as possible.
+
+\begin{lstlisting}[language=C++]
+struct task {
+    int deadline;  // must be completed by this time
+    int profit;
+};
+
+int schedule_tasks(std::span<task> tasks) {
+    // Sort by profit descending
+    std::vector<task> sorted(tasks.begin(), tasks.end());
+    std::sort(sorted.begin(), sorted.end(),
+              [](const task& a, const task& b) { return a.profit > b.profit; });
+
+    int max_deadline = 0;
+    for (const auto& t : sorted) max_deadline = std::max(max_deadline, t.deadline);
+
+    std::vector<int> slots(max_deadline + 1, -1);  // -1 = empty
+    int total_profit = 0;
+
+    for (const auto& [d, p] : sorted) {
+        // Find the latest available slot before the deadline
+        for (int t = d; t >= 1; --t) {
+            if (slots[t] == -1) {
+                slots[t] = p;
+                total_profit += p;
+                break;
+            }
+        }
+    }
+    return total_profit;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} Tasks = [(2, 50), (1, 10), (2, 20), (1, 25), (3, 30)].
+
+Sorted by profit: (2, 50), (3, 30), (1, 25), (2, 20), (1, 10).
+
+Schedule: slot 2 = 50, slot 3 = 30, slot 1 = 25. Total profit = 105.
+
+\textbf{Optimization:} Use Union-Find to find the latest available slot in O($\alpha $(n)) per task.
+
+\section{Single-Source Shortest Paths (Dijkstra)}
+
+\textbf{Problem:} Given a weighted directed graph with non-negative edge weights, find the shortest path from a source vertex s to all other vertices.
+
+\textbf{Greedy choice:} At each step, extract the unvisited vertex with the smallest distance estimate and relax its outgoing edges.
+
+\subsection{The Algorithm}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> dijkstra(const std::vector<std::vector<std::pair<int,int>>>& adj,
+                          int source) {
+    int n = adj.size();
+    std::vector<int> dist(n, INT_MAX);
+    dist[source] = 0;
+
+    // Min-heap: (distance, vertex)
+    std::priority_queue<std::pair<int,int>, std::vector<std::pair<int,int>>,
+                        std::greater<>> pq;
+    pq.push({0, source});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (d > dist[u]) continue;  // stale entry
+
+        for (auto [v, w] : adj[u]) {
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+    return dist;
+}
+\end{lstlisting}
+
+\subsection{Worked Trace}
+
+Graph: vertices A-E with edges A$\to$B(4), A$\to$C(2), B$\to$C(1), B$\to$D(5), C$\to$D(8), C$\to$E(10), D$\to$E(2).
+
+\begin{lstlisting}[language=Java]
+Step 1: Extract A (d=0). Relax A->B(4), A->C(2).
+        dist = {A:0, B:4, C:2, D:inf, E:inf}
+
+Step 2: Extract C (d=2). Relax C->D(10), C->E(12).
+        dist = {A:0, B:4, C:2, D:10, E:12}
+
+Step 3: Extract B (d=4). Relax B->C(5, no improvement), B->D(9).
+        dist = {A:0, B:4, C:2, D:9, E:12}
+
+Step 4: Extract D (d=9). Relax D->E(11, no improvement).
+        dist = {A:0, B:4, C:2, D:9, E:11}
+
+Step 5: Extract E (d=11). No outgoing edges.
+        dist = {A:0, B:4, C:2, D:9, E:11}
+\end{lstlisting}
+
+\textbf{Why greedy works:} When we extract vertex u with minimum distance, no unvisited vertex can provide a shorter path to u (because all edge weights are non-negative). This is the greedy choice property — the minimum-distance vertex is permanently settled.
+
+\textbf{Complexity:} O((V + E) log V) with a binary heap. O(V$^{2}$) with an array (better for dense graphs).
+
+\textbf{Limitation:} Dijkstra fails with negative edge weights.\index{Dijkstra's algorithm} Use Bellman-Ford (Chapter 12) when negative edges are present.
+
+\section{Minimum Spanning Tree}
+
+\textbf{Problem:} Given a connected, undirected, weighted graph, find a spanning tree of minimum total edge weight.
+
+\subsection{Kruskal's Algorithm}
+
+\textbf{Greedy choice:} Sort edges by weight; add each edge if it does not create a cycle (checked using Union-Find).\index{Kruskal's algorithm}
+
+\begin{lstlisting}[language=C++]
+struct edge { int u, v, weight; };
+
+std::vector<edge> kruskal(int n, std::vector<edge> edges) {
+    std::sort(edges.begin(), edges.end(),
+              [](const edge& a, const edge& b) { return a.weight < b.weight; });
+
+    union_find uf(n);
+    std::vector<edge> mst;
+
+    for (const auto& [u, v, w] : edges) {
+        if (uf.find(u) != uf.find(v)) {
+            mst.push_back({u, v, w});
+            uf.unite(u, v);
+        }
+    }
+    return mst;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} 5 vertices, edges sorted by weight:
+
+\begin{lstlisting}[language=Java]
+Edge (0,1,1): Different components -> add to MST
+Edge (2,3,2): Different components -> add to MST
+Edge (0,2,3): Different components -> add to MST
+Edge (1,2,4): Same component (0-1-2) -> skip (cycle)
+Edge (3,4,5): Different components -> add to MST
+Edge (1,3,6): Same component -> skip
+Edge (2,4,7): Same component -> skip
+
+MST: (0,1,1) + (2,3,2) + (0,2,3) + (3,4,5) = weight 11
+\end{lstlisting}
+
+\textbf{Complexity:} O(E log E) for sorting + O(E $\alpha$(V)) for Union-Find = O(E log E).
+
+\subsection{Prim's Algorithm}
+
+\textbf{Greedy choice:} Start from any vertex. At each step, add the cheapest edge connecting the tree to a non-tree vertex.\index{Prim's algorithm}
+
+\begin{lstlisting}[language=C++]
+std::vector<edge> prim(const std::vector<std::vector<std::pair<int,int>>>& adj) {
+    int n = adj.size();
+    std::vector<bool> in_tree(n, false);
+    std::priority_queue<std::pair<int,std::pair<int,int>>,
+                        std::vector<std::pair<int,std::pair<int,int>>>,
+                        std::greater<>> pq;
+
+    in_tree[0] = true;
+    for (auto [v, w] : adj[0]) pq.push({w, {0, v}});
+
+    std::vector<edge> mst;
+    while (mst.size() < n - 1 && !pq.empty()) {
+        auto [w, u_v] = pq.top(); pq.pop();
+        auto [u, v] = u_v;
+        if (in_tree[v]) continue;
+        in_tree[v] = true;
+        mst.push_back({u, v, w});
+        for (auto [next, nw] : adj[v]) {
+            if (!in_tree[next]) pq.push({nw, {v, next}});
+        }
+    }
+    return mst;
+}
+\end{lstlisting}
+
+\textbf{Worked trace (same graph):} Start at vertex 0.
+
+\begin{lstlisting}[language=Java]
+Tree: {0}. Candidates: (0,1,1), (0,2,3). Pick (0,1,1).
+Tree: {0,1}. Candidates: (0,2,3), (1,2,4), (1,3,6). Pick (0,2,3).
+Tree: {0,1,2}. Candidates: (2,3,2), (2,4,7), (1,3,6). Pick (2,3,2).
+Tree: {0,1,2,3}. Candidates: (3,4,5), (2,4,7). Pick (3,4,5).
+Tree: {0,1,2,3,4}. MST complete. Total weight: 11.
+\end{lstlisting}
+
+\textbf{Complexity:} O(E log V) with a binary heap. Better than Kruskal for dense graphs (E $\approx$ V$^{2}$).
+
+\subsection{The Cut Property}
+
+Both algorithms are correct because of the \textbf{cut property}: for any cut (partition of vertices into two sets), the minimum-weight edge crossing the cut is in some MST. Kruskal adds the globally cheapest edge that connects two components; Prim adds the cheapest edge from the tree to outside. Both exploit the cut property.
+
+\section{Huffman Coding}
+
+\textbf{Problem:} Given character frequencies, build a prefix-free binary code that minimizes the total encoded length.
+
+\textbf{Greedy choice:} Repeatedly combine the two characters with the smallest frequencies.
+
+\begin{lstlisting}[language=C++]
+struct huffman_node {
+    char ch;
+    int freq;
+    huffman_node* left;
+    huffman_node* right;
+};
+
+struct compare {
+    bool operator()(huffman_node* a, huffman_node* b) {
+        return a->freq > b->freq;
+    }
+};
+
+huffman_node* build_huffman_tree(const std::unordered_map<char, int>& frequencies) {
+    std::priority_queue<huffman_node*, std::vector<huffman_node*>, compare> pq;
+
+    for (const auto& [ch, freq] : frequencies) {
+        pq.push(new huffman_node{ch, freq, nullptr, nullptr});
+    }
+
+    while (pq.size() > 1) {
+        auto* left = pq.top(); pq.pop();
+        auto* right = pq.top(); pq.pop();
+        auto* parent = new huffman_node{'\0', left->freq + right->freq, left, right};
+        pq.push(parent);
+    }
+    return pq.top();
+}
+
+void build_codes(huffman_node* root, std::string prefix,
+                 std::unordered_map<char, std::string>& codes) {
+    if (!root->left && !root->right) {
+        codes[root->ch] = prefix;
+        return;
+    }
+    build_codes(root->left, prefix + "0", codes);
+    build_codes(root->right, prefix + "1", codes);
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) where n is the alphabet size.
+
+\textbf{Worked trace:}
+\begin{lstlisting}[language=Java]
+frequencies: A:45, B:13, C:12, D:16, E:9, F:5
+
+Step 1: Combine F(5) + E(9) = FE(14)
+Step 2: Combine C(12) + D(16) = CD(28)
+Step 3: Combine B(13) + FE(14) = BFE(27)
+Step 4: Combine BFE(27) + CD(28) = BFECD(55)
+Step 5: Combine A(45) + BFECD(55) = root(100)
+
+Huffman codes:
+A: 0       (1 bit)
+B: 100     (3 bits)
+C: 110     (3 bits)
+D: 111     (3 bits)
+E: 1010    (4 bits)
+F: 1011    (4 bits)
+
+Total bits = 45*1 + 13*3 + 12*3 + 16*3 + 9*4 + 5*4 = 224
+vs fixed 3-bit code = 100*3 = 300
+Savings: 25%
+\end{lstlisting}
+
+\textbf{Why greedy works:} The two least frequent characters will have the longest codes in any optimal prefix-free code. By combining them first, we ensure they share a prefix, minimizing total length. The exchange argument shows that swapping any pair of characters with the two least frequent cannot improve the solution.
+
+\section{Greedy Does Not Always Work}
+
+\textbf{The 0/1 Knapsack Problem:} Items must be taken whole (not fractional). Greedy fails:
+\begin{lstlisting}[language=Java]
+Item A: weight 5, value 50  (ratio 10)
+Item B: weight 10, value 60 (ratio 6)
+Item C: weight 20, value 140 (ratio 7)
+Capacity: 20
+
+Greedy (by ratio): A + B = 110
+Optimal: C alone = 140
+\end{lstlisting}
+
+\textbf{Coin Change (US denominations):} Greedy works for US coins (25, 10, 5, 1) but fails for other systems:
+\begin{lstlisting}[language=Java]
+Denominations: 1, 3, 4
+Amount: 6
+Greedy: 4 + 1 + 1 = 3 coins
+Optimal: 3 + 3 = 2 coins
+\end{lstlisting}
+
+\textbf{Traveling Salesman:} The nearest-neighbor heuristic (greedy: always visit the closest unvisited city) can be arbitrarily bad. For a cycle of cities arranged in a circle, nearest-neighbor gives a path crossing the center — twice the optimal tour length.
+
+When greedy fails, we use dynamic programming (Chapter 17), backtracking (Chapter 18), or approximation algorithms.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{itemize}
+\item \textbf{Assuming greedy works without proof} — many real-world problems look greedy-solvable but aren't. Always prove optimal substructure and the greedy choice property before deployment.
+\item \textbf{Confusing fractional with 0/1 knapsack} — the fractional variant is greedy-solvable; the 0/1 variant is not. Accidentally applying greedy to 0/1 knapsack in a production inventory system would produce suboptimal shipping costs.
+\item \textbf{Dijkstra with negative edges} — Dijkstra's greedy selection fails on graphs with negative edge weights. Use Bellman-Ford instead. This is a common bug in GPS routing prototypes.
+\item \textbf{Huffman with unequal code lengths} — the Huffman algorithm assumes each symbol's code is a whole number of bits. For arithmetic coding (used in JPEG, H.264), the greedy Huffman approach does not apply.
+\item \textbf{Interval scheduling tie-breaking} — when intervals have equal finish times, the greedy choice (earliest finish) still works, but incorrect tie-breaking can eliminate valid schedules.
+\item \textbf{Prim vs Kruskal for dense graphs} — Prim with an adjacency matrix is O(V$^{2}$), which beats Kruskal's O(E log E) when E $\approx$ V$^{2}$. Always match the algorithm to the graph density.
+\end{itemize}
+
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Greedy algorithms} make locally optimal choices, hoping for a global optimum.
+\item \textbf{Correctness} requires optimal substructure and the greedy choice property, typically proved via the exchange argument.
+\item \textbf{Container loading, fractional knapsack, Dijkstra, MST, and Huffman coding}\index{Huffman coding} are canonical greedy successes.
+\item \textbf{0/1 knapsack and coin change} (in general) show that greedy does not always work.
+\item Industrial applications include \textbf{CDN content placement} (Akamai), \textbf{Huffman compression} (gzip, PNG), \textbf{Dijkstra routing} (Google Maps, OSRM), \textbf{interval scheduling}\index{interval scheduling} (cloud compute scheduling), and \textbf{Huffman coding} (JPEG, MP3).
+\item Greedy is a \textbf{problem-solving approach}, not a fixed algorithm — the art is in identifying the right greedy choice.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{How do you prove a greedy algorithm is correct — and how do you prove one is wrong?}\label{faq:greedy-proof}
+
+To prove correct: use the exchange argument — show that any optimal solution can be transformed to include the greedy choice without worsening it. To prove wrong: construct a counterexample where the greedy choice leads to a provably worse outcome than an alternative. The key insight: greedy works when the problem has \emph{optimal substructure} AND the greedy choice property holds — that locally optimal choices compose into a globally optimal solution. When only optimal substructure holds (but not the greedy property), you need DP instead. The matroid framework provides a structural guarantee: if the feasible sets form a matroid, greedy is always optimal for linear weight functions.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does greedy fail? Give examples.}
+
+Greedy fails when the locally optimal choice does not lead to a globally optimal solution — typically when subproblems overlap (as in 0/1 knapsack) or when the greedy choice precludes a better future decision (as in the general coin change problem with denominations like [1, 3, 4]). TSP with nearest-neighbor is another classic failure: the greedy choice can force a long return path.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does Dijkstra's greedy approach fail, and what does that tell you about the problem structure?}\label{faq:dijkstra-fails}
+
+Dijkstra fails with negative edge weights because it assumes once a node is ``settled'' (extracted from the priority queue), its distance is final. A negative edge can reduce a settled node's distance, violating this assumption. The deeper insight: Dijkstra works when the \emph{greedy choice property} holds — the locally shortest unprocessed node is globally optimal. Negative edges break this by creating ``cheaper paths through already-processed nodes.'' Bellman-Ford handles this by relaxing ALL edges V-1 times, not just the ``best'' one each round. When you see negative edges, the problem lacks the matroid structure that greedy requires.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is Huffman coding optimal for prefix-free codes?}
+
+Huffman achieves the minimum weighted path length among all prefix-free codes. The proof uses the exchange argument: in an optimal code, the two least-frequent symbols must be siblings at the deepest level. Huffman's greedy merging exactly matches this structure. For symbols drawn from a known i.i.d. source, the average code length approaches the Shannon entropy $-\sum p_i \log_2 p_i$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is Huffman coding optimal, and what makes a coding scheme non-Huffman?}\label{faq:huffman-optimality}
+
+Huffman coding minimizes the weighted path length $\sum f_i \cdot d_i$ where $f_i$ is frequency and $d_i$ is code length. It's optimal because: (1) the two least frequent symbols must have the longest codes (proven by exchange argument), and (2) the tree structure ensures no code is a prefix of another. A coding scheme is ``non-Huffman'' when it violates the prefix-free property (ambiguity on decoding) or when it uses fixed-length codes for variable-frequency data (wasting bits on rare symbols). The connection to information theory: Huffman's average code length approaches the Shannon entropy $H = -\sum p_i \log_2 p_i$, which is the theoretical minimum for symbol-by-symbol coding.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the matroid structure behind greedy algorithms?}\index{matroid}
+
+A matroid is a structure (E, $\mathcal{I}$) where $\mathcal{I}$ is a family of ``independent'' sets satisfying hereditary and exchange properties. Greedy is optimal for maximizing a linear weight function over the independent sets of a matroid. MST is a graphic matroid (independent sets = forests). Interval scheduling is a gammoid. If a problem has matroid structure, greedy is guaranteed optimal.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does the greedy set cover algorithm perform as an approximation?}
+
+The greedy set cover algorithm achieves an O(ln n)-approximation, and this is tight unless P = NP. At each step, it picks the set covering the most uncovered elements. The approximation ratio is $\sum_{i=1}^{n} 1/i = H_n \approx \ln n$. For practical instances, the greedy solution is often much better than this worst-case bound.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does sorting by finish time work for activity selection, and what happens with weighted activities?}\label{faq:activity-weighted}
+
+Sorting by finish time works because choosing the activity that finishes earliest leaves maximum remaining time for other activities — it's the greedy choice that maximizes future options. This is the \emph{earliest-finish-time-first} property: at each step, the greedy choice is safe because any optimal solution can be swapped to include it without conflict. With weights (weighted activity selection), greedy fails — a high-weight long activity might be worth more than several short ones. This requires DP: sort by finish time, then for each activity $i$, find the latest non-conflicting activity $p(i)$, and use $DP[i] = \max(DP[i-1], \text{weight}[i] + DP[p(i)])$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does the fractional knapsack greedy work but 0/1 knapsack doesn't?}
+
+In the fractional variant, taking the highest ratio item first is optimal because you can always ``fill the remaining capacity'' with fractions — no capacity is wasted. In 0/1 knapsack, taking a high-ratio item might leave awkward remaining capacity that a different combination would fill better. The exchange argument fails because you cannot partially exchange items.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is the choice of priority queue implementation the single biggest factor in Dijkstra's real-world performance?}\label{faq:dijkstra-pq}
+
+The theoretical complexity depends entirely on the priority queue: binary heap gives O((V+E) log V), Fibonacci heap gives O(E + V log V). But in practice, the binary heap wins for most graphs because: (1) Fibonacci heaps have terrible cache locality (pointer-based), (2) the constant factors are 5--10x worse, (3) decrease-key is rarely the bottleneck. For dense graphs (E $\approx$ V$^{2}$), an unsorted array with linear scan gives O(V$^{2}$) — competitive with heaps because there's no heap maintenance overhead. Google's Ortools and Boost both use binary heaps. The lesson: asymptotic complexity matters less than cache behavior and constant factors.
+\end{enumerate}
+
+\section{Activity Selection Problem}
+
+\textbf{Problem:} Given n activities, each with a start time and finish time, select the maximum number of non-overlapping activities. This is the canonical greedy problem and appears in scheduling\index{scheduling}, resource allocation, and genome alignment.
+
+\textbf{Greedy choice:} Always pick the activity with the earliest finish time that is compatible with previously selected activities.
+
+\textbf{Why earliest finish time?} An activity that finishes earlier leaves more room for subsequent activities. By the exchange argument: if an optimal solution does not contain the earliest-finishing compatible activity, we can replace the first selected activity in OPT with the earliest-finishing one without creating a conflict. This never worsens the solution.
+
+\subsection{Worked Example}
+
+Consider 10 activities:
+
+\begin{center}
+\begin{tabular}{lcccccccccc}
+\toprule
+Activity & A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8 & A9 & A10 \\
+\midrule
+Start    & 1  & 3  & 0  & 5  & 8  & 5  & 6  & 8  & 11 & 13 \\
+Finish   & 2  & 5  & 4  & 7  & 9  & 9  & 10 & 11 & 14 & 15 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Step 1: Sort by finish time (already sorted above).
+
+Step 2: Select A1 (finish=2). No conflict.
+
+Step 3: A2 starts at 3, which is >= 2. Compatible. Select A2 (finish=5).
+
+Step 4: A3 finishes at 4 but starts at 0, which overlaps with A2. Skip.
+
+Step 5: A4 starts at 5, which is >= 5. Compatible. Select A4 (finish=7).
+
+Step 6: A5 starts at 8 >= 7. Compatible. Select A5 (finish=9).
+
+Step 7: A6 starts at 5 < 9. Overlaps with A5. Skip.
+
+Step 8: A7 starts at 6 < 9. Overlaps. Skip.
+
+Step 9: A8 starts at 8 < 9. Overlaps. Skip.
+
+Step 10: A9 starts at 11 >= 9. Compatible. Select A9 (finish=14).
+
+Step 11: A10 starts at 13 < 14. Overlaps. Skip.
+
+Selected: A1, A2, A4, A5, A9. Total: 5 activities out of 10.
+
+Could we do better? Any schedule with 6 activities would need 6 non-overlapping intervals, but examining all subsets confirms that 5 is optimal for this instance.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+struct activity {
+    int start, finish;
+};
+
+std::vector<activity> select_activities(std::span<const activity> acts) {
+    // Sort by finish time
+    std::vector<activity> sorted(acts.begin(), acts.end());
+    std::sort(sorted.begin(), sorted.end(),
+              [](const activity& a, const activity& b) {
+                  return a.finish < b.finish;
+              });
+
+    std::vector<activity> selected;
+    int last_finish = -1;
+
+    for (const auto& [s, f] : sorted) {
+        if (s >= last_finish) {
+            selected.push_back({s, f});
+            last_finish = f;
+        }
+    }
+    return selected;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) for sorting + O(n) for the scan = O(n log n) total.
+
+\textbf{Variants:}
+\begin{itemize}
+\item \textbf{Weighted activity selection:} Each activity has a value. Greedy fails -- use DP (Chapter 17).
+\item \textbf{Minimum number of rooms:} Sort start and finish events; sweep through, tracking the maximum number of overlapping activities at any point.
+\item \textbf{Interval partitioning:} Given n lectures with start/end times, find the minimum number of classrooms needed. Greedy by sorting start times and assigning each lecture to any available room.
+\end{itemize}
+
+\section{Job Sequencing with Deadlines}
+
+\textbf{Problem:} Given n jobs, each with a deadline $d_i$ and a profit $p_i$, schedule the jobs on a single processor so that each job completes by its deadline and total profit is maximized. Each job takes one unit of time.
+
+\textbf{Greedy choice:} Process jobs in decreasing order of profit. For each job, assign it to the latest available time slot before its deadline.
+
+\textbf{Why this works:} By the exchange argument: if an optimal solution schedules a lower-profit job in a slot where a higher-profit job could go, swapping them increases total profit. Scheduling each job as late as possible maximizes the number of slots available for subsequent (lower-profit) jobs.
+
+\subsection{Worked Trace}
+
+Consider 6 jobs:
+
+\begin{center}
+\begin{tabular}{lcccccc}
+\toprule
+Job  & J1 & J2 & J3 & J4 & J5 & J6 \\
+\midrule
+Deadline  & 2  & 1  & 3  & 1  & 3  & 2 \\
+Profit    & 60 & 100 & 20 & 40 & 30 & 50 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Step 1: Sort by profit descending: J2(100,d=1), J1(60,d=2), J6(50,d=2), J4(40,d=1), J5(30,d=3), J3(20,d=3).
+
+Step 2: Assign J2 (profit=100, deadline=1): Slot 1 is free. Assign slot 1. Slots: [J2, -, -].
+
+Step 3: Assign J1 (profit=60, deadline=2): Slot 2 is free. Assign slot 2. Slots: [J2, J1, -].
+
+Step 4: Assign J6 (profit=50, deadline=2): Slot 2 occupied. Slot 1 occupied. No available slot. Skip J6.
+
+Step 5: Assign J4 (profit=40, deadline=1): Slot 1 occupied. No available slot. Skip J4.
+
+Step 6: Assign J5 (profit=30, deadline=3): Slot 3 is free. Assign slot 3. Slots: [J2, J1, J5].
+
+Step 7: Assign J3 (profit=20, deadline=3): Slot 3 occupied. Slot 2 occupied. Slot 1 occupied. Skip J3.
+
+Scheduled jobs: J2 (slot 1), J1 (slot 2), J5 (slot 3). Total profit: 190.
+
+\subsection{Union-Find Optimization}
+
+The naive approach scans backward from the deadline to find a free slot, which is O(d) per job. With Union-Find, each find-and-assign is O($\alpha$(n)) amortized, giving O(n $\alpha$(n)) total after sorting.
+
+\begin{lstlisting}[language=C++]
+struct job {
+    int deadline, profit;
+};
+
+// Union-Find for slot allocation
+struct union_find {
+    std::vector<int> parent;
+    union_find(int n) : parent(n + 1) {
+        for (int i = 0; i <= n; ++i) parent[i] = i;
+    }
+    int find(int x) {
+        if (parent[x] != x) parent[x] = find(parent[x]);
+        return parent[x];
+    }
+    void unite(int x, int y) { parent[find(x)] = find(y); }
+};
+
+int job_sequencing(std::span<const job> jobs) {
+    // Sort by profit descending
+    std::vector<job> sorted(jobs.begin(), jobs.end());
+    std::sort(sorted.begin(), sorted.end(),
+              [](const job& a, const job& b) {
+                  return a.profit > b.profit;
+              });
+
+    int max_deadline = 0;
+    for (const auto& j : jobs) max_deadline = std::max(max_deadline, j.deadline);
+
+    union_find uf(max_deadline);
+    int total_profit = 0;
+
+    for (const auto& [d, p] : sorted) {
+        // Find the latest available slot before the deadline
+        int slot = uf.find(d);
+        if (slot > 0) {
+            total_profit += p;
+            // Mark this slot as used: link to slot - 1
+            uf.unite(slot, slot - 1);
+        }
+    }
+    return total_profit;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) for sorting + O(n $\alpha$(n)) for Union-Find operations = O(n log n).
+
+\textbf{Extension:} For jobs with processing times $t_i > 1$, the problem becomes NP-hard (reduces to subset sum). The greedy heuristic still works well in practice.
+
+\section{Optimal Merge Pattern}
+
+\textbf{Problem:} Given n files with sizes $s_1, s_2, \ldots, s_n$, merge them pairwise into a single file. Each merge of two files of sizes $a$ and $b$ costs $a + b$ (the bytes processed). Find the merge order that minimizes total cost.\index{optimal merge}
+
+This is a generalization of Huffman coding: instead of merging characters with frequencies, we merge files with sizes. The greedy strategy is identical.
+
+\textbf{Greedy choice:} Always merge the two smallest files.
+
+\subsection{Why Greedy Works}
+
+At each step, merging the two smallest files minimizes the cost of the current merge. More importantly, the two smallest files will participate in the most subsequent merges (they are at the deepest level of the merge tree). By making their cost as small as possible, we minimize total cost. The exchange argument proves this: swapping any pair of files with the two smallest in the merge sequence never increases total cost.
+
+\subsection{Worked Trace}
+
+Files with sizes: A=10, B=20, C=30, D=40, E=50.
+
+Step 1: Merge smallest two: A(10) + B(20) = AB(30). Cost = 30. Files: [AB(30), C(30), D(40), E(50)].
+
+Step 2: Merge smallest two: AB(30) + C(30) = ABC(60). Cost = 30. Total = 60. Files: [ABC(60), D(40), E(50)].
+
+Step 3: Merge smallest two: D(40) + E(50) = DE(90). Cost = 90. Total = 150. Files: [ABC(60), DE(90)].
+
+Step 4: Merge: ABC(60) + DE(90) = ABCDE(150). Cost = 150. Total = 300.
+
+Merge tree:
+\begin{lstlisting}[language=Java]
+          ABCDE(150)
+         /         \
+     ABC(60)      DE(90)
+    /    \        /    \
+ AB(30)  C(30)  D(40) E(50)
+ /   \
+A(10) B(20)
+\end{lstlisting}
+
+Total cost = 30 + 60 + 90 + 150 = 330.
+
+Compare with a naive left-to-right merge:
+(((((A+B)+C)+D)+E) = 30 + 60 + 100 + 150 = 340.
+Greedy saves 10 units (3\% reduction for 5 files; the advantage grows with n).
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <queue>
+
+int optimal_merge(std::span<const int> sizes) {
+    // Min-heap of file sizes
+    std::priority_queue<int, std::vector<int>, std::greater<>> pq;
+    for (int s : sizes) pq.push(s);
+
+    int total_cost = 0;
+    while (pq.size() > 1) {
+        int a = pq.top(); pq.pop();
+        int b = pq.top(); pq.pop();
+        int merged = a + b;
+        total_cost += merged;
+        pq.push(merged);
+    }
+    return total_cost;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) -- each of the n-1 merges involves two heap extractions and one insertion, each O(log n).
+
+\textbf{Connection to Huffman:} Huffman coding builds an optimal prefix-free code. The merge cost in optimal merge pattern equals the total number of bits in the Huffman-encoded file (when file sizes are character frequencies). Both problems share the same greedy structure: always combine the two smallest elements.
+
+\section{Egyptian Fraction}
+
+\textbf{Problem:} Represent a fraction $p/q$ as a sum of distinct unit fractions (fractions with numerator 1). Every positive rational number has such a representation. The greedy algorithm produces the representation with the fewest terms for a given starting fraction.
+
+\textbf{Greedy choice:} At each step, find the smallest unit fraction $1/k$ such that $1/k \leq p/q$, subtract it, and repeat with the remainder.
+
+The smallest such $k$ is $\lceil q/p \rceil$. After subtraction, the remainder is $p/q - 1/k = (pk - q)/(qk)$.
+
+\subsection{Worked Examples}
+
+\textbf{Example 1:} $\frac{2}{3}$
+
+Step 1: $k = \lceil 3/2 \rceil = 2$. Unit fraction: $1/2$.
+
+Remainder: $2/3 - 1/2 = (4-3)/6 = 1/6$. This is already a unit fraction.
+
+Result: $\frac{2}{3} = \frac{1}{2} + \frac{1}{6}$.
+
+Verification: $1/2 + 1/6 = 3/6 + 1/6 = 4/6 = 2/3$. Correct.
+
+\textbf{Example 2:} $\frac{6}{14} = \frac{3}{7}$
+
+Step 1: $k = \lceil 7/3 \rceil = 3$. Unit fraction: $1/3$.
+
+Remainder: $3/7 - 1/3 = (9-7)/21 = 2/21$.
+
+Step 2: $k = \lceil 21/2 \rceil = 11$. Unit fraction: $1/11$.
+
+Remainder: $2/21 - 1/11 = (22-21)/231 = 1/231$. Unit fraction.
+
+Result: $\frac{6}{14} = \frac{1}{3} + \frac{1}{11} + \frac{1}{231}$.
+
+Verification: $1/3 + 1/11 + 1/231 = 77/231 + 21/231 + 1/231 = 99/231 = 3/7 = 6/14$. Correct.
+
+\textbf{Example 3:} $\frac{5}{7}$
+
+Step 1: $k = \lceil 7/5 \rceil = 2$. Unit fraction: $1/2$.
+
+Remainder: $5/7 - 1/2 = (10-7)/14 = 3/14$.
+
+Step 2: $k = \lceil 14/3 \rceil = 5$. Unit fraction: $1/5$.
+
+Remainder: $3/14 - 1/5 = (15-14)/70 = 1/70$. Unit fraction.
+
+Result: $\frac{5}{7} = \frac{1}{2} + \frac{1}{5} + \frac{1}{70}$.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <numeric> // std::gcd
+
+struct fraction { long long num, den; };
+
+std::vector<fraction> egyptian_fraction(long long p, long long q) {
+    std::vector<fraction> result;
+
+    while (p > 0) {
+        // Find smallest k such that 1/k <= p/q, i.e., k >= q/p
+        long long k = (q + p - 1) / p;  // ceil(q/p)
+
+        result.push_back({1, k});
+
+        // Subtract 1/k from p/q
+        p = p * k - q;
+        q = q * k;
+
+        if (p == 0) break;
+
+        // Simplify the remainder
+        long long g = std::gcd(p, q);
+        p /= g;
+        q /= g;
+    }
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} The number of terms is at most O(q) in the worst case, but typically much smaller. Each step involves O(log q) arithmetic operations for GCD. For most fractions, the algorithm terminates in a handful of steps.
+
+\textbf{Historical note:} Egyptian fractions date back to 1800 BCE (Rhind Papyrus). The ancient Egyptians used only unit fractions, representing $2/3$ as a special case ($1/2 + 1/6$). The greedy algorithm (called the Fibonacci-Sylvester algorithm) always terminates and produces a finite representation.
+
+\textbf{Limitations:} The greedy algorithm does not always produce the representation with the fewest terms. For example, $5/121 = 1/25 + 1/759 + 1/208725$ (greedy, 3 terms), but $5/121 = 1/33 + 1/121 + 1/363$ (also 3 terms, with smaller denominators). For minimal denominators, different strategies are needed.
+
+\subsection{Task Scheduling to Minimize Lateness}
+
+A dispatcher has $n$ tasks, each with a processing time $t_i$ and a deadline $d_i$. All tasks are available at time 0 and are executed non-preemptively on a single machine. The \emph{lateness} of a task is $C_i - d_i$ where $C_i$ is its completion time. The objective is to find a schedule that minimizes the \textbf{maximum lateness}, $L_{\max} = \max_i (C_i - d_i)$.
+
+\textbf{Greedy strategy:} Sort the tasks in \emph{earliest-deadline-first} (EDF) order and schedule them in that sequence. Intuitively, tasks that must be finished soonest should go first.
+
+\begin{lstlisting}[language=C++]
+#include <algorithm>
+#include <vector>
+
+struct Task {
+    int id;       // task identifier
+    int t;        // processing time
+    int d;        // deadline
+};
+
+// Returns maximum lateness and fills 'order' with the
+// scheduled task indices (EDF ordering).
+int minMaximumLateness(std::vector<Task>& tasks,
+                       std::vector<int>& order) {
+    int n = tasks.size();
+    order.resize(n);
+    for (int i = 0; i < n; i++) order[i] = i;
+
+    // Sort by deadline (earliest first)
+    std::sort(order.begin(), order.end(),
+         [&](int a, int b) {
+             return tasks[a].d < tasks[b].d;
+         });
+
+    int currentTime = 0;
+    int maxLateness = 0;
+    for (int i = 0; i < n; i++) {
+        int idx = order[i];
+        currentTime += tasks[idx].t;
+        int lateness = currentTime - tasks[idx].d;
+        if (lateness > maxLateness)
+            maxLateness = lateness;
+    }
+    return maxLateness;
+}
+\end{lstlisting}
+
+\textbf{Worked trace.} Consider six tasks:
+
+\begin{center}
+\begin{tabular}{c|cccccc}
+Task & 1 & 2 & 3 & 4 & 5 & 6 \\\hline
+$t_i$ & 3 & 1 & 4 & 2 & 5 & 2 \\
+$d_i$ & 6 & 8 & 9 & 9 & 14 & 15
+\end{tabular}
+\end{center}
+
+After EDF sorting (by deadline, already non-decreasing):
+
+\begin{center}
+\begin{tabular}{c|cccccc}
+Schedule position & 1 & 2 & 3 & 4 & 5 & 6 \\\hline
+Task & 1 & 2 & 3 & 4 & 5 & 6 \\
+$C_i$ & 3 & 4 & 8 & 10 & 15 & 17 \\
+$d_i$ & 6 & 8 & 9 & 9 & 14 & 15 \\
+Lateness & $-3$ & $-4$ & $-1$ & $1$ & $1$ & $2$
+\end{tabular}
+\end{center}
+
+The maximum lateness is $L_{\max} = 2$, achieved by task 6. Any reordering that moves a later-deadline task ahead of an earlier-deadline task can only increase $L_{\max}$.
+
+\textbf{Proof of optimality (exchange argument).} Let $\sigma$ be any schedule that is not in EFD order. Then there exist adjacent tasks $i$ and $j$ in $\sigma$ where $d_i > d_j$ but $i$ is scheduled before $j$. Let $C$ be the common start time of this pair. The contribution of $i$ and $j$ to $L_{\max}$ from this swap is $\max(C + t_i - d_i,\; C + t_i + t_j - d_j)$. Swapping them gives $\max(C + t_j - d_j,\; C + t_j + t_i - d_i)$. Since $d_j < d_i$, the first term in the swapped pair is at most as large as the corresponding term before the swap, and the second term is at most as large as well. Thus every adjacent inversion can be eliminated without increasing $L_{\max}$. By induction, the EDF schedule is optimal.
+
+\textbf{Complexity:} Sorting dominates at $O(n \log n)$. The scan is $O(n)$, giving $O(n \log n)$ overall.
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For each industrial scenario, identify the greedy choice and determine (conceptually) whether it produces an optimal solution:
+\end{enumerate}
+   a) \textbf{AWS Spot Instance bidding} — you have a budget of \$100/hr and need to run 10 batch jobs, each with a different spot price. Greedy: bid the lowest price first.
+   b) \textbf{CDN content caching} — 1TB cache, 1000 popular files with different request rates. Greedy: cache the most-requested files first.
+   c) \textbf{YouTube transcoding} — 50 videos to encode, 10 encoding servers with different speeds. Greedy: assign the shortest video to the fastest server.
+   d) \textbf{Packet routing in a network} — forward each packet along the link with the lowest current latency.
+
+\begin{enumerate}
+\item A shipping company (like FedEx) loads containers of weights [5, 7, 10, 3, 18, 2, 9] onto a truck with capacity 30. Using the lightest-first greedy, which containers are loaded? What is the total weight? Is this optimal?
+\end{enumerate}
+
+\begin{enumerate}
+\item For the fractional knapsack with C = 50 and items:
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Item & Weight (kg) & Value (\$) \\
+Gold & 10 & 600 \\
+Silver & 20 & 500 \\
+Copper & 30 & 360 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{enumerate}
+   Compute the optimal solution using greedy by value/weight. What is the total value?
+
+\begin{enumerate}
+\item Trace Dijkstra on a graph with vertices (A, B, C, D, E) and edges: A$\to $B(4), A$\to $C(2), B$\to $C(1), B$\to $D(5), C$\to $D(8), C$\to $E(10), D$\to $E(2), D$\to $T(6), E$\to $T(3), starting from A to T. Show distance estimates after each vertex extraction.
+\end{enumerate}
+
+\begin{enumerate}
+\item Trace Huffman coding on character frequencies from an English novel: E:12.7\%, T:9.1\%, A:8.2\%, O:7.5\%, I:7.0\%, N:6.7\%, S:6.3\%, H:6.1\%, R:6.0\%. Build the tree, compute the weighted path length, and compare with fixed 4-bit encoding (16 symbols $\to $ 4 bits).
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the greedy choice in Google's PageRank-optimized crawling? In Akamai's CDN edge server selection? Why are both greedy?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{CDN content placement (Akamai).} Akamai has edge servers worldwide. Given request rates for 1000 video files from 50 geographic regions, place copies on 10 edge servers to minimize total latency. Implement the greedy algorithm: place the most-requested file on the server closest to its requestors. Measure total latency vs an optimal (exhaustive) placement for small N.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Spot instance bidding on AWS.} You have 100 batch jobs with different deadlines and spot prices. Each job requires 1 hour on a single instance. You have \$500 total budget. Implement a greedy scheduler: sort by profit margin (value/hour $\div $ price) and schedule the most profitable jobs first. Compare total profit with an optimal DP solution (Chapter 17). How far from optimal is the greedy result?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Huffman compression for HTTP/2.} HTTP/2 uses HPACK header compression (a variant of Huffman). Implement Huffman encoding/decoding for HTTP headers: given a set of header names and frequencies from 10,000 real HTTP requests, build the Huffman tree and compress a sample request. Compare compression ratio with gzip and with no compression.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Interval scheduling for cloud computing.} AWS EC2 offers reserved instances in 1-hour intervals. Your workloads specify start and end times (100 workloads, each with value \$). Implement earliest-finish-time-first scheduling to maximize the number of workloads. Then modify to maximize total value (weighted interval scheduling). Show that the unweighted greedy is optimal but the weighted variant needs DP.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Greedy set cover for test suite minimization.} Given 100 test cases and 50 code modules (each test covers certain modules), select the minimum number of tests that cover all modules. Implement the greedy set cover algorithm (pick the test covering the most uncovered modules). Compare the solution size with the optimal (exponential) solution for small cases. What approximation ratio do you observe?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Ad slot allocation.} A publisher has 10 ad slots per page view and 100 ad campaigns each with budget, CPM, and target audience size. Implement a greedy allocation: assign each slot to the campaign with the highest bid $\times $ relevance score. Measure total revenue vs a linear programming solution for 1000 page views.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Matroids)} Read about matroids and prove that the minimum spanning tree\index{minimum spanning tree} problem is a graphic matroid. Then find a real problem (e.g., maximum-weight forest in a network design problem) that is also a matroid. What does the matroid property tell you about the applicability of greedy?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Greedy approximation for set cover)} Prove that the greedy set cover algorithm is a (ln n)-approximation. Implement it for a real-world test suite minimization problem (e.g., minimize the number of test cases while maintaining code coverage). On real coverage data, does the greedy solution ever exceed ln(n) $\times $ optimal?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Adaptive Huffman)} Implement the Faller-Gallager-Knuth adaptive Huffman algorithm that updates the code tree incrementally (used in \texttt{bzip2}). Compare its compression ratio with static Huffman on a 10MB text file. How much worse is the adaptive version, and why is it useful for streaming?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Scheduling theory)} Read about Smith's rule and the EDD rule for minimizing maximum lateness. Implement a greedy scheduler for a real manufacturing line simulation: 100 jobs with processing times and due dates. Show that EDD minimizes maximum lateness.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Greedy for submodular maximization)} Read about the greedy (1-1/e)-approximation for submodular maximization under a cardinality constraint. Implement it for a real sensor placement problem: given 100 candidate locations and a coverage function, place 10 sensors to maximize coverage. Why is submodularity the right model for diminishing returns?
+\end{enumerate}
+
+\subsection{Additional Exercises}
+
+\begin{enumerate}
+\item Trace the activity selection algorithm on these 8 activities: (1,4), (3,5), (0,6), (5,7), (3,8), (5,9), (6,10), (8,11). Show the sorted order, then step through the selection. How many activities are selected? Could any alternative set of activities be larger?
+\end{enumerate}
+
+\begin{enumerate}
+\item For job sequencing with deadlines, consider 5 jobs: (deadline, profit) = (2, 80), (1, 10), (2, 20), (1, 30), (3, 50). Trace the greedy algorithm (sorted by profit). Which jobs are scheduled and what is the total profit? Now solve by brute force (try all 2$^{5}$ subsets) and confirm the greedy solution is optimal.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given files of sizes [15, 35, 25, 5, 10, 45, 30], apply the optimal merge pattern algorithm. Draw the merge tree and compute total merge cost. Compare with a left-to-right sequential merge cost.
+\end{enumerate}
+
+\begin{enumerate}
+\item Apply the Egyptian fraction algorithm to the following fractions: (a) 7/15, (b) 5/121, (c) 10/39. For each, show every step of the greedy decomposition and verify the result by summing the unit fractions.
+\end{enumerate}
+
+\begin{enumerate}
+\item Prove that the activity selection greedy algorithm is optimal using the exchange argument. Let OPT be an optimal schedule and G the greedy schedule. Show that if OPT selects a different first activity than G, replacing it with G's first activity produces another valid schedule with at least as many activities.
+\end{enumerate}
+
+\begin{enumerate}
+\item Design a greedy algorithm for the following problem: given n tasks, each requiring a contiguous block of time of length $t_i$ on a shared resource, and each with a profit $p_i$, find a non-overlapping schedule maximizing total profit. Show that greedy by earliest finish time fails for the weighted variant and give a counterexample.
+\end{enumerate}
+
+\begin{enumerate}
+\item A hospital has n patients waiting for organ transplants, each with a blood type (A, B, AB, O) and an urgency score. There are m available organs, each with a blood type. A match is possible if the organ type is compatible with the patient's type. Design a greedy algorithm that maximizes the total urgency score of matched patients. Prove correctness or provide a counterexample.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the optimal merge pattern algorithm and test it on random file sizes from 1 to 1000. Measure the total merge cost for n = 10, 50, 100, 500, 1000 files. Plot the merge cost versus n and compare with the theoretical lower bound (which is the total number of bytes times the depth of the merge tree).
+\end{enumerate}
+
+\begin{enumerate}
+\item Modify the Egyptian fraction algorithm to minimize the maximum denominator in the representation. Compare with the standard greedy approach on fractions like 5/121, 7/15, and 11/23. How do the results differ? Is there a pattern?
+\end{enumerate}
+
+\begin{enumerate}
+\item (Challenge) Prove that for any set of n activities with distinct finish times, the greedy earliest-finish-time algorithm produces a schedule with at least $\lfloor n/2 \rfloor$ activities when no two activities overlap more than once. Then give a tight example where the greedy solution has exactly $\lfloor n/2 \rfloor$ activities.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapter 16 (greedy), Chapter 35 (approximation).
+\item David A. Huffman, "A Method for the Construction of Minimum-Redundancy Codes" — Proceedings of the IRE, 1952.
+\item Jack Edmonds, "Matroids and the Greedy Algorithm" — Mathematical Programming, 1971.
+\item Jon Kleinberg and \'Eva Tardos, \textit{Algorithm Design}. Chapter 4 (greedy). Addison-Wesley, 2005.
+\item Steven S. Skiena, \textit{The Algorithm Design Manual}, 2nd Edition. Springer, 2008.
+\item Eugene L. Lawler, \textit{Combinatorial Optimization: Networks and Matroids}. Holt, Rinehart and Winston, 1976.
+\end{itemize}

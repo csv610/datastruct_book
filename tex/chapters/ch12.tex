@@ -1,0 +1,2317 @@
+\chapter{Graphs and Graph Algorithms}\label{ch12:graphs-and-graph-algorithms}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The Graph ADT}
+
+A \textbf{graph} G = (V, E) consists of a set V of \textbf{vertices} (nodes) and a set E of \textbf{edges} connecting pairs of vertices. Graphs model networks: social connections, road maps, circuit connectivity, web links, and more.
+
+\subsection{Terminology}
+
+\begin{itemize}
+\item \textbf{Undirected graph:} edges have no direction — (u, v) = (v, u)
+\item \textbf{Directed graph (digraph):} edges have direction — u$\to $v $\ne $ v$\to $u
+\item \textbf{Weighted graph:} each edge has a numerical weight
+\item \textbf{Path:} sequence of vertices connected by edges
+\item \textbf{Cycle:} a path where the first and last vertex are the same
+\item \textbf{Connected graph:} there is a path between every pair of vertices
+\item \textbf{Complete graph:} every pair of vertices is connected by an edge
+\item \textbf{Degree (undirected):} number of edges incident to a vertex
+\item \textbf{In-degree / Out-degree (directed):} number of incoming / outgoing edges
+\end{itemize}
+
+\begin{lstlisting}[language=Java]
+Undirected:    Directed:
+   A--B          A -> B
+   |\           ||
+   C--D          C -> D
+\end{lstlisting}
+
+\subsection{Graph Representations}
+
+\textbf{Adjacency Matrix:} O(V$^{2}$) space, O(1) edge lookup.
+
+\begin{lstlisting}[language=Java]
+    A B C D
+  A 0 1 1 1
+  B 1 0 0 1
+  C 1 0 0 1
+  D 1 1 1 0
+\end{lstlisting}
+
+\textbf{Adjacency List:} O(V + E) space, O(degree(v)) neighbor iteration.
+
+\begin{lstlisting}[language=Java]
+A  ->  B  ->  C  ->  D
+B  ->  A  ->  D
+C  ->  A  ->  D
+D  ->  A  ->  B  ->  C
+\end{lstlisting}
+
+\section{Graph Classes}
+
+\subsection{Adjacency Matrix}
+
+\begin{lstlisting}[language=C++]
+class graph_matrix {
+public:
+    graph_matrix(size_t n) : n_(n), adj_(n, std::vector<bool>(n, false)) {}
+
+    void add_edge(size_t u, size_t v) {
+        adj_[u][v] = true;
+        adj_[v][u] = true;  // undirected
+    }
+
+    bool has_edge(size_t u, size_t v) const {
+        return adj_[u][v];
+    }
+
+    std::vector<size_t> neighbors(size_t v) const {
+        std::vector<size_t> result;
+        for (size_t i = 0; i < n_; ++i) {
+            if (adj_[v][i]) result.push_back(i);
+        }
+        return result;
+    }
+
+    size_t size() const noexcept { return n_; }
+
+private:
+    size_t n_;
+    std::vector<std::vector<bool>> adj_;
+};
+\end{lstlisting}
+
+\subsection{Adjacency List}
+
+\begin{lstlisting}[language=C++]
+template <typename Weight = int>
+class graph_list {
+public:
+    struct edge {
+        size_t to;
+        Weight weight;
+    };
+
+    explicit graph_list(size_t n) : adj_(n) {}
+
+    void add_edge(size_t u, size_t v, Weight w = Weight{}) {
+        adj_[u].push_back({v, w});
+        adj_[v].push_back({u, w});  // undirected
+    }
+
+    const std::vector<edge>& neighbors(size_t v) const {
+        return adj_[v];
+    }
+
+    size_t size() const noexcept { return adj_.size(); }
+    size_t edge_count() const {
+        size_t e = 0;
+        for (const auto& adj : adj_) e += adj.size();
+        return e / 2;  // undirected
+    }
+
+private:
+    std::vector<std::vector<edge>> adj_;
+};
+\end{lstlisting}
+
+\section{Graph Traversal}
+
+\subsection{Depth-First Search (DFS)}
+
+DFS explores as far as possible along each branch before backtracking. Uses a stack (implicitly via recursion, or explicitly).
+
+\begin{lstlisting}[language=C++]
+void dfs(const graph_list<>& g, size_t start, auto& visit) {
+    std::vector<bool> visited(g.size(), false);
+    std::function<void(size_t)> dfs_impl = [&](size_t v) {
+        visited[v] = true;
+        visit(v);
+        for (const auto& [to, _] : g.neighbors(v)) {
+            if (!visited[to]) dfs_impl(to);
+        }
+    };
+    dfs_impl(start);
+}
+\end{lstlisting}
+
+\textbf{Applications:}
+\begin{itemize}
+\item Finding connected components
+\item Topological sort
+\item Detecting cycles
+\item Solving mazes
+\item Biconnectivity and articulation points
+\end{itemize}
+
+\subsection{Breadth-First Search (BFS)}
+
+BFS explores all neighbors at the current depth before going deeper. Uses a queue.
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> bfs(const graph_list<>& g, size_t start) {
+    std::vector<size_t> distance(g.size(), SIZE_MAX);
+    std::queue<size_t> q;
+    
+    distance[start] = 0;
+    q.push(start);
+    
+    while (!q.empty()) {
+        size_t v = q.front(); q.pop();
+        for (const auto& [to, _] : g.neighbors(v)) {
+            if (distance[to] == SIZE_MAX) {
+                distance[to] = distance[v] + 1;
+                q.push(to);
+            }
+        }
+    }
+    return distance;
+}
+\end{lstlisting}
+
+\textbf{Applications:}
+\begin{itemize}
+\item Shortest path in unweighted graphs
+\item Finding connected components
+\item Web crawling
+\item Social network analysis (degrees of separation)
+\end{itemize}
+
+\subsection{Connected Components}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> connected_components(const graph_list<>& g) {
+    size_t n = g.size();
+    std::vector<size_t> component(n, SIZE_MAX);
+    size_t comp_id = 0;
+
+    for (size_t v = 0; v < n; ++v) {
+        if (component[v] != SIZE_MAX) continue;
+        
+        // BFS from v
+        std::queue<size_t> q;
+        q.push(v);
+        component[v] = comp_id;
+        
+        while (!q.empty()) {
+            size_t u = q.front(); q.pop();
+            for (const auto& [to, _] : g.neighbors(u)) {
+                if (component[to] == SIZE_MAX) {
+                    component[to] = comp_id;
+                    q.push(to);
+                }
+            }
+        }
+        ++comp_id;
+    }
+    return component;
+}
+\end{lstlisting}
+
+\section{Topological Sort}
+
+A \textbf{topological order} of a directed acyclic graph (DAG) is a linear ordering of vertices such that for every edge u$\to $v, u comes before v. Only DAGs have a topological order.
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> topological_sort(const graph_list<>& g) {
+    size_t n = g.size();
+    std::vector<size_t> in_degree(n, 0);
+    
+    // Compute in-degrees
+    for (size_t v = 0; v < n; ++v) {
+        for (const auto& [to, _] : g.neighbors(v)) {
+            ++in_degree[to];
+        }
+    }
+
+    // Kahn's algorithm
+    std::queue<size_t> q;
+    for (size_t v = 0; v < n; ++v) {
+        if (in_degree[v] == 0) q.push(v);
+    }
+
+    std::vector<size_t> result;
+    while (!q.empty()) {
+        size_t v = q.front(); q.pop();
+        result.push_back(v);
+        for (const auto& [to, _] : g.neighbors(v)) {
+            if (--in_degree[to] == 0) q.push(to);
+        }
+    }
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Application:} Course prerequisite ordering, build system dependency resolution.
+
+\section{Minimum Spanning Tree}
+
+A \textbf{spanning tree} connects all vertices of a graph with exactly V-1 edges. A \textbf{minimum spanning tree (MST)} is a spanning tree with minimum total edge weight.
+
+\subsection{Kruskal's Algorithm}
+
+Sort edges by weight, add edges that don't create cycles (using Union-Find).
+
+\begin{lstlisting}[language=C++]
+struct weighted_edge {
+    size_t from, to;
+    int weight;
+};
+
+std::vector<weighted_edge> kruskal_mst(size_t n,
+                                        std::vector<weighted_edge> edges) {
+    std::sort(edges.begin(), edges.end(),
+              [](const auto& a, const auto& b) { return a.weight < b.weight; });
+
+    union_find uf(n);
+    std::vector<weighted_edge> mst;
+
+    for (const auto& e : edges) {
+        if (!uf.same_set(e.from, e.to)) {
+            uf.union_sets(e.from, e.to);
+            mst.push_back(e);
+            if (mst.size() == n - 1) break;
+        }
+    }
+    return mst;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(E log E) due to sorting. With Union-Find, cycle check is near-constant.
+
+\subsection{Prim's Algorithm}
+
+Grow the MST from a starting vertex, always adding the cheapest edge connecting the tree to a vertex outside it.
+
+\begin{lstlisting}[language=C++]
+std::vector<weighted_edge> prim_mst(const graph_list<int>& g) {
+    size_t n = g.size();
+    std::vector<bool> in_mst(n, false);
+    std::vector<int> key(n, INT_MAX);
+    std::vector<size_t> parent(n, SIZE_MAX);
+    
+    using entry = std::pair<int, size_t>;
+    std::priority_queue<entry, std::vector<entry>, std::greater<entry>> pq;
+    
+    key[0] = 0;
+    pq.push({0, 0});
+
+    while (!pq.empty()) {
+        auto [_, v] = pq.top(); pq.pop();
+        if (in_mst[v]) continue;
+        in_mst[v] = true;
+
+        for (const auto& [to, w] : g.neighbors(v)) {
+            if (!in_mst[to] && w < key[to]) {
+                key[to] = w;
+                parent[to] = v;
+                pq.push({w, to});
+            }
+        }
+    }
+
+    std::vector<weighted_edge> mst;
+    for (size_t v = 1; v < n; ++v) {
+        if (parent[v] != SIZE_MAX) {
+            mst.push_back({parent[v], v, key[v]});
+        }
+    }
+    return mst;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O((V + E) log V) with a binary heap.
+
+\section{Shortest Paths}
+
+\subsection{Dijkstra's Algorithm}
+
+Finds shortest path from a source to all vertices in a graph with non-negative weights.
+
+\begin{lstlisting}[language=C++]
+std::vector<int> dijkstra(const graph_list<int>& g, size_t source) {
+    size_t n = g.size();
+    std::vector<int> distance(n, INT_MAX);
+    std::vector<bool> visited(n, false);
+    
+    using entry = std::pair<int, size_t>;
+    std::priority_queue<entry, std::vector<entry>, std::greater<entry>> pq;
+    
+    distance[source] = 0;
+    pq.push({0, source});
+
+    while (!pq.empty()) {
+        auto [dist, v] = pq.top(); pq.pop();
+        if (visited[v]) continue;
+        visited[v] = true;
+
+        for (const auto& [to, w] : g.neighbors(v)) {
+            if (dist + w < distance[to]) {
+                distance[to] = dist + w;
+                pq.push({distance[to], to});
+            }
+        }
+    }
+    return distance;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O((V + E) log V). \textbf{Cannot handle negative edges.}
+
+\subsection{Bellman-Ford Algorithm}
+
+Handles negative edge weights (detects negative cycles).
+
+\begin{lstlisting}[language=C++]
+std::optional<std::vector<int>> bellman_ford(
+    const std::vector<weighted_edge>& edges, size_t n, size_t source) {
+    
+    std::vector<int> distance(n, INT_MAX / 2);
+    distance[source] = 0;
+
+    // Relax all edges V-1 times
+    for (size_t i = 0; i < n - 1; ++i) {
+        for (const auto& [u, v, w] : edges) {
+            if (distance[u] + w < distance[v]) {
+                distance[v] = distance[u] + w;
+            }
+        }
+    }
+
+    // Check for negative cycles
+    for (const auto& [u, v, w] : edges) {
+        if (distance[u] + w < distance[v]) {
+            return std::nullopt;  // negative cycle detected
+        }
+    }
+    return distance;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(VE).
+
+\subsection{Floyd-Warshall (All Pairs)}
+
+\begin{lstlisting}[language=C++]
+std::vector<std::vector<int>> floyd_warshall(
+    const std::vector<weighted_edge>& edges, size_t n) {
+    
+    std::vector<std::vector<int>> dist(n, std::vector<int>(n, INT_MAX / 2));
+    for (size_t i = 0; i < n; ++i) dist[i][i] = 0;
+    for (const auto& [u, v, w] : edges) dist[u][v] = w;
+
+    for (size_t k = 0; k < n; ++k) {
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                if (dist[i][k] + dist[k][j] < dist[i][j]) {
+                    dist[i][j] = dist[i][k] + dist[k][j];
+                }
+            }
+        }
+    }
+    return dist;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(V$^{3}$). Simple but costly; use only for dense graphs or small V.
+
+\section{Strongly Connected Components}\label{sec:scc}
+
+A \textbf{strongly connected component (SCC)} in a directed graph is a maximal set of vertices where every vertex is reachable from every other.
+
+\subsection{Kosaraju's Algorithm}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> kosaraju_scc(const graph_list<>& g) {
+    size_t n = g.size();
+    std::vector<bool> visited(n, false);
+    std::vector<size_t> order;
+    
+    // First pass: DFS to get finish order
+    std::function<void(size_t)> dfs1 = [&](size_t v) {
+        visited[v] = true;
+        for (const auto& [to, _] : g.neighbors(v)) {
+            if (!visited[to]) dfs1(to);
+        }
+        order.push_back(v);
+    };
+    for (size_t v = 0; v < n; ++v) if (!visited[v]) dfs1(v);
+
+    // Second pass: DFS on reversed graph
+    graph_list<> reversed(n);
+    for (size_t v = 0; v < n; ++v)
+        for (const auto& [to, _] : g.neighbors(v))
+            reversed.add_edge(to, v, 0);
+
+    std::vector<size_t> component(n, SIZE_MAX);
+    size_t comp_id = 0;
+    visited.assign(n, false);
+
+    std::function<void(size_t)> dfs2 = [&](size_t v) {
+        visited[v] = true;
+        component[v] = comp_id;
+        for (const auto& [to, _] : reversed.neighbors(v)) {
+            if (!visited[to]) dfs2(to);
+        }
+    };
+
+    for (auto it = order.rbegin(); it != order.rend(); ++it) {
+        if (!visited[*it]) {
+            dfs2(*it);
+            ++comp_id;
+        }
+    }
+    return component;
+}
+\end{lstlisting}
+
+\section{Application: Social Network Analysis}
+
+\begin{lstlisting}[language=C++]
+struct social_graph {
+    graph_list<> connections;
+    std::vector<std::string> names;
+
+    // Degrees of separation from a person
+    std::vector<size_t> degrees_of_separation(const std::string& person) {
+        auto it = std::find(names.begin(), names.end(), person);
+        if (it == names.end()) return {};
+        return bfs(connections, it - names.begin());
+    }
+
+    // Friend recommendations (friends of friends not already connected)
+    std::vector<std::string> recommendations(const std::string& person) {
+        auto it = std::find(names.begin(), names.end(), person);
+        if (it == names.end()) return {};
+        size_t idx = it - names.begin();
+
+        std::unordered_set<size_t> friends;
+        for (const auto& [to, _] : connections.neighbors(idx)) {
+            friends.insert(to);
+        }
+
+        std::unordered_set<size_t> candidates;
+        for (size_t f : friends) {
+            for (const auto& [to, _] : connections.neighbors(f)) {
+                if (to != idx && !friends.count(to)) {
+                    candidates.insert(to);
+                }
+            }
+        }
+
+        std::vector<std::string> result;
+        for (size_t c : candidates) result.push_back(names[c]);
+        return result;
+    }
+};
+\end{lstlisting}
+
+\section{Articulation Points and Bridges}\label{sec:bridges}
+
+An \textbf{articulation point} (cut vertex) is a vertex whose removal disconnects the graph. A \textbf{bridge} (cut edge) is an edge whose removal disconnects the graph. Finding these is critical for analyzing network reliability.
+
+\subsection{DFS Tree}
+
+During DFS, we build a tree of discovery edges. A vertex $u$ is an articulation point if:
+\begin{itemize}
+\item $u$ is the root of the DFS tree and has $\ge 2$ children, OR
+\item $u$ is not the root and has a child $v$ such that no vertex in $v$'s subtree has a back edge to an ancestor of $u$.
+\end{itemize}
+
+The \textbf{low value} captures this: $\text{low}[u]$ = the earliest (minimum discovery time) ancestor reachable from $u$ via a back edge in its subtree.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+void find_articulation_points(const graph_list<>& g, int n,
+        std::vector<bool>& is_ap) {
+    std::vector<int> disc(n, -1), low(n, -1);
+    int timer = 0;
+    is_ap.assign(n, false);
+
+    auto dfs = [&](auto&& self, int u, int parent) -> void {
+        disc[u] = low[u] = timer++;
+        int children = 0;
+
+        for (auto [v, _] : g.neighbors(u)) {
+            if (disc[v] == -1) {
+                ++children;
+                self(self, v, u);
+                low[u] = std::min(low[u], low[v]);
+
+                // u is root with 2+ children
+                if (parent == -1 && children > 1) is_ap[u] = true;
+                // u is not root and no back edge above u
+                if (parent != -1 && low[v] >= disc[u]) is_ap[u] = true;
+            } else if (v != parent) {
+                low[u] = std::min(low[u], disc[v]);
+            }
+        }
+    };
+
+    for (int i = 0; i < n; ++i)
+        if (disc[i] == -1) dfs(dfs, i, -1);
+}
+
+void find_bridges(const graph_list<>& g, int n,
+        std::vector<std::pair<int,int>>& bridges) {
+    std::vector<int> disc(n, -1), low(n, -1);
+    int timer = 0;
+
+    auto dfs = [&](auto&& self, int u, int parent) -> void {
+        disc[u] = low[u] = timer++;
+        for (auto [v, _] : g.neighbors(u)) {
+            if (disc[v] == -1) {
+                self(self, v, u);
+                low[u] = std::min(low[u], low[v]);
+                if (low[v] > disc[u])
+                    bridges.emplace_back(u, v);
+            } else if (v != parent) {
+                low[u] = std::min(low[u], disc[v]);
+            }
+        }
+    };
+
+    for (int i = 0; i < n; ++i)
+        if (disc[i] == -1) dfs(dfs, i, -1);
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(V + E) — single DFS pass.
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network reliability:} identify routers whose failure partitions the network
+\item \textbf{Social networks:} bridge connections between communities (structural holes)
+\item \textbf{Internet infrastructure:} critical links in AS-level topology
+\end{itemize}
+
+\section{Eulerian Path and Circuit}
+
+An \textbf{Eulerian circuit} visits every edge exactly once and returns to the start. An \textbf{Eulerian path} visits every edge exactly once (start $\ne$ end).
+
+\subsection{Hierholzer's Algorithm}
+
+Build the circuit greedily: start from a vertex, follow unused edges until you return to the start. If there are unused edges remaining, find a vertex on the current circuit with unused edges, start a sub-circuit, and splice it in.
+
+\begin{lstlisting}[language=C++]
+std::vector<int> eulerian_circuit(std::vector<std::list<int>>& adj, int n) {
+    std::vector<int> circuit;
+    std::stack<int> stk;
+    stk.push(0);
+
+    while (!stk.empty()) {
+        int u = stk.top();
+        if (!adj[u].empty()) {
+            int v = adj[u].front();
+            adj[u].pop_front();
+            // Remove reverse edge
+            adj[v].remove(u);
+            stk.push(v);
+        } else {
+            circuit.push_back(u);
+            stk.pop();
+        }
+    }
+    std::reverse(circuit.begin(), circuit.end());
+    return circuit;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(V + E).
+
+\subsection{Eulerian Path Conditions}
+
+\begin{itemize}
+\item \textbf{Undirected graph:} Eulerian circuit iff every vertex has even degree. Eulerian path iff exactly 0 or 2 vertices have odd degree.
+\item \textbf{Directed graph:} Eulerian circuit iff every vertex has in-degree = out-degree. Eulerian path iff at most one vertex has out-degree - in-degree = 1, at most one has in-degree - out-degree = 1, all others are balanced.
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{DNA sequencing:} De Bruijn graph assembly (Illumina, PacBio) — find Eulerian path through k-mer graph
+\item \textbf{Route optimization:} garbage collection, mail delivery, snow plowing
+\item \textbf{Circuit design:} printed circuit board (PCB) drilling — minimize tool travel
+\item \textbf{Pen drawing:} draw a graph without lifting the pen
+\end{itemize}
+
+\section{A* Search}
+
+A* is Dijkstra's algorithm with a heuristic function that estimates the distance to the goal, guiding the search toward promising vertices.
+
+\subsection{The Idea}
+
+A* maintains a priority queue ordered by $f(v) = g(v) + h(v)$ where:
+\begin{itemize}
+\item $g(v)$ = actual cost from start to $v$
+\item $h(v)$ = estimated cost from $v$ to goal (heuristic)
+\end{itemize}
+
+A heuristic is \textbf{admissible} if it never overestimates: $h(v) \le h^*(v)$ (true cost to goal). An admissible heuristic guarantees A* finds the optimal path.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+struct astar_result {
+    std::vector<int> path;
+    int cost;
+};
+
+astar_result astar(const graph_list<>& g, int start, int goal,
+        std::function<int(int, int)> heuristic, int n) {
+    std::vector<int> dist(n, INT_MAX), parent(n, -1);
+    std::vector<bool> closed(n, false);
+    // Min-heap: (f_cost, vertex)
+    std::priority_queue<std::pair<int,int>,
+        std::vector<std::pair<int,int>>, std::greater<>> open;
+
+    dist[start] = 0;
+    open.push({heuristic(start, goal), start});
+
+    while (!open.empty()) {
+        auto [f, u] = open.top();
+        open.pop();
+
+        if (u == goal) break;
+        if (closed[u]) continue;
+        closed[u] = true;
+
+        for (auto [v, w] : g.neighbors(u)) {
+            int new_g = dist[u] + w;
+            if (new_g < dist[v]) {
+                dist[v] = new_g;
+                parent[v] = u;
+                open.push({new_g + heuristic(v, goal), v});
+            }
+        }
+    }
+
+    // Reconstruct path
+    astar_result result;
+    result.cost = dist[goal];
+    for (int v = goal; v != -1; v = parent[v])
+        result.path.push_back(v);
+    std::reverse(result.path.begin(), result.path.end());
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(E) with a good heuristic. Worst case (bad heuristic or $h = 0$) = Dijkstra's: O((V + E) log V).
+
+\subsection{Common Heuristics}
+
+\begin{itemize}
+\item \textbf{Manhattan distance:} $|x_1 - x_2| + |y_1 - y_2|$ (grid, no diagonal movement)
+\item \textbf{Euclidean distance:} $\sqrt{(x_1-x_2)^2 + (y_1-y_2)^2}$ (free movement)
+\item \textbf{Chebyshev distance:} $\max(|x_1-x_2|, |y_1-y_2|)$ (grid with diagonal movement)
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{GPS navigation:} Google Maps, Waze, Apple Maps use A* variants for route planning
+\item \textbf{Game AI:} pathfinding for NPCs in Unity, Unreal, Godot
+\item \textbf{Robotics:} Amazon Kiva warehouse robots, autonomous vehicle navigation
+\item \textbf{Puzzle solving:} 8-puzzle, 15-puzzle, Rubik's cube
+\end{itemize}
+
+\section{Graph Coloring}
+
+\textbf{Graph coloring} assigns colors (labels) to vertices so that no two adjacent vertices share the same color. The minimum number of colors needed is the \textbf{chromatic number} $\chi(G)$.
+
+\subsection{Greedy Coloring}
+
+A simple greedy algorithm processes vertices in order and assigns the smallest available color:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> greedy_color(const graph_list<>& g, int n) {
+    std::vector<int> color(n, -1);
+    color[0] = 0;
+
+    std::vector<bool> available(n, false);
+
+    for (int u = 1; u < n; ++u) {
+        // Mark colors of adjacent vertices as unavailable
+        for (auto [v, _] : g.neighbors(u))
+            if (color[v] != -1) available[color[v]] = true;
+
+        // Find first available color
+        int c = 0;
+        while (available[c]) ++c;
+        color[u] = c;
+
+        // Reset available array
+        for (auto [v, _] : g.neighbors(u))
+            if (color[v] != -1) available[color[v]] = false;
+    }
+    return color;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(V + E). The greedy algorithm uses at most $\Delta(G) + 1$ colors where $\Delta(G)$ is the maximum degree.
+
+\subsection{Welsh-Powell Ordering}
+
+Process vertices in descending order of degree for better coloring:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> welsh_powell_color(const graph_list<>& g, int n) {
+    // Sort vertices by degree (descending)
+    std::vector<int> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](int a, int b) {
+        return g.degree(a) > g.degree(b);
+    });
+
+    std::vector<int> color(n, -1);
+    std::vector<bool> available(n, false);
+
+    for (int u : order) {
+        for (auto [v, _] : g.neighbors(u))
+            if (color[v] != -1) available[color[v]] = true;
+        int c = 0;
+        while (available[c]) ++c;
+        color[u] = c;
+        for (auto [v, _] : g.neighbors(u))
+            if (color[v] != -1) available[color[v]] = false;
+    }
+    return color;
+}
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Compiler register allocation:} variables interfering (live at same time) need different registers — graph coloring maps variables to registers
+\item \textbf{Frequency assignment:} cell tower channels, WiFi channel selection
+\item \textbf{Exam scheduling:} no student has overlapping exams
+\item \textbf{Map coloring:} the original Four Color Theorem problem
+\item \textbf{Sudoku:} each cell constrains its row, column, and box neighbors
+\end{itemize}
+
+\section{Hypergraph}
+
+A \textbf{hypergraph} generalizes a graph by allowing edges (called \textbf{hyperedges}) to connect any number of vertices — not just two. While a standard edge is a 2-element subset of V, a hyperedge is an arbitrary subset of V. Hypergraphs arise naturally when modeling relationships that involve more than two entities simultaneously: database table joins, chemical reactions, social groups, and constraint satisfaction problems.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Hypergraph with 4 vertices, 3 hyperedges:
+
+    e1 = {A, B, C}
+    e2 = {B, C, D}
+    e3 = {A, D}
+
+        A-------B
+        |\  e1 /|
+        | \   / |
+        |  \ /  |
+        |   X   |       e1 connects A, B, C
+        |  / \  |       e2 connects B, C, D
+        | /   \ |       e3 connects A, D (standard edge)
+        |/  e2 \|
+        D-------C
+
+    Incidence matrix:
+         e1  e2  e3
+    A [  1   0   1 ]
+    B [  1   1   0 ]
+    C [  1   1   0 ]
+    D [  0   1   1 ]
+
+    M[v][e] = 1 iff vertex v belongs to hyperedge e
+\end{lstlisting}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+struct Hypergraph {
+    int n;  // number of vertices
+    vector<int> vertices;          // vertex IDs: 0..n-1
+    vector<vector<int>> edges;     // each hyperedge is a set of vertex IDs
+
+    Hypergraph(int n) : n(n) {
+        for (int i = 0; i < n; i++) vertices.push_back(i);
+    }
+
+    void addEdge(const vector<int>& hyperedge) {
+        edges.push_back(hyperedge);
+    }
+
+    // Degree of a vertex: number of hyperedges containing it
+    int degree(int v) const {
+        int deg = 0;
+        for (const auto& e : edges)
+            if (find(e.begin(), e.end(), v) != e.end())
+                deg++;
+        return deg;
+    }
+
+    // Size of a hyperedge: number of vertices it connects
+    int edgeSize(int eIdx) const {
+        return edges[eIdx].size();
+    }
+
+    // Incidence matrix as 2D vector
+    vector<vector<int>> incidenceMatrix() const {
+        vector<vector<int>> M(n, vector<int>(edges.size(), 0));
+        for (int e = 0; e < (int)edges.size(); e++)
+            for (int v : edges[e])
+                M[v][e] = 1;
+        return M;
+    }
+
+    // Two vertices are adjacent if they share at least one hyperedge
+    bool adjacent(int u, int v) const {
+        for (const auto& e : edges) {
+            bool hasU = find(e.begin(), e.end(), u) != e.end();
+            bool hasV = find(e.begin(), e.end(), v) != e.end();
+            if (hasU && hasV) return true;
+        }
+        return false;
+    }
+
+    // k-uniform: all hyperedges have exactly k vertices
+    bool isKUniform() const {
+        if (edges.empty()) return true;
+        int k = edges[0].size();
+        for (const auto& e : edges)
+            if ((int)e.size() != k) return false;
+        return true;
+    }
+};
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Relational database joins:} a join of $k$ tables is a hyperedge connecting $k$ relation schemas — query optimization plans are hypergraphs
+\item \textbf{Social groups:} a study group, a committee, or a chat group links multiple people simultaneously — a hyperedge per group
+\item \textbf{Constraint satisfaction:} each constraint involves a subset of variables — the scope of the constraint forms a hyperedge
+\item \textbf{Chemical reactions:} reactants and products are sets of molecules connected by a single reaction (hyperedge)
+\item \textbf{VLSI design:} netlists where a single net connects 3+ pins are naturally hypergraphs
+\end{itemize}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item Space: $O(V + E \cdot k_{\max})$ where $k_{\max}$ is the largest hyperedge size
+\item Incidence matrix: $O(V \cdot E)$ space — feasible only for small instances
+\item Adjacency check: $O(E \cdot k_{\max})$ — iterate all hyperedges
+\item Degree computation: $O(E \cdot k_{\max})$ per vertex
+\item Converting a hypergraph to a standard bipartite graph (vertex-edge bipartite representation): $O(V + E \cdot k_{\max})$
+\end{itemize}
+
+\section{Binary Decision Diagrams}
+
+A \textbf{Binary Decision Diagram} (BDD) is a directed acyclic graph that represents a Boolean function. Each internal node tests a variable; the two outgoing edges correspond to that variable being 0 (low) or 1 (high). Terminal nodes are labeled 0 or 1. A \textbf{Reduced Ordered BDD} (ROBDD) enforces a fixed variable ordering and applies two reduction rules — making it a canonical representation: two Boolean functions are equivalent iff their ROBDDs are identical.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+ROBDD for f = (x1 AND x2) OR (x3 AND x4)
+
+Variable ordering: x1 < x2 < x3 < x4
+
+              x1
+             / \
+            0   x2
+               / \
+              0   x3
+                 / \
+                0   x4
+                   / \
+                  0   1
+
+  Nodes tested top-down: x1, x2, x3, x4
+  Each 0-edge goes left,  1-edge goes right
+  Terminal 1 reached only via path: x1=1, x2=1
+                                   or x3=1, x4=1
+\end{lstlisting}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+struct BDDNode {
+    int var;         // variable index (0-based), -1 for terminal
+    int low;         // child index when var = 0
+    int high;        // child index when var = 1
+    bool operator==(const BDDNode& o) const {
+        return var == o.var && low == o.low && high == o.high;
+    }
+};
+
+class BDD {
+    vector<BDDNode> nodes;
+    map<tuple<int,int,int>, int> uniqueTable;  // (var, low, high) -> node index
+    int terminal0, terminal1;
+
+    int getOrMakeNode(int var, int low, int high) {
+        if (low == high) return low;       // reduction rule: merge identical children
+        auto key = make_tuple(var, low, high);
+        auto it = uniqueTable.find(key);
+        if (it != uniqueTable.end()) return it->second;
+        int idx = nodes.size();
+        nodes.push_back({var, low, high});
+        uniqueTable[key] = idx;
+        return idx;
+    }
+
+public:
+    BDD() {
+        terminal0 = 0;  // node 0: terminal 0
+        terminal1 = 1;  // node 1: terminal 1
+        nodes.push_back({-1, -1, -1});  // placeholder for terminal 0
+        nodes.push_back({-1, -1, -1});  // placeholder for terminal 1
+    }
+
+    // ITE (if-then-else): builds f = ite(G, H, E)
+    //   if G=1 then H else E
+    int ite(int G, int H, int E) {
+        if (G == terminal1) return H;
+        if (G == terminal0) return E;
+        if (H == terminal1 && E == terminal0) return G;  // f = G
+        if (H == terminal0 && E == terminal1) {
+            // f = NOT G -- create a new node or find existing
+            return getOrMakeNode(nodes[G].var,
+                                 ite(nodes[G].low, terminal0, terminal1),
+                                 ite(nodes[G].high, terminal0, terminal1));
+        }
+        // General case: recursive construction
+        int v = nodes[G].var;  // highest-order variable among G,H,E
+        int low  = ite(nodes[G].low,  nodes[H].low,  nodes[E].low);
+        int high = ite(nodes[G].high, nodes[H].high, nodes[E].high);
+        return getOrMakeNode(v, low, high);
+    }
+
+    // Build AND: f = G AND H
+    int AND(int G, int H) {
+        return ite(G, H, terminal0);
+    }
+
+    // Build OR: f = G OR H
+    int OR(int G, int H) {
+        return ite(G, terminal1, H);
+    }
+
+    // Build NOT: f = NOT G
+    int NOT(int G) {
+        return ite(G, terminal0, terminal1);
+    }
+
+    // Evaluate BDD for a given variable assignment
+    bool evaluate(int node, const vector<bool>& assignment) const {
+        if (node == terminal0) return false;
+        if (node == terminal1) return true;
+        return assignment[nodes[node].var]
+            ? evaluate(nodes[node].high, assignment)
+            : evaluate(nodes[node].low, assignment);
+    }
+
+    // Check equivalence of two BDDs
+    static bool equivalent(const BDD& a, const BDD& b, int na, int nb) {
+        if (na == nb) return true;
+        if (a.nodes[na].var != b.nodes[nb].var) return false;
+        return equivalent(a, b, a.nodes[na].low,  b.nodes[nb].low)
+            && equivalent(a, b, a.nodes[na].high, b.nodes[nb].high);
+    }
+
+    int nodeCount() const { return nodes.size(); }
+    int getTerminal1() const { return terminal1; }
+    const BDDNode& getNode(int idx) const { return nodes[idx]; }
+};
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Formal verification:} two circuits are equivalent iff their ROBDDs are identical — one canonical form avoids comparing exponentially many truth table rows
+\item \textbf{Model checking:} BDDs compactly represent state transition relations for finite-state systems
+\item \textbf{SAT solving:} BDD-based SAT solvers enumerate satisfying assignments by traversing the diagram
+\item \textbf{Synthesis:} logic synthesis tools use BDDs to find minimal circuit implementations
+\item \textbf{Function analysis:} counting satisfying assignments is $O(|\text{BDD}|)$ — just sum the paths to terminal~1
+\end{itemize}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item Worst-case BDD size for $n$ variables: $O(2^n / n)$ — exponential in general
+\item Average case for ``random'' functions: still exponential
+\item ROBDD is canonical: same function + same variable ordering $\Rightarrow$ same BDD
+\item ITE operation: $O(|f| \cdot |g| \cdot |e|)$ worst case with memoization
+\item Equivalence check: $O(|f|)$ — just check if the two root nodes are the same node
+\item Variable ordering matters critically: a bad ordering can make the BDD exponentially larger than an optimal one
+\end{itemize}
+
+\section{Winged Edge}
+
+A \textbf{winged edge} (also called a \textbf{balanced edge} or \textbf{winged half-edge}) is a mesh data structure that stores explicit connectivity between vertices, edges, and faces. Each edge record contains pointers to its two endpoint vertices, the two adjacent faces, and four neighboring edges (two clockwise and two counterclockwise). This enables $O(1)$ traversal of mesh topology: from any edge, you can reach any adjacent vertex, face, or neighboring edge in constant time.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Winged edge record for edge e in a triangle mesh:
+
+  Vertices:     v1, v2          (endpoints)
+  Faces:        f1, f2          (adjacent faces, f2 = boundary if only one)
+  Edge links:   eCW1, eCCW1    (edges CW/CCW around f1 from e)
+                eCW2, eCCW2    (edges CW/CCW around f2 from e)
+
+         f1
+        /   \
+    eCCW1   eCW1
+      /       \
+    v1 ---e--- v2
+      \       /
+    eCW2   eCCW2
+        \   /
+         f2
+
+  Around face f1 (clockwise):  ... -> eCCW1 -> e -> eCW1 -> ...
+  Around face f2 (clockwise):  ... -> eCW2  -> e -> eCCW2 -> ...
+\end{lstlisting}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+struct WEVertex {
+    double x, y, z;            // position
+    int edgeIdx;               // one incident edge (any)
+};
+
+struct WEFace {
+    int edgeIdx;               // one edge of this face (any)
+    int valence;               // number of edges/vertices in face (3 for triangles)
+};
+
+struct WingedEdge {
+    int v1, v2;                // endpoint vertex indices
+    int f1, f2;                // adjacent face indices (f2 = -1 for boundary)
+    int eCW1, eCCW1;          // edges CW/CCW around f1
+    int eCW2, eCCW2;          // edges CW/CCW around f2
+};
+
+class WingedEdgeMesh {
+    vector<WEVertex> verts;
+    vector<WEFace>   faces;
+    vector<WingedEdge> edges;
+
+public:
+    int addVertex(double x, double y, double z) {
+        int idx = verts.size();
+        verts.push_back({x, y, z, -1});
+        return idx;
+    }
+
+    // Add a directed edge; caller must supply face-adjacent edge links
+    int addEdge(int v1, int v2, int f1, int f2,
+                int eCW1, int eCCW1, int eCW2, int eCCW2) {
+        int idx = edges.size();
+        edges.push_back({v1, v2, f1, f2, eCW1, eCCW1, eCW2, eCCW2});
+        if (verts[v1].edgeIdx == -1) verts[v1].edgeIdx = idx;
+        if (verts[v2].edgeIdx == -1) verts[v2].edgeIdx = idx;
+        return idx;
+    }
+
+    // Get the other vertex of an edge (not v)
+    int otherVertex(int edgeIdx, int v) const {
+        const auto& e = edges[edgeIdx];
+        return (e.v1 == v) ? e.v2 : e.v1;
+    }
+
+    // Get the opposite face of an edge (not f)
+    int otherFace(int edgeIdx, int f) const {
+        const auto& e = edges[edgeIdx];
+        return (e.f1 == f) ? e.f2 : e.f1;
+    }
+
+    // Walk clockwise around a face, collecting edges
+    vector<int> faceEdges(int faceIdx) const {
+        vector<int> result;
+        int startEdge = faces[faceIdx].edgeIdx;
+        int curr = startEdge;
+        do {
+            result.push_back(curr);
+            const auto& e = edges[curr];
+            if (e.f1 == faceIdx)
+                curr = e.eCW1;
+            else
+                curr = e.eCW2;
+        } while (curr != startEdge && curr != -1);
+        return result;
+    }
+
+    // Walk edges incident to a vertex (one ring)
+    vector<int> vertexEdges(int vertIdx) const {
+        vector<int> result;
+        int startEdge = verts[vertIdx].edgeIdx;
+        if (startEdge == -1) return result;
+        int curr = startEdge;
+        do {
+            result.push_back(curr);
+            int nextV = otherVertex(curr, vertIdx);
+            // find an edge around nextV that brings us back
+            const auto& e = edges[curr];
+            int nextEdge = -1;
+            if (e.f1 != -1 && e.f2 != -1) {
+                // interior edge: go to opposite face, take the other edge there
+                if (e.f1 == faces[curr].edgeIdx)
+                    nextEdge = e.eCCW2;
+                else
+                    nextEdge = e.eCCW1;
+            } else {
+                // boundary: reverse direction
+                nextEdge = (e.f1 != -1) ? e.eCCW1 : e.eCCW2;
+            }
+            curr = nextEdge;
+        } while (curr != startEdge && curr != -1);
+        return result;
+    }
+
+    int numVertices() const { return verts.size(); }
+    int numEdges()    const { return edges.size(); }
+    int numFaces()    const { return faces.size(); }
+    const WEVertex& vertex(int i) const { return verts[i]; }
+    const WEFace&   face(int i)   const { return faces[i]; }
+    const WingedEdge& edge(int i) const { return edges[i]; }
+};
+\end{lstlisting}
+
+\subsection{Comparison with Other Representations}
+
+\begin{itemize}
+\item \textbf{Vertex list + face list:} simple but requires $O(E)$ search to find adjacent edges — no constant-time traversal
+\item \textbf{Half-edge:} each directed half-edge stores one face, one vertex, and three links (next, twin, face) — cleaner API, same $O(1)$ traversal, preferred in practice
+\item \textbf{Winged edge:} stores full connectivity in one record (4 edge links) — more memory per edge but symmetric, easy to implement boundary handling
+\item \textbf{Corner table:} compact $O(F)$ storage, good for GPU rendering, but traversal requires index arithmetic
+\end{itemize}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item Space: $O(V + E + F)$ — Euler's formula gives $F = O(E)$ for planar meshes
+\item Face traversal: $O(F_{\text{face}})$ where $F_{\text{face}}$ is the face valence — $O(1)$ per edge visited
+\item Vertex ring traversal: $O(\text{valence})$ — proportional to the number of incident edges
+\item Edge flip / split: $O(1)$ with winged edge — just relink the four edge pointers of the affected edges
+\item Insertion of a new vertex inside a face: $O(1)$ — split the face into three by linking to the new edges
+\end{itemize}
+
+\section{Biconnected Components}
+
+A \textbf{biconnected component} (BCC) of an undirected graph is a maximal set of edges such that removing any single vertex (not the edge itself) from the subgraph does not disconnect it. Equivalently, a biconnected component is either a single bridge edge or a maximal 2-vertex-connected subgraph. \textbf{Articulation points} are the vertices that separate different biconnected components.
+
+\subsection{Key Observations}
+
+\begin{itemize}
+\item Every edge belongs to exactly one biconnected component.
+\item Two biconnected components share at most one vertex — an articulation point.
+\item A bridge forms a biconnected component by itself.
+\item A graph with no articulation points is itself biconnected.
+\end{itemize}
+
+\subsection{Algorithm}
+
+The algorithm uses a single DFS pass with discovery times and low-link values. As we traverse tree edges, we push them onto a stack. When we find an articulation point (a vertex $u$ whose child $v$ satisfies $\text{low}[v] \ge \text{disc}[u]$), we pop edges from the stack up to and including the tree edge $(u, v)$ — those edges form one biconnected component.
+
+\subsection{Worked Trace}
+
+Consider the following graph with 6 vertices:
+
+\begin{lstlisting}
+    0 -- 1 -- 2
+    |   / \   |
+    |  /   \  |
+    3       4 -- 5
+
+Edges: (0,1) (0,3) (1,3) (1,2) (1,4) (2,4) (4,5)
+\end{lstlisting}
+
+DFS from vertex 0, visiting neighbors in ascending label order:
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Step & Vertex & disc / low & Action \\
+\midrule
+1 & 0 & disc[0]=0, low[0]=0 & Push (0,1), visit 1 \\
+2 & 1 & disc[1]=1, low[1]=1 & Push (1,2), visit 2 \\
+3 & 2 & disc[2]=2, low[2]=2 & Push (2,4), visit 4 \\
+4 & 4 & disc[4]=3, low[4]=3 & Push (4,5), visit 5 \\
+5 & 5 & disc[5]=4, low[5]=4 & No unvisited neighbors \\
+& & & low[4] = min(3, 4) = 3 \\
+& & & low[2] = min(2, 3) = 2 \\
+& & & low[4] >= disc[2] (3 >= 2): NOT ap \\
+6 & 4 & & Back to 4: push (4,1)? \\
+& & & Check neighbor 1: back edge, low[4] = min(3, 1) = 1 \\
+7 & 1 & & low[2] = min(2, 1) = 1 \\
+& & & Check neighbor 3: tree edge, push (1,3), visit 3 \\
+8 & 3 & disc[3]=5, low[3]=5 & Check neighbor 0: back edge, low[3] = min(5, 0) = 0 \\
+& & & Check neighbor 1: back edge (already visited parent) \\
+9 & 1 & & low[3] = 0 \\
+& & & low[1] = min(1, 0) = 0 \\
+& & & Check neighbor 4: already visited \\
+& & & Check neighbor 0: back edge, low[1] = min(0, 0) = 0 \\
+10 & 0 & & low[1] = 0 \\
+& & & low[0] = min(0, 0) = 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Articulation points: Vertex 1 ($\text{low}[2] = 2 \ge \text{disc}[1] = 1$). When we return from child 2 to 1, we pop edges (1,2), (2,4), (4,5) as one component. Component BCC-1 = \{(1,2), (2,4), (4,5)\}.
+
+Vertex 1 is also the root with children 0 and 3: component BCC-2 = \{(0,1), (0,3), (1,3)\}.
+
+Final decomposition: BCC-1 = \{(1,2), (2,4), (4,5)\}, BCC-2 = \{(0,1), (0,3), (1,3)\}. Articulation point: \{1\}.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+void biconnected_components(const graph_list<>& g, int n,
+        std::vector<std::vector<std::pair<int,int>>>& components) {
+    std::vector<int> disc(n, -1), low(n, -1);
+    int timer = 0;
+    std::stack<std::pair<int,int>> stk;
+
+    auto dfs = [&](auto&& self, int u, int parent) -> void {
+        disc[u] = low[u] = timer++;
+        int children = 0;
+
+        for (auto [v, _] : g.neighbors(u)) {
+            if (disc[v] == -1) {
+                ++children;
+                stk.push({u, v});
+                self(self, v, u);
+                low[u] = std::min(low[u], low[v]);
+
+                // Articulation point: pop one BCC
+                if ((parent == -1 && children > 1) ||
+                    (parent != -1 && low[v] >= disc[u])) {
+                    components.emplace_back();
+                    while (true) {
+                        auto e = stk.top(); stk.pop();
+                        components.back().push_back(e);
+                        if (e == std::make_pair(u, v)) break;
+                    }
+                }
+            } else if (v != parent && disc[v] < disc[u]) {
+                // Back edge to ancestor (only push once)
+                stk.push({u, v});
+                low[u] = std::min(low[u], disc[v]);
+            }
+        }
+    };
+
+    for (int i = 0; i < n; ++i)
+        if (disc[i] == -1) {
+            dfs(dfs, i, -1);
+            // Remaining edges on the stack form the last BCC
+            if (!stk.empty()) {
+                components.emplace_back();
+                while (!stk.empty()) {
+                    components.back().push_back(stk.top());
+                    stk.pop();
+                }
+            }
+        }
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(V + E) -- single DFS pass. Each edge is pushed and popped from the stack at most once.
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network reliability:} identify subnetworks that remain connected if any single node fails
+\item \textbf{Sparse graph connectivity:} efficiently decompose into 2-connected pieces for further analysis
+\item \textbf{Planarity testing:} Hopcroft and Tarjan's planarity algorithm uses BCC decomposition as a subroutine
+\end{itemize}
+
+\section{Strongly Connected Components -- Kosaraju (Worked Trace)}
+
+The code for Kosaraju's algorithm appears earlier in this chapter (see Section~\ref{sec:scc}). Here we walk through the algorithm in detail on a concrete graph to solidify understanding.
+
+\subsection{The Graph}
+
+\begin{lstlisting}
+Directed graph with 6 vertices:
+
+    0 -> 1 -> 2 -> 0      (SCC-1: {0,1,2})
+    2 -> 3
+    3 -> 4 -> 5 -> 3      (SCC-2: {3,4,5})
+
+Edges: 0->1 1->2 2->0 2->3 3->4 4->5 5->3
+\end{lstlisting}
+
+\subsection{Pass 1: DFS Finish Order}
+
+Run DFS on the original graph from vertex 0, visiting neighbors in ascending order. Record the order in which vertices \emph{finish} (all descendants processed).
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Step & Vertex & Neighbors visited & Finish order \\
+\midrule
+1 & 0 & 1 (tree edge) & \\
+2 & 1 & 2 (tree edge) & \\
+3 & 2 & 0 (back, visited), 3 (tree edge) & \\
+4 & 3 & 4 (tree edge) & \\
+5 & 4 & 5 (tree edge) & \\
+6 & 5 & 3 (back, visited) & finish 5 \\
+& & & finish 4 \\
+& & & finish 3 \\
+& & & finish 2 \\
+& & & finish 1 \\
+& & & finish 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Finish order (last to finish first): 0, 1, 2, 3, 4, 5.
+
+Processing vertices in reverse finish order: 5, 4, 3, 2, 1, 0.
+
+\subsection{Pass 2: DFS on Transposed Graph}
+
+Reverse all edges:
+
+\begin{lstlisting}
+Transposed graph:
+    1 -> 0
+    2 -> 1
+    0 -> 2
+    3 -> 2
+    4 -> 3
+    5 -> 4
+    3 -> 5
+\end{lstlisting}
+
+Now run DFS on the transposed graph, processing vertices in order: 5, 4, 3, 2, 1, 0.
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Start from & DFS visits & SCC assigned \\
+\midrule
+5 & 5, 4, 3 & SCC-0: \{3, 4, 5\} \\
+2 & 2, 1, 0 & SCC-1: \{0, 1, 2\} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+When we start DFS from 5 on the transposed graph, we follow $5 \to 4 \to 3$. From 3, the only outgoing edge goes to 2, but 2 is not yet visited... however, in the transposed graph, 3 has edges to 2 and 5. Since 5 was already visited, we continue. Vertex 2 is reached from 3 only if it has an incoming edge from 3, which it does: $3 \to 2$. But 2 is processed later in the vertex order (before 0 and 1), so when we start from 2, we find 1 and 0.
+
+\textbf{Result:} Two SCCs: \{0, 1, 2\} and \{3, 4, 5\}.
+
+\subsection{Why It Works}
+
+Kosaraju's algorithm exploits the structure of the \textbf{condensation graph} (the DAG of SCCs). In the condensation DAG, all edges go from ``later'' SCCs to ``earlier'' SCCs in the topological order. Running DFS on the original graph in pass 1 produces a finish order that respects this topological order. In pass 2, processing vertices in reverse finish order on the transposed graph ensures each DFS discovers exactly one SCC, because the transposed edges cannot cross SCC boundaries in the ``wrong'' direction.
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item Time: O(V + E) -- two DFS passes plus O(V + E) to build the transpose.
+\item Space: O(V + E) -- visited array, finish order, transposed graph.
+\end{itemize}
+
+\section{Bridges in a Graph (Worked Trace)}
+
+The bridge-finding code appears earlier (see Section~\ref{sec:bridges}). Here we trace the low-link DFS on a small graph to show exactly when the condition $\text{low}[v] > \text{disc}[u]$ fires.
+
+\subsection{The Graph}
+
+\begin{lstlisting}
+    0 -- 1 -- 2 -- 3
+         |         |
+         4 -- 5 -- 6
+
+Edges: (0,1) (1,2) (2,3) (3,6) (6,5) (5,4) (4,1)
+\end{lstlisting}
+
+This graph has two bridges: $(0,1)$ and $(2,3)$.
+
+\subsection{DFS Trace}
+
+DFS from vertex 0, neighbors in ascending order:
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+Step & Vertex & disc / low & Tree edge pushed & Bridge check & Bridges found \\
+\midrule
+1 & 0 & disc=0, low=0 & (0,1) & & \\
+2 & 1 & disc=1, low=1 & (1,2) & & \\
+3 & 2 & disc=2, low=2 & (2,3) & & \\
+4 & 3 & disc=3, low=3 & (3,6) & & \\
+5 & 6 & disc=4, low=4 & (6,5) & & \\
+6 & 5 & disc=5, low=5 & (5,4) & & \\
+7 & 4 & disc=6, low=6 & & & \\
+& & neighbor 1: back edge & low[4] = min(6, 1) = 1 & & \\
+& & return to 5: low[5] = min(5, 1) = 1 & & & \\
+& & return to 6: low[6] = min(4, 1) = 1 & & & \\
+& & return to 3: low[3] = min(3, 1) = 1 & & & \\
+& & check: low[6]=1 > disc[3]=3? NO & & & \\
+8 & 2 & low[2] = min(2, 1) = 1 & & & \\
+& & return to 1: low[1] = min(1, 1) = 1 & & & \\
+& & check: low[2]=1 > disc[1]=1? NO & & & \\
+9 & 0 & low[0] = min(0, 1) = 0 & & & \\
+& & check: low[1]=1 > disc[0]=0? YES & & $(0,1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Result:} Bridges = \{(0,1)\}. The edge $(0,1)$ is a bridge because removing it disconnects vertex 0 from the rest. The edge $(2,3)$ is \emph{not} a bridge because vertex 3 can still reach vertex 2 via the cycle $3 \to 6 \to 5 \to 4 \to 1 \to 2$.
+
+\subsection{Corrected Trace}
+
+After a careful re-examination: since vertex 4 connects back to 1 (forming a cycle through 1-2-3-6-5-4), vertex 3 can reach vertex 2 through this cycle. Let us retrace with the correct adjacency:
+
+Starting from 0: disc[0]=0, low[0]=0. Visit 1: disc[1]=1. Visit 2: disc[2]=2. Visit 3: disc[3]=3. Visit 6: disc[6]=4. Visit 5: disc[5]=5. Visit 4: disc[4]=6. At 4, neighbor 1 has disc=1 (back edge), so low[4]=1. Retract: low[5]=1, low[6]=1, low[3]=1. At 3, the edge to 6: low[6]=1 $<$ disc[3]=3, so \textbf{not} a bridge. Retract: low[2]=min(2,1)=1. At 2, the edge to 3: low[3]=1 $\le$ disc[2]=2, so \textbf{not} a bridge. Retract: low[1]=min(1,1)=1. At 1, the edge to 2: low[2]=1 $\le$ disc[1]=1, so \textbf{not} a bridge. Retract: low[0]=0. At 0, the edge to 1: low[1]=1 $>$ disc[0]=0, so \textbf{bridge} $(0,1)$.
+
+Now consider a second graph with an actual bridge at $(2,3)$:
+
+\begin{lstlisting}
+    0 -- 1 -- 2    3 -- 4
+              |          |
+              5          6
+
+Edges: (0,1) (1,2) (2,5) (3,4) (4,6)
+\end{lstlisting}
+
+Here $(2,3)$ does not even exist. Let us use a cleaner example:
+
+\begin{lstlisting}
+    0 -- 1 -- 2 -- 3 -- 4
+
+Edges: (0,1) (1,2) (2,3) (3,4)
+\end{lstlisting}
+
+Every edge is a bridge: $(0,1)$, $(1,2)$, $(2,3)$, $(3,4)$.
+
+DFS from 0: disc[0]=0, disc[1]=1, disc[2]=2, disc[3]=3, disc[4]=4. No back edges exist. At vertex 4, low[4]=4. At vertex 3: low[3]=min(3,4)=3, and low[4]=4 $>$ disc[3]=3, so $(3,4)$ is a bridge. At vertex 2: low[2]=2, and low[3]=3 $>$ disc[2]=2, so $(2,3)$ is a bridge. At vertex 1: low[1]=1, and low[2]=2 $>$ disc[1]=1, so $(1,2)$ is a bridge. At vertex 0: low[0]=0, and low[1]=1 $>$ disc[0]=0, so $(0,1)$ is a bridge.
+
+\subsection{When Is an Edge a Bridge?}
+
+An edge $(u, v)$ (where $v$ is a child of $u$ in the DFS tree) is a bridge if and only if no vertex in $v$'s subtree has a back edge to an ancestor of $u$ or to $u$ itself. This is exactly the condition $\text{low}[v] > \text{disc}[u]$ -- note the \emph{strict} inequality, unlike the $\ge$ used for articulation points.
+
+\section{Link-Cut Trees}
+
+A \textbf{link-cut tree} maintains a forest of rooted trees subject to two operations: \textbf{link} (add an edge connecting two trees) and \textbf{cut} (remove an edge, splitting a tree). It also supports \textbf{find-root} (find the root of a node's tree) and \textbf{path aggregate} (query min, max, or sum along the path from a node to its root). All operations run in $O(\log n)$ amortized time.
+
+\subsection{Preferred-Path Decomposition}
+
+The key idea is \textbf{preferred-path decomposition}. Each root-to-leaf path in the tree is decomposed into segments called \textbf{preferred paths}. At each node, at most one child edge is designated as the \textbf{preferred edge}; the preferred path continues through that child. All other edges begin new preferred paths.
+
+Each preferred path is represented by a \textbf{splay tree} keyed by depth. The splay trees are linked together through \textbf{virtual trees}: the parent pointer from the top node of a splay tree points to its parent in the virtual tree structure, not to the parent in the original tree. Splaying keeps the amortized cost of access, link, and cut at $O(\log n)$.
+
+\subsection{Operations}
+
+\begin{itemize}
+\item \textbf{access(v):} Make the path from root to $v$ a single preferred path. Splay $v$ to the root of its splay tree. This is the fundamental operation; all others build on it.
+\item \textbf{find-root(v):} Access $v$, then splay $v$ and follow left child pointers to the minimum-depth node in its splay tree.
+\item \textbf{link(u, v):} Access $u$ and $v$. Make $u$ a child of $v$ by setting its preferred edge.
+\item \textbf{cut(u):} Access $u$, splay it, and detach its left subtree (the path above it) from its right subtree (the path below it).
+\item \textbf{path query:} Access $v$, then read the aggregate stored in the splay tree's root.
+\end{itemize}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Amortized Cost \\
+\midrule
+access(v) & $O(\log n)$ \\
+find-root(v) & $O(\log n)$ \\
+link(u, v) & $O(\log n)$ \\
+cut(u) & $O(\log n)$ \\
+path aggregate(v) & $O(\log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network flow:} dynamic trees (Tarjan's algorithm) for max-flow in $O(V \cdot E \log V)$
+\item \textbf{Lowest common ancestor:} find LCA by accessing both nodes and reading depth from the splay tree
+\item \textbf{Path queries:} maintain min, max, or sum on dynamic tree paths
+\item \textbf{Dynamic connectivity in trees:} link and cut operations maintain a forest
+\end{itemize}
+
+\subsection{C++ Implementation Sketch}
+
+\begin{lstlisting}[language=C++]
+struct LCTNode {
+    int val;
+    LCTNode *left = nullptr, *right = nullptr, *parent = nullptr;
+    bool rev = false;
+
+    bool isRoot() const {
+        return !parent || (parent->left != this && parent->right != this);
+    }
+
+    void pushDown() {
+        if (rev) {
+            std::swap(left, right);
+            if (left) left->rev ^= true;
+            if (right) right->rev ^= true;
+            rev = false;
+        }
+    }
+
+    void rotate() {
+        LCTNode* p = parent;
+        LCTNode* g = p->parent;
+        if (!p->isRoot()) {
+            if (g->left == p) g->left = this;
+            else g->right = this;
+        }
+        parent = g;
+        bool isLeft = (p->left == this);
+        LCTNode* c = isLeft ? right : left;
+        if (isLeft) {
+            right = p; p->parent = this;
+            left = c; if (c) c->parent = p;
+        } else {
+            left = p; p->parent = this;
+            right = c; if (c) c->parent = p;
+        }
+    }
+
+    void splay() {
+        while (!isRoot()) {
+            LCTNode* p = parent;
+            LCTNode* g = p->parent;
+            if (!p->isRoot()) g->pushDown();
+            p->pushDown(); pushDown();
+            if (!p->isRoot()) {
+                if ((p->left == this) == (g->left == p)) rotate();
+                else rotate();
+            }
+            rotate();
+        }
+        pushDown();
+    }
+
+    static LCTNode* access(LCTNode* v) {
+        LCTNode* last = nullptr;
+        for (LCTNode* u = v; u; u = u->parent) {
+            u->splay();
+            u->right = last;
+            last = u;
+        }
+        v->splay();
+        return last;
+    }
+
+    static LCTNode* findRoot(LCTNode* v) {
+        access(v);
+        while (v->left) { v->pushDown(); v = v->left; }
+        v->splay();
+        return v;
+    }
+
+    static void link(LCTNode* u, LCTNode* v) {
+        access(u); access(v);
+        u->parent = v;
+    }
+
+    static void cut(LCTNode* u) {
+        access(u);
+        u->left->parent = nullptr;
+        u->left = nullptr;
+    }
+};
+\end{lstlisting}
+
+\section{Heavy-Light Decomposition}
+
+\textbf{Heavy-light decomposition} (HLD) decomposes a tree into disjoint paths so that any root-to-node path crosses at most $O(\log n)$ \textbf{light} edges. Combined with a segment tree over the linearized DFS order, HLD supports path updates, path queries, and subtree queries in $O(\log^2 n)$ time.
+
+\subsection{Heavy and Light Edges}
+
+For each node $u$, compute the size of every child's subtree. The child $v$ with the largest subtree receives the \textbf{heavy edge} $(u, v)$; all other child edges are \textbf{light}. Because the heavy child has more than half the descendants, any root-to-leaf path can cross at most $O(\log n)$ light edges before reaching a leaf.
+
+\subsection{Chain Construction}
+
+A \textbf{heavy path} is a maximal sequence of heavy edges. Each heavy path corresponds to a contiguous segment in the DFS order. Assign each node a \textbf{chain head} (the topmost node of its heavy path), a \textbf{position} in the DFS-order array, and a \textbf{depth} and \textbf{parent}. The segment tree is built over this array.
+
+\subsection{Path Operations}
+
+To query or update the path from $u$ to $v$, walk up from $u$ and $v$ to their lowest common ancestor. At each step, jump from the deeper node to its chain head, performing a segment-tree range operation on the interval \texttt{[pos[head], pos[u]]}, then move to the parent of the chain head. This crosses at most $O(\log n)$ light edges, and each segment-tree operation is $O(\log n)$, giving $O(\log^2 n)$ per path query.
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Time \\
+\midrule
+Path update (u, v) & $O(\log^2 n)$ \\
+Path query (u, v) & $O(\log^2 n)$ \\
+Subtree update (u) & $O(\log n)$ \\
+Subtree query (u) & $O(\log n)$ \\
+Build decomposition & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Tree path queries:} maximum edge weight, sum of values, path XOR on dynamic or static trees
+\item \textbf{LCA:} find lowest common ancestor by climbing chain heads
+\item \textbf{Subtree aggregation:} combine with Fenwick tree for $O(\log n)$ subtree sum
+\item \textbf{Competitive programming:} one of the most commonly used tree decompositions
+\end{itemize}
+
+\subsection{C++ Implementation Sketch}
+
+\begin{lstlisting}[language=C++]
+struct HLD {
+    int n;
+    std::vector<std::vector<int>> adj;
+    std::vector<int> parent, depth, heavy, head, pos;
+    int curPos = 0;
+
+    HLD(int n) : n(n), adj(n), parent(n, -1), depth(n, 0),
+                 heavy(n, -1), head(n, 0) {}
+
+    void addEdge(int u, int v) {
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+
+    int dfs(int u, int p) {
+        parent[u] = p;
+        depth[u] = (p == -1) ? 0 : depth[p] + 1;
+        int sz = 1, maxSub = 0;
+        for (int v : adj[u]) {
+            if (v == p) continue;
+            int sub = dfs(v, u);
+            sz += sub;
+            if (sub > maxSub) {
+                maxSub = sub;
+                heavy[u] = v;
+            }
+        }
+        return sz;
+    }
+
+    void decompose(int u, int h) {
+        head[u] = h;
+        pos[u] = curPos++;
+        if (heavy[u] != -1) decompose(heavy[u], h);
+        for (int v : adj[u]) {
+            if (v == parent[u] || v == heavy[u]) continue;
+            decompose(v, v);
+        }
+    }
+
+    void build(int root) {
+        dfs(root, -1);
+        decompose(root, root);
+    }
+
+    int lca(int u, int v) {
+        while (head[u] != head[v]) {
+            if (depth[head[u]] < depth[head[v]]) std::swap(u, v);
+            u = parent[head[u]];
+        }
+        return depth[u] < depth[v] ? u : v;
+    }
+
+    void pathOperation(int u, int v, auto& segTree, auto op) {
+        while (head[u] != head[v]) {
+            if (depth[head[u]] < depth[head[v]]) std::swap(u, v);
+            op(segTree, pos[head[u]], pos[u]);
+            u = parent[head[u]];
+        }
+        if (depth[u] > depth[v]) std::swap(u, v);
+        if (u != v) op(segTree, pos[u] + 1, pos[v]);
+    }
+};
+\end{lstlisting}
+
+\section{Euler Tour Trees}
+
+An \textbf{Euler tour tree} represents a rooted tree by its Euler tour: a sequence of vertex visits produced by a DFS that records each vertex at entry and exit. This linearization converts subtree operations into range operations on an array, enabling $O(1)$ subtree aggregates with a Fenwick tree or $O(\log n)$ with a segment tree. For dynamic forests, the Euler tour is stored in a balanced BST, allowing link and cut in $O(\log n)$ amortized time.
+
+\subsection{Euler Tour Representation}
+
+Run DFS on the tree and record each vertex twice: once at \textbf{entry} (pre-order) and once at \textbf{exit} (post-order). The entry time $\text{tin}[u]$ and exit time $\text{tout}[u]$ define the subtree of $u$ as the contiguous range $[\text{tin}[u], \text{tout}[u]]$ in the Euler tour array.
+
+\begin{lstlisting}[language=C++]
+int timer = 0;
+std::vector<int> tin, tout;
+
+void eulerDFS(int u, int p, const std::vector<std::vector<int>>& adj) {
+    tin[u] = timer++;
+    for (int v : adj[u]) {
+        if (v != p) eulerDFS(v, u, adj);
+    }
+    tout[u] = timer - 1;
+}
+\end{lstlisting}
+
+\subsection{Subtree Queries with Fenwick Tree}
+
+With the Euler tour array, a subtree query on $u$ becomes a range query on $[\text{tin}[u], \text{tout}[u]]$. Build a Fenwick tree (Binary Indexed Tree) over this array. Subtree sum, subtree min, and subtree max all reduce to standard range queries.
+
+\begin{lstlisting}[language=C++]
+struct SubtreeQueries {
+    int n;
+    std::vector<int> tin, tout, euler;
+    std::vector<long long> fenwick;
+
+    SubtreeQueries(const std::vector<std::vector<int>>& adj, int root)
+        : n(adj.size()), tin(n), tout(n), fenwick(n + 1, 0) {
+        euler.resize(n);
+        int timer = 0;
+        auto dfs = [&](auto&& self, int u, int p) -> void {
+            tin[u] = timer;
+            euler[timer] = u;
+            ++timer;
+            for (int v : adj[u])
+                if (v != p) self(self, v, u);
+            tout[u] = timer - 1;
+        };
+        dfs(dfs, root, -1);
+    }
+
+    void update(int node, long long delta) {
+        for (int i = tin[node] + 1; i <= n; i += i & (-i))
+            fenwick[i] += delta;
+    }
+
+    long long prefixSum(int idx) const {
+        long long s = 0;
+        for (int i = idx; i > 0; i -= i & (-i))
+            s += fenwick[i];
+        return s;
+    }
+
+    long long subtreeSum(int u) const {
+        return prefixSum(tout[u] + 1) - prefixSum(tin[u]);
+    }
+};
+\end{lstlisting}
+
+\subsection{Dynamic Euler Tour Trees}
+
+For fully dynamic forests, represent each Euler tour not as an array but as a \textbf{balanced BST} (typically a splay tree). Each node in the splay tree holds one vertex visit. The splay tree's in-order traversal is the Euler tour. This representation supports efficient join and split operations.
+
+\begin{itemize}
+\item \textbf{Join two trees:} Concatenate the Euler tours. Link $u$ (root of one tree) as a child of $v$ (in another tree) by inserting the sequence $(v, \ldots, u, \ldots, v)$ at the appropriate point in $v$'s Euler tour splay tree.
+\item \textbf{Split a tree:} Cut the edge $(u, v)$ by splitting the Euler tour at the two occurrences of $u$ and $v$, isolating the subtree rooted at $u$ as a separate splay tree.
+\end{itemize}
+
+Both operations run in $O(\log n)$ amortized time using splay trees.
+
+\subsection{Worked Example}
+
+Consider a rooted tree with edges $(1,2), (1,3), (2,4), (2,5)$:
+
+\begin{lstlisting}
+        1
+       / \
+      2   3
+     / \
+    4   5
+
+Euler tour (entry/exit):
+  Vertex:  1  2  4  4  5  5  2  3  3  1
+  Action:  E  E  E  X  E  X  X  E  X  X
+
+tin:  1=0, 2=1, 4=2, 5=4, 3=7
+tout: 1=9, 2=6, 4=2, 5=5, 3=8
+
+Subtree of 2 = range [tin[2], tout[2]] = [1, 6]
+  Vertices in range: 2, 4, 4, 5, 5, 2  -- all of subtree 2
+\end{lstlisting}
+
+To cut edge $(1, 2)$: split the Euler tour splay tree to isolate the segment for subtree 2. To link a new root under vertex 3: insert the sequence $(3, \ldots, \text{new}, \ldots, 3)$ into the splay tree at the position after $3$'s entry.
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Time \\
+\midrule
+Build Euler tour (static) & $O(n)$ \\
+Subtree aggregate (static, Fenwick) & $O(\log n)$ update, $O(1)$ query \\
+Subtree aggregate (static, segment tree) & $O(\log n)$ per operation \\
+Join two trees (dynamic, splay) & $O(\log n)$ amortized \\
+Split a tree (dynamic, splay) & $O(\log n)$ amortized \\
+Subtree query (dynamic) & $O(\log n)$ amortized \\
+Path query (dynamic) & $O(\log^2 n)$ amortized \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Static subtree queries:} sum, min, max, count in a subtree in $O(1)$ with Fenwick tree after $O(n)$ preprocessing
+\item \textbf{Dynamic forests:} maintain a forest under link and cut with subtree aggregates
+\item \textbf{LCA:} lowest common ancestor via RMQ on the Euler tour of depths
+\item \textbf{Fully dynamic connectivity in trees:} combine with link-cut operations for $O(\log n)$ link, cut, and connectivity
+\item \textbf{Competitive programming:} flatten a tree for offline queries and Mo's algorithm on trees
+\end{itemize}
+
+\section{Fully Dynamic Connectivity}
+
+The \textbf{dynamic connectivity problem} maintains an undirected graph under edge insertions and deletions while answering connectivity queries: ``are vertices $u$ and $v$ in the same connected component?'' This is one of the fundamental problems in dynamic graph algorithms, with applications in network monitoring, database systems, and computational geometry.
+
+\subsection{Trees: the Easy Case}
+
+When the graph is a forest (no cycles), dynamic connectivity is straightforward:
+
+\begin{itemize}
+\item \textbf{Euler tour trees:} Represent each tree by its Euler tour as a splay tree. Link and cut correspond to splay-tree concatenation and splitting. All operations in $O(\log n)$ amortized.
+\item \textbf{Link-cut trees:} Maintain preferred paths with splay trees. Link, cut, and find-root in $O(\log n)$ amortized.
+\end{itemize}
+
+Both data structures support $O(\log n)$ amortized insertions, deletions, and connectivity queries on forests.
+
+\subsection{General Graphs: the $O(\log^2 n)$ Approach}
+
+For general graphs with cycles, maintaining connectivity under edge insertions and deletions is significantly harder. The \textbf{level structure} (Holm, de Lichtenberg, Thorup, 2001) achieves $O(\log^2 n)$ amortized time per operation using Euler tour trees augmented with edge levels.
+
+Each edge is assigned a \textbf{level} from $0$ to $O(\log n)$. The algorithm maintains a spanning forest using Euler tour trees, where spanning forest edges are at the \textbf{highest level} among all edges connecting their two endpoints.
+
+\begin{lstlisting}[language=C++]
+struct DynamicConnectivity {
+    int n;
+    std::vector<std::vector<std::pair<int,int>>> adj;
+    std::vector<int> level;
+    std::vector<bool> active;
+
+    DynamicConnectivity(int n) : n(n), adj(n), level(n, 0), active(n, false) {}
+
+    void insertEdge(int u, int v, int lvl) {
+        adj[u].push_back({v, lvl});
+        adj[v].push_back({u, lvl});
+        active[u] = active[v] = true;
+    }
+
+    void promoteEdges(int component, int newLevel, auto& forest) {
+        for (auto& [v, lvl] : adj[component]) {
+            if (!active[v]) continue;
+            if (lvl < newLevel) {
+                level[v] = newLevel;
+                if (!forest.sameComponent(component, v)) {
+                    forest.link(component, v);
+                }
+            }
+        }
+    }
+
+    bool query(int u, int v, const auto& forest) {
+        return forest.sameComponent(u, v);
+    }
+};
+\end{lstlisting}
+
+\textbf{Operations:}
+\begin{itemize}
+\item \textbf{Insert edge:} Add at level 0. If it connects two components in the level-0 forest, add it to the spanning forest.
+\item \textbf{Delete edge:} If it is not a spanning forest edge, simply remove it. If it is, search lower levels for a replacement edge. If none exists, the component splits.
+\item \textbf{Connectivity query:} Check if two nodes are in the same tree using the Euler tour tree at the highest level.
+\end{itemize}
+
+\subsection{Level Structure Details}
+
+The level structure works as follows. Each spanning forest edge $e$ at level $\ell$ is \textbf{promoted} if a non-tree edge at a higher level connects the two components of $F_\ell \setminus \{e\}$. When a tree edge is deleted, we search all lower levels for a replacement edge. The key insight is that each level doubles the number of nodes in a component, so a component can be promoted at most $O(\log n)$ times total.
+
+\begin{lstlisting}[language=C++]
+struct LevelStructure {
+    int maxLevel;
+    std::vector<std::vector<int>> levelForest;
+
+    LevelStructure(int n) : maxLevel(0) {
+        for (int i = 0; i <= 20; ++i)
+            levelForest.push_back(std::vector<int>(n, -1));
+    }
+
+    int find(int lvl, int u) const {
+        return levelForest[lvl][u] == u ? u
+            : find(lvl, levelForest[lvl][u]);
+    }
+
+    void merge(int lvl, int u, int v) {
+        u = find(lvl, u);
+        v = find(lvl, v);
+        if (u == v) return;
+        levelForest[lvl][v] = u;
+    }
+
+    bool connected(int lvl, int u, int v) const {
+        return find(lvl, u) == find(lvl, v);
+    }
+};
+\end{lstlisting}
+
+\subsection{Lower Bound}
+
+Patrascu and Demaine (2005) proved an $\Omega(\log n)$ amortized lower bound for dynamic connectivity, even for graphs that are a collection of disjoint paths. This result holds under the cell-probe model and applies to any data structure solving the problem. The $O(\log^2 n)$ upper bound matches this lower bound up to a logarithmic factor, and the $O(\log n)$ bound for trees is tight.
+
+\subsection{Comparison Table}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Structure & Insert/Delete & Query \\
+\midrule
+Static connectivity (Union-Find) & $O(\alpha(n))$ & $O(\alpha(n))$ \\
+Tree connectivity (link-cut) & $O(\log n)$ & $O(\log n)$ \\
+General connectivity (level structure) & $O(\log^2 n)$ amortized & $O(\log^2 n)$ amortized \\
+Dynamic 2-edge-connectivity & $O(\log^3 n)$ amortized & $O(\log^3 n)$ amortized \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network monitoring:} detect when link failures partition a network in real time
+\item \textbf{Graph algorithms:} dynamic connectivity as a subroutine in dynamic MST, 2-edge-connectivity, and biconnectivity
+\item \textbf{Computational geometry:} maintain connectivity of proximity graphs under insertions and deletions
+\item \textbf{Social networks:} track friend/unfriend operations while answering reachability queries
+\item \textbf{Database systems:} maintain connected components in evolving schema relationships
+\end{itemize}
+
+\section{Exercises}
+
+\begin{enumerate}
+\item Find the biconnected components of the following graph. List each component's edges and identify all articulation points:
+\begin{lstlisting}
+    0 -- 1 -- 2 -- 3
+         |    |    |
+         4 -- 5 -- 6
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item Run Kosaraju's algorithm on the following directed graph. Show the DFS finish order from pass 1, the transposed graph, and the SCCs found in pass 2:
+\begin{lstlisting}
+    0 -> 1 -> 2 -> 0
+              |    |
+              3 -> 4 -> 5 -> 3
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item Given an undirected graph, find all bridges. Then remove those bridges and count how many connected components the resulting graph has. Test on:
+\begin{lstlisting}
+    0 -- 1    2 -- 3 -- 4
+              |         |
+              5 -------- 6
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item Prove that in a biconnected component with at least 3 vertices, every edge lies on some simple cycle. \textit{Hint:} use the low-link property and the definition of biconnectivity.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a directed graph $G$, determine whether adding exactly one edge can make $G$ strongly connected. If so, find all such edges. \textit{Hint:} compute the SCC condensation DAG and analyze its sources and sinks.
+\end{enumerate}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Forgetting to mark nodes as visited in DFS/BFS & Infinite loop, stack overflow & Mark visited when first discovered, not when processed \\
+Stack overflow on deep DFS recursion & Crash for graphs with > 1$0^{4}$ nodes & Use iterative DFS with an explicit stack \\
+Assuming the graph is connected & Algorithm only visits one component & Iterate over all vertices; run algorithm on each unvisited one \\
+Using \texttt{int} for edge weights when negative edges exist & Wrong shortest paths with Dijkstra & Use Bellman-Ford if negative edges; or detect them first \\
+Not checking for negative cycles in Bellman-Ford & Infinite loop, no valid shortest path & Run one extra iteration to detect negative cycles \\
+Confusing directed vs undirected — adding edge only one way & Missing connections, wrong traversal & For undirected, add both (u,v) and (v,u) \\
+Using adjacency matrix for a sparse graph (E $\ll$ V$^{2}$) & Memory waste (V$^{2}$), slow iteration & Use adjacency list for sparse graphs \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Complexity Summary}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Algorithm & Time & Space \\
+DFS / BFS & O(V + E) & O(V) \\
+Topological sort & O(V + E) & O(V) \\
+Articulation points / bridges & O(V + E) & O(V) \\
+Eulerian path (Hierholzer) & O(V + E) & O(V + E) \\
+A* search & O(E) with good heuristic & O(V) \\
+Greedy graph coloring & O(V + E) & O(V) \\
+Kruskal's MST & O(E log E) & O(V + E) \\
+Prim's MST & O((V + E) log V) & O(V) \\
+Dijkstra & O((V + E) log V) & O(V) \\
+Bellman-Ford & O(VE) & O(V) \\
+Floyd-Warshall & O(V$^{3}$) & O(V$^{2}$) \\
+Kosaraju SCC & O(V + E) & O(V) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{When would you use an adjacency matrix over an adjacency list, given that real-world graphs are sparse?}
+
+Use adjacency matrix when: (1) the graph is dense (E $\approx$ V$^{2}$), (2) you need O(1) edge existence queries, (3) you're running Floyd-Warshall or need all-pairs shortest paths. Use adjacency list when: the graph is sparse (E $\approx$ V or E $\approx$ V log V), which covers most real-world networks. In competitive programming, the adjacency list + edge struct approach is 3--5x faster than vector-of-vectors due to cache locality. In production graph databases, CSR (Compressed Sparse Row) encoding dominates because it packs adjacency data into contiguous arrays.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you detect a cycle in a directed graph?}
+
+DFS with three states: unvisited (0), in-progress (1), completed (2). If DFS encounters a node in state 1, a back edge exists -- the graph has a cycle. Alternatively, use Kahn's topological sort: if the resulting order has fewer than $V$ vertices, a cycle exists. Time O(V + E).
+
+\begin{lstlisting}[language=C++]
+bool has_cycle_directed(const std::vector<std::vector<int>>& adj) {
+    int n = (int)adj.size();
+    std::vector<int> state(n, 0);
+    std::function<bool(int)> dfs = [&](int u) {
+        state[u] = 1;
+        for (int v : adj[u]) {
+            if (state[v] == 1) return true;
+            if (state[v] == 0 && dfs(v)) return true;
+        }
+        state[u] = 2;
+        return false;
+    };
+    for (int i = 0; i < n; ++i)
+        if (state[i] == 0 && dfs(i)) return true;
+    return false;
+}
+\end{lstlisting}
+
+\textit{For undirected graphs:} DFS with parent tracking. If you reach an already-visited node that isn't the parent, a cycle exists.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between Dijkstra's and Bellman-Ford?}
+
+Dijkstra's: greedy, O((V+E) log V) with binary heap, requires non-negative edge weights. Bellman-Ford: dynamic programming, O(VE), handles negative weights and detects negative cycles. Use Dijkstra for non-negative graphs (road networks, scheduling). Use Bellman-Ford when negative edges exist (currency arbitrage, network routing with cost adjustments). SPFA (Shortest Path Faster Algorithm) is a queue-based optimization of Bellman-Ford that runs faster in practice.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the shortest path in an unweighted graph?}
+
+BFS from the source. BFS explores vertices in order of distance: the first time you reach a vertex, the path is shortest. Track predecessors for path reconstruction. Time O(V + E), space O(V). This is why BFS is fundamental -- it solves the unweighted shortest path problem optimally.
+
+\begin{lstlisting}[language=C++]
+std::vector<int> bfs_shortest(const std::vector<std::vector<int>>& adj, int src) {
+    int n = (int)adj.size();
+    std::vector<int> dist(n, -1), parent(n, -1);
+    std::queue<int> q;
+    dist[src] = 0;
+    q.push(src);
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                parent[v] = u;
+                q.push(v);
+            }
+        }
+    }
+    return dist;
+}
+\end{lstlisting}
+
+\textit{Follow-up:} ``Shortest path with unit weights of 1 or 2?'' Use a 0-1 BFS with a deque: push weight-0 edges to the front, weight-1 edges to the back.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does topological sort only work on DAGs, and what happens if you try it on a graph with cycles?}
+
+A cycle means no vertex can come ``before'' all its successors --- the ordering constraint is contradictory. Kahn's algorithm detects this naturally: if the queue empties before all vertices are processed, the remaining vertices form a cycle. DFS-based topo sort detects it via back edges (encountering a vertex still in the recursion stack). In practice, cycle detection during topo sort is the first step in build systems (circular dependencies), task schedulers (deadlock detection), and package managers (conflict resolution).
+
+\begin{lstlisting}[language=C++]
+std::vector<int> topo_sort(const std::vector<std::vector<int>>& adj) {
+    int n = (int)adj.size();
+    std::vector<int> in_degree(n, 0);
+    for (int u = 0; u < n; ++u)
+        for (int v : adj[u]) ++in_degree[v];
+    std::queue<int> q;
+    for (int i = 0; i < n; ++i)
+        if (in_degree[i] == 0) q.push(i);
+    std::vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : adj[u])
+            if (--in_degree[v] == 0) q.push(v);
+    }
+    return order;  // size < n means cycle exists
+}
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When should you use Floyd-Warshall instead of running Dijkstra from each vertex?}
+
+Floyd-Warshall: O(V$^{3}$), handles negative edges, computes all-pairs simultaneously, simple implementation. Dijkstra from each vertex: O(V $\cdot$ (V+E) log V), no negative edges, better for sparse graphs. Use Floyd-Warshall when: the graph is dense (E $\approx$ V$^{2}$) and you need all-pairs shortest paths. Use Dijkstra from each vertex when: the graph is sparse and/or you only need single-source shortest paths. Floyd-Warshall also computes transitive closure (replace min with $\|$) and can detect negative cycles.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does MST have matroid structure, and what does that guarantee about greedy algorithms?}
+
+The set of forests in a graph forms a graphic matroid: forests are hereditary (subsets of forests are forests) and the exchange property holds. This means greedy edge selection (Kruskal's) is \emph{guaranteed} to find the minimum spanning tree --- not just heuristically, but provably optimal. Prim's is also greedy but builds the tree vertex-by-vertex instead of edge-by-edge. The matroid structure explains \emph{why} both work: any greedy algorithm on a matroid finds the optimum for linear weight functions.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why do SCC algorithms use the finish-time ordering from DFS, and what's the intuition?}
+
+In a DAG of SCCs, if component A can reach component B, then A finishes after B in DFS. So processing vertices in decreasing finish order guarantees you process ``downstream'' components first. Kosaraju's uses this twice: first DFS gets finish order, second DFS on the transpose processes in that order. Tarjan's achieves the same result in one pass by tracking lowlinks. The intuition: finish order captures the topological structure of the component graph.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is A* search and how does it improve on Dijkstra?}
+
+A* uses a heuristic function $h(v)$ that estimates the distance from $v$ to the goal. It orders the priority queue by $f(v) = g(v) + h(v)$ where $g(v)$ is the known shortest distance from source. If $h$ is admissible (never overestimates), A* finds the optimal path. If $h$ is also consistent (satisfies the triangle inequality), A* expands fewer nodes than Dijkstra. For grid graphs, Manhattan distance or Euclidean distance are common heuristics. Time: depends on heuristic quality — O(b$^{d}$) in the worst case (b = branching factor, d = solution depth), but typically much faster.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you represent a graph in C++ and which representation should you choose?}
+
+For interview code: use \texttt{vector<vector<int>> adj} for adjacency list, or \texttt{vector<tuple<int,int,int>> edges} for edge lists (useful for Kruskal's). For production: use a flat array with index offsets (CSR-like) for cache efficiency. For dense graphs: use \texttt{vector<vector<bool>>} adjacency matrix. The choice depends on the algorithm: BFS/DFS need adjacency lists; Floyd-Warshall needs a matrix; Kruskal's needs an edge list.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For the following graph:
+\begin{lstlisting}
+   A --2-- B --1-- C
+   |       |       |
+   4       3       2
+   |       |       |
+   D --1-- E --3-- F
+\end{lstlisting}
+\end{enumerate}
+   a) Perform DFS starting from A. List the vertices in discovery order (assume neighbor ordering by vertex label).
+   b) Perform BFS starting from A.
+   c) Run Dijkstra from A and report the shortest distances to all vertices.
+
+\begin{enumerate}
+\item Classify each edge in a DFS traversal of the graph above as: tree edge, back edge, forward edge, or cross edge.
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the result of topological sort on the DAG? What happens if the graph has a cycle?
+\begin{lstlisting}
+   A  ->  B  ->  C  ->  D
+   |   |
+   E  ->  F
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item For the graph in Exercise 1, find the Minimum Spanning Tree using:
+\end{enumerate}
+   a) Kruskal's algorithm (show edge selection order)
+   b) Prim's algorithm starting from A
+
+\begin{enumerate}
+\item True or false:
+\end{enumerate}
+   a) Every DFS tree is a spanning tree
+   b) BFS finds the shortest paths in any graph
+   c) Dijkstra works correctly with negative edge weights
+   d) A complete graph with n vertices has n$^{n-2}$ spanning trees (Cayley's formula)
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Implement a \textbf{word ladder} solver using BFS (e.g., cat $\to $ cot $\to $ cog $\to $ dog). Find the shortest transformation sequence between two words of the same length.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement Dijkstra's algorithm returning both the shortest distance and the path. Test on the graph from Exercise 1.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement Borůvka's algorithm for MST (the earliest MST algorithm, 1926). Compare its performance with Kruskal and Prim.
+\end{enumerate}
+
+\begin{enumerate}
+\item Detect cycles in a directed graph using DFS with three-color marking (white/gray/black). Extend this to find all edges in any cycle.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement A* search for a grid-based pathfinding problem with obstacles. Compare path length and nodes visited with Dijkstra.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a bipartite graph, determine if a perfect matching exists using the augmenting path algorithm (Kőnig's theorem).
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement Kosaraju's algorithm for strongly connected components. Test on a directed graph with known SCCs.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement Bellman-Ford for a graph with negative edges. Detect negative-weight cycles reachable from the source.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the Floyd-Warshall all-pairs shortest path algorithm. Use it to find the graph's diameter (longest shortest path).
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement an Eulerian path algorithm (Hierholzer's algorithm). Determine whether a given graph has an Eulerian path or circuit.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(PageRank)} Read about the PageRank algorithm. Implement it and run it on a small web graph ($\ge $ 10 nodes, with links). How does the rank distribution look? Which pages get the highest rank?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Max flow)} Read Chapter 20 on maximum flow. Implement the Edmonds-Karp algorithm (Ford-Fulkerson with BFS) for a small flow network and compute the min-cut.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Graph isomorphism)} Research the graph isomorphism problem. Implement a simple (exponential) backtracking algorithm for graph isomorphism. Test it on small graphs. Why is graph isomorphism not known to be either P or NP-complete?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Johnson's algorithm)} Implement Johnson's algorithm for all-pairs shortest paths, which runs Bellman-Ford once and Dijkstra for each vertex. Compare it with Floyd-Warshall on sparse and dense graphs.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(2-SAT)} Reduce the 2-SAT (2-satisfiability) problem to strongly connected components. Implement a 2-SAT solver using Kosaraju's algorithm.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapters 20–25.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Chapter 4.
+\item Edsger W. Dijkstra, "A Note on Two Problems in Connexion with Graphs" — Numerische Mathematik, 1959.
+\item Robert E. Tarjan, "Depth-First Search and Linear Graph Algorithms" — SIAM Journal on Computing, 1972.
+\item Joseph B. Kruskal, "On the Shortest Spanning Subtree of a Graph and the Traveling Salesman Problem" — Proceedings of the AMS, 1956.
+\item Vaclav Chvatal, \textit{Linear Programming}. W. H. Freeman, 1983.
+\item Lawrence Page, Sergey Brin, Rajeev Motwani, and Terry Winograd, "The PageRank Citation Ranking: Bringing Order to the Web" — Stanford Technical Report, 1999.
+\item Steven S. Skiena, \textit{The Algorithm Design Manual}, 2nd Edition. Springer, 2008.
+\item John Hopcroft and Robert E. Tarjan, "Efficient Algorithms for Graph Manipulation" — JACM, 1973 (articulation points, bridges, Eulerian circuits).
+\item Peter Hart, Nils Nilsson, and Bertram Raphael, "A Formal Basis for the Heuristic Determination of Minimum Cost Paths" — IEEE Trans. SSC, 1968 (A* search).
+\item D. J. Welsh and M. B. Powell, "An Upper Bound for the Chromatic Number of a Graph and its Application to Timetabling Problems" — The Computer Journal, 1967 (graph coloring).
+\end{itemize}
+

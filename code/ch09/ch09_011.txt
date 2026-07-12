@@ -1,0 +1,9 @@
+A is the root (first in preorder).
+In inorder, everything left of A is left subtree, right of A is right subtree.
+Left subtree inorder: [D, B, E], preorder: [B, D, E]
+Right subtree inorder: [C], preorder: [C]
+
+Recursively build:
+  B is root of left subtree.
+  Inorder left of B: [D]  ->  left child
+  Inorder right of B: [E]  ->  right child

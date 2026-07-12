@@ -1,0 +1,1 @@
+Line 1, Col 1: expected '}' but found EOF

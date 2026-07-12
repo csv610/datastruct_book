@@ -1,0 +1,40 @@
+D can win at most 6 + 1 + 1 = 8 games.
+Check: does any team get forced past 8 wins?
+
+Capacities to sink:
+  A: 8 - 8 = 0
+  B: 8 - 7 = 1
+  C: 8 - 6 = 2
+
+Game nodes (remaining games):
+  g(A,B): s -> g(A,B) cap=1
+  g(B,C): s -> g(B,C) cap=2
+  g(B,D): s -> g(B,D) cap=1
+  g(C,D): s -> g(C,D) cap=1
+
+Total remaining games = 1 + 2 + 1 + 1 = 5.
+
+Edges from games to teams (capacity INF):
+  g(A,B) -> A, g(A,B) -> B
+  g(B,C) -> B, g(B,C) -> C
+  g(B,D) -> B, g(B,D) -> D
+  g(C,D) -> C, g(C,D) -> D
+
+Max flow computation:
+  g(A,B)->A->t: 1 unit. (A capacity: 0 remaining)
+  g(B,C)->B->t: 1 unit. (B capacity: 0 remaining)
+  g(B,C)->C->t: 1 unit. (C capacity: 1 remaining)
+  g(B,D)->D->t: 1 unit. (B saturated, route via D)
+  g(C,D)->C->t: 1 unit. (C capacity: 0 remaining)
+
+Total flow = 5 = total remaining games.
+D is NOT eliminated.
+
+Valid scenario:
+  A beats B: A=9, B=7
+  B beats C, C beats B: B=8, C=7
+  D beats B: D=7
+  D beats C: D=8
+
+Final: A=8, B=8, C=7, D=8. Three-way tie at 8 wins.
+D is NOT eliminated.

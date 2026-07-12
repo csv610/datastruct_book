@@ -1,0 +1,9 @@
+root covers [0, 5], query = [1, 5]:
+  left child [0, 2] overlaps  ->  recurse
+    [0, 0]: no overlap
+    [1, 2]: total overlap  ->  return 8
+  right child [3, 5] overlaps  ->  recurse
+    [3, 5]: total overlap  ->  return 27
+  combine(8, 27) = 35
+
+Check: 3 + 5 + 7 + 9 + 11 = 35 (OK)

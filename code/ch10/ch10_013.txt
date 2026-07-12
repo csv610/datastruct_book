@@ -1,0 +1,9 @@
+Pairing heap:
+       [1]  (root, minimum)
+      / | \
+    [3] [5] [2]  (children of root, in circular list)
+    / \
+  [7] [8]
+
+Merge: just link roots (O(1))
+Decrease-key: cut and merge (O(log n) amortized)

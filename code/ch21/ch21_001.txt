@@ -1,0 +1,9 @@
+Fat node: node_id = 5
+  field "left"  : version 0 -> 12
+                  version 3 -> 18
+  field "right" : version 0 -> 14
+                  version 2 -> 20
+  field "key"   : version 0 -> 42
+
+To read "key" at version 1: find most recent entry <= version 1 -> 42.
+To read "left" at version 5: find most recent entry <= version 5 -> 18.

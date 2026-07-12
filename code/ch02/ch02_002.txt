@@ -1,0 +1,6 @@
+// All pairs
+for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+        process(a[i], a[j]);   // O(1) operation
+    }
+}

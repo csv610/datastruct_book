@@ -1,0 +1,7 @@
+Item A: weight 5, value 50  (ratio 10)
+Item B: weight 10, value 60 (ratio 6)
+Item C: weight 20, value 140 (ratio 7)
+Capacity: 20
+
+Greedy (by ratio): A + B = 110
+Optimal: C alone = 140

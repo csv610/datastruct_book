@@ -1,0 +1,1417 @@
+\chapter{Performance Measurement of Programs}\label{ch03:performance-measurement-of-programs}
+
+\section{Introduction}
+
+In Chapter 2 we analyzed algorithms theoretically. But theory is not enough. Constants matter. Cache behavior matters. Compiler optimizations matter. The only way to know how fast a program actually runs is to measure it.
+
+This chapter covers practical techniques for measuring program performance using modern tools.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Why Measure?}
+
+\begin{itemize}
+\item \textbf{Validate theoretical analysis} — does the O(n$^{2}$) algorithm actually scale quadratically?
+\item \textbf{Choose between algorithms} — quicksort is O(n log n) on average, but for small arrays insertion sort is faster
+\item \textbf{Find bottlenecks} — the 90/10 rule: 90\% of time is spent in 10\% of the code
+\item \textbf{Track regressions} — did a change slow things down?
+\item \textbf{Tune performance} — iterative improvement requires measurement
+\end{itemize}
+
+\section{A First Measurement: std::chrono}
+
+C++11 introduced the \texttt{<chrono>} library for portable high-resolution timing:
+
+\begin{lstlisting}[language=C++]
+#include <chrono>
+#include <iostream>
+
+class timer {
+    using clock = std::chrono::high_resolution_clock;
+    using time_point = clock::time_point;
+    time_point start_;
+public:
+    timer() : start_(clock::now()) {}
+    void reset() { start_ = clock::now(); }
+    double elapsed() const {
+        auto end = clock::now();
+        return std::chrono::duration<double>(end - start_).count();
+    }
+};
+
+// Usage:
+timer t;
+// code to measure
+do_something();
+std::cout << "Elapsed: " << t.elapsed() << " s\n";
+\end{lstlisting}
+
+\subsection{Clock Types}
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+Clock & Characteristics \\
+\texttt{system\_clock} & System-wide real-time clock, can be adjusted \\
+\texttt{steady\_clock} & Monotonic — never adjusted, ideal for intervals \\
+\texttt{high\_resolution\_clock} & Highest precision available (often an alias for steady\_clock) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Always use \texttt{steady\_clock} for performance measurement} — it is immune to system time adjustments.
+
+\subsection{Measuring Short Intervals}
+
+For very short operations, the measurement overhead can dominate. Always measure multiple repetitions:
+
+\begin{lstlisting}[language=C++]
+template <typename F>
+double measure(F&& f, int iterations = 1000) {
+    timer t;
+    for (int i = 0; i < iterations; ++i) {
+        f();
+    }
+    return t.elapsed() / iterations;
+}
+\end{lstlisting}
+
+\section{Google Benchmark Library}
+
+For serious benchmarking, use Google Benchmark. It handles warm-up, iteration count, statistical analysis, and output formatting:
+
+\begin{lstlisting}[language=C++]
+#include <benchmark/benchmark.h>
+
+static void BM_VectorPushBack(benchmark::State& state) {
+    for (auto _ : state) {
+        std::vector<int> v;
+        for (int i = 0; i < state.range(0); ++i) {
+            v.push_back(i);
+        }
+    }
+}
+BENCHMARK(BM_VectorPushBack)->Range(8, 8<<10);
+
+BENCHMARK_MAIN();
+\end{lstlisting}
+
+Compile and run:
+
+\begin{lstlisting}
+g++ -std=c++20 -O2 -lbenchmark benchmark.cpp -o benchmark
+./benchmark
+\end{lstlisting}
+
+Output:
+
+\begin{lstlisting}[language=Java]
+BM_VectorPushBack/8       25.3 ns  25.1 ns   27692222
+BM_VectorPushBack/64       151 ns   148 ns    4716981
+BM_VectorPushBack/512     1186 ns  1175 ns     597163
+BM_VectorPushBack/4096   10235 ns 10123 ns      68790
+BM_VectorPushBack/8192   41234 ns 40987 ns      17021
+\end{lstlisting}
+
+\section{Factors Affecting Performance}
+
+\subsection{Hardware Effects}
+
+\begin{itemize}
+\item \textbf{CPU speed and architecture} — clock rate, superscalar execution, vector instructions
+\item \textbf{Cache hierarchy} — L1 (\textasciitilde{}32KB, \textasciitilde{}1ns), L2 (\textasciitilde{}256KB, \textasciitilde{}4ns), L3 (\textasciitilde{}8MB, \textasciitilde{}10ns), RAM (\textasciitilde{}100ns)
+\item \textbf{Memory bandwidth} — sustained throughput to main memory
+\item \textbf{Branch prediction} — mispredictions cost 10-20 cycles
+\item \textbf{TLB} — virtual address translation cache
+\end{itemize}
+
+\subsection{Operating System Effects}
+
+\begin{itemize}
+\item \textbf{Context switching} — other processes interrupt your program
+\item \textbf{Page faults} — accessing memory not in physical RAM
+\item \textbf{CPU frequency scaling} — turbo boost, power saving modes
+\end{itemize}
+
+\textbf{Mitigation:} Run benchmarks multiple times, use warm-up phases, run on an idle system.
+
+\subsection{Compiler Effects}
+
+\begin{itemize}
+\item \textbf{Optimization level} (\texttt{-O0}, \texttt{-O1}, \texttt{-O2}, \texttt{-O3}, \texttt{-Ofast})
+\item \textbf{Inlining} — functions may be inlined or not
+\item \textbf{Loop unrolling} — trade code size for speed
+\item \textbf{Vectorization} — auto-vectorization of SIMD instructions
+\item \textbf{Dead code elimination} — the compiler may remove unused computations
+\end{itemize}
+
+\textbf{Important:} Always benchmark with optimizations enabled (\texttt{-O2} or \texttt{-O3}). Debug builds (\texttt{-O0}) give meaningless timing.
+
+\subsection{The Benchmarking Trap: Dead Code Elimination}
+
+The compiler may optimize away the computation you are trying to measure:
+
+\begin{lstlisting}[language=C++]
+// WRONG -- compiler may optimize the entire loop away
+benchmark::DoNotOptimize(0);  // use this marker instead
+static void BM_Bad(benchmark::State& state) {
+    int sum = 0;
+    for (auto _ : state) {
+        for (int i = 0; i < state.range(0); ++i) {
+            sum += i;  // compiler may notice 'sum' is unused
+        }
+    }
+}
+// The compiler can eliminate the entire inner loop since 'sum' has no observable effect
+\end{lstlisting}
+
+Always consume the result:
+
+\begin{lstlisting}[language=C++]
+static void BM_Good(benchmark::State& state) {
+    int sum = 0;
+    for (auto _ : state) {
+        for (int i = 0; i < state.range(0); ++i) {
+            sum += i;
+        }
+    }
+    benchmark::DoNotOptimize(sum);
+}
+\end{lstlisting}
+
+\section{Case Study: Sorting Algorithms}
+
+Let us measure insertion sort, merge sort, and std::sort:
+
+\begin{lstlisting}[language=C++]
+void insertion_sort(std::span<int> a) {
+    for (size_t i = 1; i < a.size(); ++i) {
+        int key = a[i];
+        int j = static_cast<int>(i) - 1;
+        while (j >= 0 && a[j] > key) {
+            a[j + 1] = a[j];
+            --j;
+        }
+        a[j + 1] = key;
+    }
+}
+
+void merge_sort(std::span<int> a) {
+    if (a.size() <= 1) return;
+    size_t mid = a.size() / 2;
+    std::vector<int> left(a.begin(), a.begin() + mid);
+    std::vector<int> right(a.begin() + mid, a.end());
+    merge_sort(left);
+    merge_sort(right);
+    std::merge(left.begin(), left.end(), right.begin(), right.end(), a.begin());
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+static void BM_InsertionSort(benchmark::State& state) {
+    std::vector<int> v(state.range(0));
+    for (auto _ : state) {
+        std::iota(v.begin(), v.end(), 0);
+        std::shuffle(v.begin(), v.end(), std::mt19937{42});
+        insertion_sort(v);
+        benchmark::DoNotOptimize(v.data());
+    }
+}
+BENCHMARK(BM_InsertionSort)->Range(8, 8<<10);
+
+static void BM_MergeSort(benchmark::State& state) {
+    std::vector<int> v(state.range(0));
+    for (auto _ : state) {
+        std::iota(v.begin(), v.end(), 0);
+        std::shuffle(v.begin(), v.end(), std::mt19937{42});
+        merge_sort(v);
+        benchmark::DoNotOptimize(v.data());
+    }
+}
+BENCHMARK(BM_MergeSort)->Range(8, 8<<10);
+
+static void BM_StdSort(benchmark::State& state) {
+    std::vector<int> v(state.range(0));
+    for (auto _ : state) {
+        std::iota(v.begin(), v.end(), 0);
+        std::shuffle(v.begin(), v.end(), std::mt19937{42});
+        std::sort(v.begin(), v.end());
+        benchmark::DoNotOptimize(v.data());
+    }
+}
+BENCHMARK(BM_StdSort)->Range(8, 8<<10);
+\end{lstlisting}
+
+Expected results:
+\begin{itemize}
+\item Insertion sort: O(n$^{2}$) — noticeable quadratic curve
+\item Merge sort: O(n log n) — smoother curve
+\item \texttt{std::sort}: fastest — uses introsort (quicksort + heapsort + insertion sort hybrid)
+\end{itemize}
+
+\section{Profiling}
+
+While benchmarking measures total time, \textbf{profiling} shows where time is spent.
+
+\subsection{Sampling Profilers}
+
+Sample the program counter at regular intervals:
+
+\begin{lstlisting}
+# macOS
+sudo sample ./program -duration 10  # produces a call tree
+
+# Linux
+perf record ./program && perf report
+
+# macOS Instruments (GUI)
+xcrun xctrace record --template "Time Profiler" --launch ./program
+\end{lstlisting}
+
+\subsection{Instrumenting Profilers}
+
+\textbf{Valgrind/Callgrind:}
+
+\begin{lstlisting}
+valgrind --tool=callgrind ./program
+# Produces callgrind.out.xxx -- view with kcachegrind
+\end{lstlisting}
+
+\textbf{Compiler instrumentation (\texttt{-finstrument-functions}):}
+
+GCC/Clang can insert callbacks at every function entry/exit for custom profiling.
+
+\subsection{Cache Analysis with perf}
+
+\begin{lstlisting}
+perf stat -e cache-references,cache-misses,cycles,instructions ./program
+\end{lstlisting}
+
+Sample output:
+\begin{lstlisting}[language=Java]
+   1,234,567,890      cycles
+     987,654,321      instructions
+      12,345,678      cache-references
+       1,234,567      cache-misses    # 10.0% miss rate
+\end{lstlisting}
+
+A high cache miss rate (>10\%) indicates poor data locality.
+
+\section{Measuring Memory Usage}
+
+\begin{lstlisting}[language=C++]
+#include <sys/resource.h>
+
+size_t peak_memory_usage() {
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+    return usage.ru_maxrss;  // in kilobytes (macOS) or bytes (Linux)
+}
+\end{lstlisting}
+
+For detailed heap profiling, use \textbf{Valgrind/Massif}:
+
+\begin{lstlisting}
+valgrind --tool=massif ./program
+ms_print massif.out.xxx
+\end{lstlisting}
+
+\section{Practical Measurement Methodology}
+
+\begin{enumerate}
+\item \textbf{Formulate a hypothesis} — e.g., "std::sort is faster than my quicksort"
+\item \textbf{Design the experiment} — what inputs, what sizes, what metrics?
+\item \textbf{Warm up} — run the code once to populate caches
+\item \textbf{Measure multiple trials} — at least 10, report mean and standard deviation
+\item \textbf{Vary input size} — confirm asymptotic class
+\item \textbf{Vary input type} — random, sorted, reversed, nearly sorted
+\item \textbf{Isolate the system} — close other applications, disable CPU scaling
+\item \textbf{Report everything} — compiler, flags, CPU, OS, input parameters
+\end{enumerate}
+
+\section{ADT for Polynomial}
+
+An abstract data type for polynomials encapsulates the representation of a polynomial and provides operations to manipulate it. We first specify the ADT, then implement it using a vector of coefficients.
+
+\subsection{ADT Specification}
+
+A polynomial $p(x) = a_{0} + a_{1}x + a_{2}x^{2} + \cdots + a_{n}x^{n}$ is represented by its degree $n$ and a sequence of coefficients $(a_{0}, a_{1}, \ldots, a_{n})$.
+
+\textbf{Operations:}
+\begin{itemize}
+\item \textbf{Polynomial()} -- construct the zero polynomial
+\item \textbf{Polynomial(vector$<$double$>$)} -- construct from a coefficient vector
+\item \textbf{degree()} -- return the highest power with a nonzero coefficient
+\item \textbf{coefficient(i)} -- return the coefficient of $x^{i}$
+\item \textbf{evaluate(x)} -- return $p(x)$ using Horner's method, $O(n)$
+\item \textbf{add(q)} -- return $p(x) + q(x)$
+\item \textbf{multiply(q)} -- return $p(x) \cdot q(x)$, naive $O(n^{2})$ or FFT-based $O(n \log n)$
+\item \textbf{derivative()} -- return $p'(x)$
+\item \textbf{operator==} -- test structural equality
+\item \textbf{operator$\ll$} -- stream output
+\end{itemize}
+
+\textbf{Complexity summary:}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Operation & Complexity \\
+\midrule
+evaluate & $O(n)$ \\
+add & $O(n)$ \\
+multiply & $O(n^{2})$ \\
+derivative & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Implementation}
+
+We store coefficients in a \texttt{std::vector<double>} where index $i$ holds the coefficient of $x^{i}$. This gives O(1) access to any coefficient and O(n) evaluation.
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <stdexcept>
+#include <iostream>
+
+class polynomial {
+public:
+    polynomial() = default;
+
+    explicit polynomial(std::vector<double> coeffs)
+        : coeffs_(std::move(coeffs)) {
+        trim();
+    }
+
+    int degree() const {
+        return static_cast<int>(coeffs_.size()) - 1;
+    }
+
+    bool is_zero() const {
+        return coeffs_.empty();
+    }
+
+    double coefficient(int i) const {
+        if (i < 0 || i > degree()) return 0.0;
+        return coeffs_[i];
+    }
+
+    // Horner's method: O(n) evaluation
+    double evaluate(double x) const {
+        if (is_zero()) return 0.0;
+        double result = coeffs_[degree()];
+        for (int i = degree() - 1; i >= 0; --i) {
+            result = result * x + coeffs_[i];
+        }
+        return result;
+    }
+
+    polynomial add(const polynomial& q) const {
+        size_t n = std::max(coeffs_.size(), q.coeffs_.size());
+        std::vector<double> result(n, 0.0);
+        for (size_t i = 0; i < coeffs_.size(); ++i) result[i] += coeffs_[i];
+        for (size_t i = 0; i < q.coeffs_.size(); ++i) result[i] += q.coeffs_[i];
+        return polynomial(std::move(result));
+    }
+
+    // Naive polynomial multiplication: O(n * m)
+    polynomial multiply(const polynomial& q) const {
+        if (is_zero() || q.is_zero()) return polynomial();
+        int n = degree();
+        int m = q.degree();
+        std::vector<double> result(n + m + 1, 0.0);
+        for (int i = 0; i <= n; ++i) {
+            for (int j = 0; j <= m; ++j) {
+                result[i + j] += coeffs_[i] * q.coeffs_[j];
+            }
+        }
+        return polynomial(std::move(result));
+    }
+
+    // Returns the formal derivative: O(n)
+    polynomial derivative() const {
+        if (degree() <= 0) return polynomial();
+        std::vector<double> result(degree());
+        for (int i = 1; i <= degree(); ++i) {
+            result[i - 1] = i * coeffs_[i];
+        }
+        return polynomial(std::move(result));
+    }
+
+    bool operator==(const polynomial& q) const {
+        return coeffs_ == q.coeffs_;
+    }
+
+    bool operator!=(const polynomial& q) const {
+        return !(*this == q);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const polynomial& p) {
+        if (p.is_zero()) return os << "0";
+        for (int i = p.degree(); i >= 0; --i) {
+            if (p.coeffs_[i] == 0.0) continue;
+            if (i < p.degree()) os << (p.coeffs_[i] > 0 ? " + " : " - ");
+            double c = std::abs(p.coeffs_[i]);
+            if (c != 1.0 || i == 0) os << c;
+            if (i > 0) os << "x";
+            if (i > 1) os << "^" << i;
+        }
+        return os;
+    }
+
+private:
+    // Remove trailing zero coefficients
+    void trim() {
+        while (!coeffs_.empty() && coeffs_.back() == 0.0) {
+            coeffs_.pop_back();
+        }
+    }
+
+    std::vector<double> coeffs_;
+};
+\end{lstlisting}
+
+\subsection{Example Usage}
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+
+int main() {
+    // p(x) = 3x^3 + 2x + 1
+    polynomial p({1, 2, 0, 3});
+    // q(x) = x^2 + 4
+    polynomial q({4, 0, 1});
+
+    std::cout << "p(x) = " << p << "\n";
+    std::cout << "q(x) = " << q << "\n";
+    std::cout << "p(2) = " << p.evaluate(2) << "\n";  // 30
+
+    polynomial sum = p.add(q);
+    std::cout << "p+q = " << sum << "\n";
+
+    polynomial prod = p.multiply(q);
+    std::cout << "p*q = " << prod << "\n";
+
+    polynomial dp = p.derivative();
+    std::cout << "p'(x) = " << dp << "\n";
+}
+\end{lstlisting}
+
+\subsection{Key Design Decisions}
+
+\begin{itemize}
+\item \textbf{Trimming leading zeros} keeps the invariant that the degree is accurate. Every constructor and mutating operation calls \texttt{trim()}.
+\item \textbf{Horner's method} for evaluation uses only $n$ multiplications and $n$ additions, with good numerical stability.
+\item \textbf{Naive multiplication} is $O(n^{2})$. For high-degree polynomials, the FFT-based approach achieves $O(n \log n)$, but the constant factor is large enough that naive is faster for small degrees.
+\item \textbf{Coefficient vector} representation is simple and cache-friendly but wastes space for sparse polynomials (few nonzero terms). A map-based representation would be better for sparse polynomials.
+\end{itemize}
+
+\section{ADT for Matrix}
+
+A matrix ADT encapsulates a two-dimensional array of values and provides linear algebra operations. We focus on \textbf{sparse matrices}, which are common in scientific computing and machine learning.
+
+\subsection{ADT Specification}
+
+A matrix $A$ of size $m \times n$ has $m$ rows and $n$ columns. A matrix is \textbf{sparse} when most entries are zero.
+
+\textbf{Operations:}
+\begin{itemize}
+\item \textbf{Matrix(m, n)} -- construct an $m \times n$ zero matrix
+\item \textbf{Matrix(m, n, entries)} -- construct from a list of $(row, col, value)$ triples
+\item \textbf{rows(), cols()} -- return dimensions
+\item \textbf{get(i, j)} -- return $A_{ij}$, $O(1)$ amortized
+\item \textbf{set(i, j, val)} -- set $A_{ij} = \text{val}$
+\item \textbf{add(B)} -- return $A + B$, $O(\text{nnz})$
+\item \textbf{multiply(B)} -- return $A \cdot B$, $O(\text{nnz}(A) \cdot n_{\text{cols}})$ for naive
+\item \textbf{transpose()} -- return $A^{T}$, $O(\text{nnz})$
+\end{itemize}
+
+where $\text{nnz}$ is the number of nonzero entries.
+
+\textbf{Complexity summary (sparse representation):}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Operation & Complexity \\
+\midrule
+get & $O(\log \text{nnz})$ per row \\
+set & $O(\log \text{nnz})$ per row \\
+add & $O(\text{nnz})$ \\
+multiply & $O(\text{nnz}(A) \cdot n_{\text{cols}}(B))$ \\
+transpose & $O(m + n + \text{nnz})$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Compressed Row Storage (CRS)}
+
+Compressed Row Storage, also called CSR, is the standard sparse matrix format. It stores:
+\begin{itemize}
+\item \textbf{values} -- array of all nonzero values, row by row
+\item \textbf{col\_index} -- array of column indices corresponding to each value
+\item \textbf{row\_ptr} -- array of size $m+1$; \texttt{row\_ptr[i]} is the start of row $i$ in the values array
+\end{itemize}
+
+For a $4 \times 5$ matrix:
+\[
+A = \begin{pmatrix} 1 & 0 & 0 & 2 & 0 \\ 0 & 0 & 3 & 0 & 0 \\ 0 & 4 & 0 & 0 & 5 \\ 0 & 0 & 0 & 6 & 0 \end{pmatrix}
+\]
+
+The CRS representation is:
+\begin{lstlisting}
+values    = { 1, 2, 3, 4, 5, 6 }
+col_index = { 0, 3, 2, 1, 4, 3 }
+row_ptr   = { 0, 2, 3, 5, 6 }
+\end{lstlisting}
+
+Row 2 spans \texttt{values[3..4]} = $\{4, 5\}$ in columns $\{1, 4\}$. Finding a specific element in row $i$ requires a binary search within \texttt{row\_ptr[i]} to \texttt{row\_ptr[i+1]-1}, giving $O(\log \text{nnz\_in\_row})$ access.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <algorithm>
+#include <stdexcept>
+#include <iostream>
+
+class sparse_matrix {
+public:
+    using triplet = std::tuple<int, int, double>;
+
+    sparse_matrix(int rows, int cols)
+        : rows_(rows), cols_(cols),
+          row_ptr_(rows + 1, 0) {}
+
+    sparse_matrix(int rows, int cols, std::vector<triplet> entries)
+        : rows_(rows), cols_(cols) {
+        // Sort entries by (row, col)
+        std::sort(entries.begin(), entries.end(),
+            [](const triplet& a, const triplet& b) {
+                if (std::get<0>(a) != std::get<0>(b))
+                    return std::get<0>(a) < std::get<0>(b);
+                return std::get<1>(a) < std::get<1>(b);
+            });
+
+        // Build CRS arrays
+        row_ptr_.assign(rows + 1, 0);
+        for (const auto& [r, c, v] : entries) {
+            if (v != 0.0) {
+                row_ptr_[r + 1]++;
+                values_.push_back(v);
+                col_index_.push_back(c);
+            }
+        }
+
+        // Convert counts to prefix sums
+        for (int i = 0; i < rows; ++i) {
+            row_ptr_[i + 1] += row_ptr_[i];
+        }
+    }
+
+    int rows() const { return rows_; }
+    int cols() const { return cols_; }
+    int nnz() const { return static_cast<int>(values_.size()); }
+
+    double get(int r, int c) const {
+        int start = row_ptr_[r];
+        int end = row_ptr_[r + 1];
+        auto it = std::lower_bound(
+            col_index_.begin() + start,
+            col_index_.begin() + end, c);
+        if (it != col_index_.begin() + end && *it == c) {
+            return values_[it - col_index_.begin()];
+        }
+        return 0.0;
+    }
+
+    // O(nnz) matrix addition
+    sparse_matrix add(const sparse_matrix& B) const {
+        if (rows_ != B.rows_ || cols_ != B.cols_)
+            throw std::invalid_argument("dimension mismatch");
+
+        sparse_matrix result(rows_, cols_);
+        std::vector<triplet> entries;
+
+        for (int i = 0; i < rows_; ++i) {
+            int a_start = row_ptr_[i], a_end = row_ptr_[i + 1];
+            int b_start = B.row_ptr_[i], b_end = B.row_ptr_[i + 1];
+            int ai = a_start, bi = b_start;
+            while (ai < a_end || bi < b_end) {
+                int ac = (ai < a_end) ? col_index_[ai] : cols_;
+                int bc = (bi < b_end) ? B.col_index_[bi] : cols_;
+                if (ac == bc) {
+                    double sum = values_[ai] + B.values_[bi];
+                    if (sum != 0.0) entries.emplace_back(i, ac, sum);
+                    ++ai; ++bi;
+                } else if (ac < bc) {
+                    entries.emplace_back(i, ac, values_[ai]);
+                    ++ai;
+                } else {
+                    entries.emplace_back(i, bc, B.values_[bi]);
+                    ++bi;
+                }
+            }
+        }
+        return sparse_matrix(rows_, cols_, entries);
+    }
+
+    // O(nnz(A) * n_cols(B)) sparse matrix multiply
+    sparse_matrix multiply(const sparse_matrix& B) const {
+        if (cols_ != B.rows_)
+            throw std::invalid_argument("dimension mismatch");
+
+        std::vector<triplet> entries;
+        for (int i = 0; i < rows_; ++i) {
+            std::vector<double> tmp(B.cols_, 0.0);
+            for (int ai = row_ptr_[i]; ai < row_ptr_[i + 1]; ++ai) {
+                int k = col_index_[ai];
+                double a_val = values_[ai];
+                for (int bj = B.row_ptr_[k]; bj < B.row_ptr_[k + 1]; ++bj) {
+                    tmp[B.col_index_[bj]] += a_val * B.values_[bj];
+                }
+            }
+            for (int j = 0; j < B.cols_; ++j) {
+                if (tmp[j] != 0.0) entries.emplace_back(i, j, tmp[j]);
+            }
+        }
+        return sparse_matrix(rows_, B.cols_, entries);
+    }
+
+    // O(m + n + nnz) transpose
+    sparse_matrix transpose() const {
+        sparse_matrix result(cols_, rows_);
+        result.row_ptr_.assign(cols_ + 1, 0);
+
+        // Count entries per column (now row in result)
+        for (int c : col_index_) {
+            result.row_ptr_[c + 1]++;
+        }
+        for (int i = 0; i < cols_; ++i) {
+            result.row_ptr_[i + 1] += result.row_ptr_[i];
+        }
+
+        result.values_.resize(nnz());
+        result.col_index_.resize(nnz());
+        std::vector<int> pos(result.row_ptr_.begin(), result.row_ptr_.end());
+
+        for (int i = 0; i < rows_; ++i) {
+            for (int j = row_ptr_[i]; j < row_ptr_[i + 1]; ++j) {
+                int c = col_index_[j];
+                int dest = pos[c]++;
+                result.values_[dest] = values_[j];
+                result.col_index_[dest] = i;
+            }
+        }
+        return result;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const sparse_matrix& m) {
+        for (int i = 0; i < m.rows_; ++i) {
+            for (int j = 0; j < m.cols_; ++j) {
+                if (j > 0) os << " ";
+                os << m.get(i, j);
+            }
+            os << "\n";
+        }
+        return os;
+    }
+
+private:
+    int rows_, cols_;
+    std::vector<double> values_;
+    std::vector<int> col_index_;
+    std::vector<int> row_ptr_;
+};
+\end{lstlisting}
+
+\subsection{When to Use CRS vs Dense}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Criterion & Dense (2D vector) & CRS \\
+\midrule
+Memory & $O(mn)$ & $O(m + n + \text{nnz})$ \\
+Access $A_{ij}$ & $O(1)$ & $O(\log \text{nnz\_in\_row})$ \\
+Iteration over row & $O(n)$ & $O(\text{nnz\_in\_row})$ \\
+Cache behavior & Excellent for small matrices & Good when rows fit in cache \\
+Overhead & None & Index arrays \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Use CRS when the matrix is large and sparse ($\text{nnz} \ll mn$). For matrices that are more than 30-50\% nonzero, a dense representation is usually faster due to better cache locality and no indirection overhead.
+
+\section{ADT for Graph}
+
+A graph $G = (V, E)$ consists of a set of vertices $V$ and a set of edges $E \subseteq V \times V$. The \textbf{Graph Abstract Data Type} specifies the operations available on a graph without committing to a particular representation.
+
+\subsection{ADT Specification}
+
+The Graph ADT supports the following core operations:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Operation & Signature & Description \\
+\midrule
+add\_edge & \texttt{add\_edge(u, v)} & Add edge $(u, v)$ \\
+remove\_edge & \texttt{remove\_edge(u, v)} & Remove edge $(u, v)$ \\
+has\_edge & \texttt{has\_edge(u, v) -> bool} & Test if $(u, v)$ exists \\
+degree & \texttt{degree(v) -> int} & Number of neighbors of $v$ \\
+bfs\index{BFS} & \texttt{bfs(start) -> vector} & Breadth-first traversal \\
+dfs\index{DFS} & \texttt{dfs(start) -> vector} & Depth-first traversal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Representations}
+
+Two common representations exist:
+
+\begin{itemize}
+\item \textbf{Adjacency Matrix.} A 2D array $A$ of size $|V| \times |V|$ where $A[u][v] = 1$ if edge $(u,v)$ exists, 0 otherwise. Space: $O(|V|^2)$. Edge test: $O(1)$. Adding/removing an edge: $O(1)$.
+\item \textbf{Adjacency List.} An array of lists, one per vertex, storing neighbors. Space: $O(|V| + |E|)$. Edge test: $O(\deg(u))$. Adding an edge: $O(1)$ (prepend).
+\end{itemize}
+
+The adjacency list is preferred for sparse graphs; the adjacency matrix is preferred for dense graphs or when $O(1)$ edge queries are critical.
+
+\subsection{C++ Implementation (Adjacency List)}
+
+\begin{lstlisting}[language=C++, caption={Graph ADT using adjacency list}]
+#include <iostream>
+#include <vector>
+#include <list>
+#include <queue>
+#include <algorithm>
+
+class Graph {
+public:
+    explicit Graph(int num_vertices)
+        : adj_(num_vertices) {}
+
+    void add_edge(int u, int v) {
+        adj_[u].push_back(v);
+        adj_[v].push_back(u);
+    }
+
+    void remove_edge(int u, int v) {
+        adj_[u].remove(v);
+        adj_[v].remove(u);
+    }
+
+    bool has_edge(int u, int v) const {
+        for (int neighbor : adj_[u]) {
+            if (neighbor == v) return true;
+        }
+        return false;
+    }
+
+    int degree(int v) const {
+        return static_cast<int>(adj_[v].size());
+    }
+
+    std::vector<int> bfs(int start) const {
+        std::vector<int> visited(adj_.size(), 0);
+        std::vector<int> order;
+        std::queue<int> q;
+        visited[start] = 1;
+        q.push(start);
+        while (!q.empty()) {
+            int v = q.front(); q.pop();
+            order.push_back(v);
+            for (int w : adj_[v]) {
+                if (!visited[w]) {
+                    visited[w] = 1;
+                    q.push(w);
+                }
+            }
+        }
+        return order;
+    }
+
+    std::vector<int> dfs(int start) const {
+        std::vector<int> visited(adj_.size(), 0);
+        std::vector<int> order;
+        dfs_helper(start, visited, order);
+        return order;
+    }
+
+    int num_vertices() const {
+        return static_cast<int>(adj_.size());
+    }
+
+private:
+    std::vector<std::list<int>> adj_;
+
+    void dfs_helper(int v, std::vector<int>& visited,
+                    std::vector<int>& order) const {
+        visited[v] = 1;
+        order.push_back(v);
+        for (int w : adj_[v]) {
+            if (!visited[w]) {
+                dfs_helper(w, visited, order);
+            }
+        }
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity Summary}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Adj. List & Adj. Matrix \\
+\midrule
+Space & $O(|V|+|E|)$ & $O(|V|^2)$ \\
+add\_edge & $O(1)$ & $O(1)$ \\
+remove\_edge & $O(\deg u)$ & $O(1)$ \\
+has\_edge & $O(\deg u)$ & $O(1)$ \\
+degree & $O(1)$ & $O(|V|)$ \\
+BFS/DFS & $O(|V|+|E|)$ & $O(|V|^2)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For a graph with $|V| = 10{,}000$ vertices and $|E| = 20{,}000$ edges, the adjacency list uses roughly 240\,KB while the adjacency matrix uses 400\,MB --- a factor of 1{,}700$\times$.
+
+\section{Common Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Debug build & Measurements include assertions & Use \texttt{-O2} \\
+No warm-up & Cold cache skews results & Run iterations before measuring \\
+Too few iterations & High variance & Use enough iterations for stable mean \\
+Dead code elimination & Zero time reported & Consume results with \texttt{DoNotOptimize} \\
+System load & Inconsistent timing & Run on idle system, report median \\
+Clock resolution & Zero elapsed time & Use enough work per measurement \\
+Inlining & Function not measured separately & Use \texttt{\_\_attribute\_\_((noinline))} \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Use \texttt{std::chrono::steady\_clock}} for portable timing.
+\item \textbf{Use Google Benchmark} for serious measurement — it handles warm-up, iteration control, and statistics.
+\item \textbf{Always optimize} (\texttt{-O2} or \texttt{-O3}) when benchmarking.
+\item \textbf{Prevent dead code elimination} by consuming results.
+\item \textbf{Profile} to find bottlenecks; \textbf{measure} to verify improvements.
+\item \textbf{Understand hardware effects} — cache misses dominate for large data sets.
+\item \textbf{Report methodology} so results are reproducible.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{Average vs tail latency.} A performance test reports average latency of 2 ms but P99 (99th percentile) of 200 ms. Why are these so different? For a checkout service that must respond within 10 ms, which metric matters? What fraction of customers experience a timeout?
+\end{enumerate}
+
+   \textit{(In production, companies like Google and Amazon use P99.9 or P99.99 for SLOs because averages hide the slow requests that hurt user experience.)}
+
+\begin{enumerate}
+\item \textbf{Clock choice.} You measure a function with \texttt{std::chrono::steady\_clock} and get 4.8 seconds. A colleague uses \texttt{std::chrono::system\_clock} and gets 5.2 seconds. Both ran the same code on the same machine. What property of \texttt{system\_clock} (vs \texttt{steady\_clock}) explains the difference? Which is correct for benchmarking?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Tail latency in servers.} A web server handles 100 concurrent connections. The average response time reported is 2 ms, but P99.9 is 500 ms. An engineer says "the 500 ms is just an outlier — I'll optimize the 2 ms average." Why is this wrong for an e-commerce site? If 0.1\% of requests are slow and the site serves 1 million requests/day, how many users are affected?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Dead code elimination.} The following benchmark always reports 0 ns:
+\begin{lstlisting}
+   static void BM_Sort(benchmark::State& state) {
+       std::vector<int> v(1000000);
+       std::iota(v.begin(), v.end(), 0);
+       for (auto _ : state) {
+           std::sort(v.begin(), v.end());  // result never used!
+       }
+   }
+\end{lstlisting}
+\end{enumerate}
+   Why does the compiler optimize away the sort? How do you fix it?
+
+\begin{enumerate}
+\item \textbf{Wall time vs CPU time.} A benchmark shows wall time = 10 s but CPU time = 4 s. Where did the other 6 seconds go? List three possible causes.
+\end{enumerate}
+
+   \textit{(In production, burstable cloud instances (like AWS t3) can cause this discrepancy when CPU credits run out.)}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Throughput-latency measurement.} A message queue\index{queue} ingests data from producers. On a fast server it handles 800 MB/s. On a modest server, design a benchmark that:
+\end{enumerate}
+\begin{itemize}
+\item Measures throughput (MB/s)
+\item Reports P50, P99, P99.9 latency
+\item Runs for at least 60 seconds to steady state
+\item Compares synchronous (wait for confirmation) vs asynchronous (fire-and-forget) modes
+\end{itemize}
+   Plot throughput vs latency. What throughput can you guarantee if latency must stay under 50 ms?
+
+\begin{enumerate}
+\item \textbf{Load testing.} A web service gets 1000 req/s at night and 10000 req/s during peak. Load testing at peak shows 12 ms average latency. A colleague says "run at 60\% CPU to leave headroom." Another says "90\% CPU is fine, latency is 11 ms." Design an experiment that gradually increases load and finds the inflection point where latency starts to spike.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Cache effects.} An analytical query runs 10$\times $ slower the first time than subsequent times. The difference is the cache. Design a benchmark that:
+\end{enumerate}
+\begin{itemize}
+\item Warms the cache (run once, discard)
+\item Then measures cold cache (drop OS caches)
+\item Tests concurrent queries (1, 4, 16 simultaneous)
+\item Tests different data sizes (1 GB, 10 GB)
+\item Runs each configuration 10+ times for statistical significance
+\end{itemize}
+   Report which factor (concurrency, data size, cache state) has the largest impact.
+
+   \textit{(In production, databases like ClickHouse are sensitive to all three — their documentation specifies which knobs to tune.)}
+
+\begin{enumerate}
+\item \textbf{SIMD vs scalar.} Compare an element-wise operation on a large array using plain C++ vs using SIMD intrinsics (SSE/AVX on x86 or NEON on ARM):
+\end{enumerate}
+\begin{itemize}
+\item Element-wise multiplication of 1$0^{7}$ floats
+\item Dot product of two vectors
+\end{itemize}
+   Use your platform's timing. Plot time vs array size. At what size does SIMD pull ahead?
+
+\begin{enumerate}
+\item \textbf{False sharing.} Two threads increment adjacent variables in an array. Performance is poor beyond 2 cores. The cause is false sharing: the CPU cache line (typically 64 bytes) holds both variables, so each write invalidates the other thread's copy. Design a benchmark that:
+\end{enumerate}
+\begin{itemize}
+\item Creates an array of atomic counters
+\item Launches 2, 4, 8 threads, each incrementing its own counter
+\item Measures throughput with and without padding (put each counter in its own cache line)
+\item Reports speedup vs thread count
+\end{itemize}
+
+     \textit{(In production, this pattern appears wherever threads update independent but adjacent data — Uber's H3 geospatial indexing library is one example.)}
+
+\subsection{ADT Design and Implementation}
+
+\begin{enumerate}
+\item \textbf{Polynomial evaluation.} Implement the polynomial class from this chapter. Given $p(x) = 5x^{4} - 3x^{2} + 7$, compute $p(1)$, $p(-2)$, and $p(0)$. Verify by hand.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Horner vs naive.} Write two evaluation functions: one using Horner's method and one computing each power of $x$ separately using \texttt{std::pow}. Benchmark both for a degree-100 polynomial over $10^{6}$ random inputs. Which is faster and why?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sparse matrix construction.} Create a $5 \times 5$ identity matrix in CRS format. Print the \texttt{values}, \texttt{col\_index}, and \texttt{row\_ptr} arrays. Verify that the number of entries in \texttt{row\_ptr} is $m + 1$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Matrix transpose.} Given a $3 \times 4$ sparse matrix with 5 nonzero entries, compute its transpose by hand. Then run the \texttt{transpose()} method and verify the output matches.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Polynomial derivative chain rule.} Extend the polynomial class with a method \texttt{compose(q)} that computes $p(q(x))$. What is the time complexity in terms of the degrees of $p$ and $q$? Implement it and test with $p(x) = x^{2} + 1$ and $q(x) = 2x + 3$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sparse matrix multiply benchmark.} Generate two random $1000 \times 1000$ sparse matrices with 1\% nonzero density. Measure the time for naive multiply ($O(mn^{2})$ using dense representation) vs CRS multiply. At what density does CRS become faster?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Polynomial ADT with map storage.} Implement a second polynomial class that stores nonzero coefficients in a \texttt{std::map<int, double>} instead of a vector. Compare memory usage and evaluation speed with the vector-based version for a degree-1000 polynomial with only 5 nonzero terms.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{CRS vs COO format.} Implement the Coordinate (COO) sparse matrix format, which stores a list of (row, col, value) triples. Compare it with CRS for: (a) construction time from a stream of entries, (b) element access time, (c) memory usage. When is COO preferable to CRS?
+\end{enumerate}
+
+\subsection{Inheritance and Templates}
+
+\begin{enumerate}
+\item \textbf{Inheritance hierarchy for matrices.} Design a base class \texttt{matrix\_base} with pure virtual methods \texttt{get}, \texttt{set}, \texttt{rows}, \texttt{cols}. Derive \texttt{dense\_matrix} and \texttt{sparse\_matrix} (using CRS) from it. Write a function \texttt{multiply(matrix\_base\& a, matrix\_base\& b)} that works polymorphically. Discuss the overhead of virtual dispatch in tight loops.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Template matrix class.} Write a template class \texttt{matrix<T>} that works for \texttt{int}, \texttt{double}, and a user-defined \texttt{rational} type. Ensure that all arithmetic operations (+, *, transpose) compile and produce correct results for each type.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Operator overloading for matrices.} Extend the \texttt{sparse\_matrix} class with operator overloading: \texttt{operator+}, \texttt{operator*}, \texttt{operator==}, and \texttt{operator$\ll$}. Discuss the design tension between returning by value (safe but copies) and returning by reference (efficient but lifetime issues). Implement both and benchmark the difference for large matrices.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Cycle-accurate timing.} Research the \texttt{rdtscp} CPU instruction that reads the cycle counter. Write a C++ wrapper. Benchmark \texttt{std::chrono::steady\_clock::now()} overhead vs your \texttt{rdtscp} wrapper over 1$0^{6}$ calls. Which is more precise? When would a cycle counter give misleading results (hint: CPU frequency scaling)?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Profiling a real system.} Download an open-source database engine (e.g., DuckDB). Build it. Run a standard benchmark query and profile using \texttt{perf record} or Instruments. Identify:
+\end{enumerate}
+\begin{itemize}
+\item The hottest 3 functions
+\item Percentage of time in hash lookups vs parsing vs I/O
+\item Cache miss rates (L1, LLC)
+\item Branch misprediction rate
+\end{itemize}
+    Propose one optimization based on the profile.
+
+\begin{enumerate}
+\item \textbf{Statistical significance.} Run a sorting benchmark 30 times under identical conditions. Compute mean, std dev, and 95\% confidence interval. Then introduce a small change (e.g., switch from \texttt{std::sort} to \texttt{std::stable\_sort}) — can you detect the difference with 30 runs? With 100 runs? How small a change can you reliably detect?
+\end{enumerate}
+
+    \textit{(In production, Google's performance lab uses A/A testing (both groups get the same treatment) to measure the noise floor before running actual experiments.)}
+
+\begin{enumerate}
+\item \textbf{Compiler profiling.} Compile a medium-sized C++ project and use your compiler's time-tracing flags (e.g., \texttt{-ftime-report} in GCC/Clang) to measure which optimization pass takes the most time. Is it inlining? Loop optimization? Register allocation? Propose one improvement.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{FFT-based polynomial multiplication.} Research the Cooley-Tukey FFT algorithm. Implement polynomial multiplication using FFT: (1) convert coefficient vectors to point-value representation via FFT, (2) multiply pointwise, (3) convert back via inverse FFT. Benchmark against naive multiplication for polynomials of degree $2^{10}$ through $2^{16}$. At what degree does FFT become faster?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Strassen matrix multiplication.} Research Strassen's algorithm, which multiplies $n \times n$ matrices in $O(n^{2.807})$ time. Implement it for dense matrices. Compare with naive $O(n^{3})$ multiplication for $n = 64, 128, 256, 512$. What is the crossover point? What are the constant-factor penalties?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Compressed Column Storage (CCS).} Research CCS, the column-oriented dual of CRS. Implement it. For which operations (row access, column access, transpose, multiply) is CCS faster than CRS? When would a library choose CCS over CRS?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Expression templates for lazy evaluation.} Research expression templates, a C++ technique that avoids temporary matrices in expressions like \texttt{C = A + B * D}. Implement a minimal expression template system for matrix operations. Measure the speedup compared to eager evaluation on a chain of 10 matrix additions and multiplications.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Polynomial root finding.} Research Newton's method for finding real roots of a polynomial. Implement it using the polynomial class's \texttt{evaluate} and \texttt{derivative} methods. Find all real roots of $p(x) = x^{3} - 6x^{2} + 11x - 6$ (which factors as $(x-1)(x-2)(x-3)$). Discuss convergence guarantees and failure cases.
+\end{enumerate}
+
+\section{Primitive and Non-Primitive Data Structures}
+
+\label{sec:primitive-nonprimitive}
+
+Every program manipulates data. The fundamental question is: \emph{how} do we organize that data? Data structures fall into two broad categories: \textbf{primitive} and \textbf{non-primitive}.
+
+\subsection{Primitive Data Structures}
+
+\textbf{Primitive data structures} store a single value directly in memory. They are built into the C++ language and have fixed sizes determined by the hardware and compiler. The CPU can access them in a single operation (typically one memory load).
+
+\begin{lstlisting}[language=C++]
+int x = 42;              // 4 bytes, stored in a register or stack
+double pi = 3.14159;     // 8 bytes
+char c = 'A';            // 1 byte
+bool flag = true;        // 1 byte
+float f = 2.718f;        // 4 bytes
+long long big = 1e18;    // 8 bytes
+void* ptr = &x;          // 8 bytes (64-bit pointer)
+\end{lstlisting}
+
+\textbf{Properties of primitives:}
+\begin{itemize}
+\item Fixed size known at compile time
+\item Stored by value (no indirection)
+\item O(1) access — a single load/store instruction
+\item No methods, no encapsulation (just raw bits)
+\item Can be combined into \texttt{struct} for composite values
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+// Structs compose primitives into a single unit
+struct Point {
+    double x;  // 8 bytes
+    double y;  // 8 bytes
+};             // 16 bytes total, contiguous in memory
+
+Point p = {3.0, 4.0};  // stored as 16 consecutive bytes
+\end{lstlisting}
+
+\subsection{Non-Primitive Data Structures}
+
+\textbf{Non-primitive data structures} organize multiple data elements into relationships. They are built by the programmer (or provided by libraries) and can grow dynamically. They form the core of this book.
+
+Non-primitive structures are divided into two categories:
+
+\subsubsection{Linear Data Structures}
+
+Elements are arranged in a sequence. Each element has at most one predecessor and one successor.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Structure & Access & Memory \\
+\midrule
+Array & O(1) by index & Contiguous \\
+Linked List & O(n) by position & Scattered nodes \\
+Stack\index{stack} & O(1) top only & Array or linked \\
+Queue & O(1) front/rear & Array or linked \\
+Hash Table & O(1) average by key & Buckets + nodes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{lstlisting}[language=C++]
+// Array: contiguous, O(1) index access
+int arr[5] = {10, 20, 30, 40, 50};
+int val = arr[2];  // O(1) -- direct memory offset
+
+// Linked list: scattered, O(n) traversal
+struct Node { int data; Node* next; };
+Node* head = new Node{10, new Node{20, new Node{30, nullptr}}};
+// To reach the 3rd element: head->next->next->data (O(n))
+\end{lstlisting}
+
+\subsubsection{Non-Linear Data Structures}
+
+Elements form relationships beyond simple sequences — trees, graphs, and their variants. Each element can connect to multiple others.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Structure & Relationship & Example \\
+\midrule
+Binary Tree & Parent $\to$ 2 children & Expression trees, BSTs \\
+Multi-way Tree & Parent $\to$ many children & B-trees, tries \\
+Graph & Arbitrary connections & Social networks, road maps \\
+Heap & Parent $\leq$ children (partial order) & Priority queues \\
+Hash Map & Key $\to$ value & Dictionaries, caches \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{lstlisting}[language=C++]
+// Binary tree: each node has up to 2 children
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+};
+
+// Graph: adjacency list
+std::vector<std::vector<int>> adj(n);  // adj[u] = neighbors of u
+adj[0].push_back(1);  // edge 0 -> 1
+adj[0].push_back(2);  // edge 0 -> 2
+adj[1].push_back(3);  // edge 1 -> 3
+\end{lstlisting}
+
+\subsection{Classification Tree}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Category & Type & Examples \\
+\midrule
+Primitive & Integral & \texttt{int}, \texttt{char}, \texttt{bool}, \texttt{long long} \\
+& Floating-point & \texttt{float}, \texttt{double} \\
+& Pointer & \texttt{T*}, \texttt{std::shared\_ptr<T>} \\
+& Composite & \texttt{struct}, \texttt{std::pair} \\
+\midrule
+Non-Primitive & Linear & Array, Linked List, Stack, Queue \\
+& Non-Linear & Tree, Graph, Heap, Hash Table \\
+\midrule
+Design & Active & \texttt{std::vector}, AVL, Segment Tree \\
+& Passive & C-array, POD struct \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Comparison}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Aspect & Primitive & Linear & Non-Linear & Active \\
+\midrule
+Size & Fixed & Dynamic & Dynamic & Dynamic \\
+Access & O(1) & O(1) index / O(n) search & Varies & Varies \\
+Memory & Contiguous & Varies & Varies & Varies \\
+Operations & None & Insert/Delete & Insert/Delete & Encapsulated \\
+Cache & Excellent & Good (array) / Bad (list) & Varies & Varies \\
+Overhead & None & Pointers & Pointers + bookkeeping & RAII + invariants \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Where does the primitive/non-primitive boundary actually break down in practice?}
+
+The real distinction is ownership semantics. A primitive is a value type --- trivially copyable, no invariants. A non-primitive manages state: it owns memory, enforces invariants, or provides operations that mutate internal structure. But the line blurs constantly. \texttt{std::atomic<int>} is a single value but manages a memory ordering contract. \texttt{std::span} is a view over contiguous memory --- no allocation, but it carries size and bounds. In embedded/HPC, you often \emph{want} non-primitive organization (e.g., SOA layout) with primitive-like semantics (no heap, no indirection). The question isn't ``what category does this fall into?'' but ``who owns the invariants?''
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does the compiler treat \texttt{int[3]} differently from \texttt{int} --- and when does that matter?}
+
+An \texttt{int} is a value type: \texttt{sizeof(int)} is defined by the ABI, it's passed in a register, and assignment copies the value. An \texttt{int[3]} decays to a pointer in most contexts --- it doesn't know its own size, can't be assigned, and can't be returned from functions. This matters when you choose between \texttt{std::array<int,3>} (value type with size awareness, assignable, copyable) vs.\ raw arrays. \texttt{std::array} closes the semantic gap: it's non-primitive in organization but primitive in behavior (trivially copyable, no heap allocation, no invariants).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When should you reach for a simple struct/array instead of a library container like \texttt{std::vector} or \texttt{std::map}?}
+
+Use raw/POD when: (1) the size is compile-time known and small (stack allocation avoids heap), (2) you need a trivially-copyable type for IPC/shared memory, (3) you're building a higher-level structure and need full control over layout (arena allocators, GPU buffers). Use library containers when: the size is dynamic, you need exception safety, or you want the compiler to enforce invariants. The real cost of \texttt{std::vector<int>} isn't the data --- it's the heap allocation and indirection. For 4 integers, a \texttt{struct \{ int a,b,c,d; \}} is 3x faster in a hot loop.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does a sorted array outperform a balanced BST, despite both having O(log n) lookup?}
+
+A sorted array has perfect cache locality --- binary search touches O(log n) contiguous elements. A balanced BST (AVL, RB-tree) touches O(log n) nodes scattered across the heap, each causing a cache miss ($\sim$100 cycles). For read-heavy workloads with infrequent inserts, a sorted \texttt{std::vector} with \texttt{std::lower\_bound} often beats \texttt{std::set} by 5--10x in practice. Use a BST when you need O(log n) \emph{insertion} in the middle, or when the collection must stay sorted under mutation. The Linux kernel uses a red-black tree for its scheduler, but Google's btree library uses sorted vectors for exactly this cache-locality reason.
+\end{enumerate}
+
+\section{Active and Passive Data Structures}
+
+\label{sec:active-passive}
+
+Data structures can be classified as \emph{active} or \emph{passive} based on how they manage memory and provide operations. Understanding this distinction helps you choose the right design for a given problem.
+
+\subsection{Definitions}
+
+\textbf{Active data structures} encapsulate memory management and provide a set of operations (insert, delete, search) that hide the internal representation. They allocate and deallocate memory internally, enforce invariants (e.g., a BST remains balanced), and expose a high-level API. Examples from this book include \texttt{std::vector}, hash tables, AVL trees, and segment trees.
+
+\textbf{Passive data structures} are plain containers with no built-in operations. They store data in raw memory and leave all management to the caller. Examples include C-style arrays, \texttt{struct} arrays, and POD (Plain Old Data) types.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Aspect & Active & Passive \\
+\midrule
+Memory management & Internal (RAII, \texttt{new}/\texttt{delete}) & External (caller) \\
+Operations & Encapsulated methods & None (manual) \\
+Invariants & Enforced by the structure & Caller's responsibility \\
+Typical overhead & Higher (indirection, bookkeeping) & Lower (raw access) \\
+Examples & \texttt{std::map}, AVL, heap & \texttt{int[]}, POD struct \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Active Data Structure Example: AVL Tree}
+
+An AVL tree manages its own nodes, performs rotations on insert/delete, and maintains the balance invariant. The caller never touches pointers directly:
+
+\begin{lstlisting}[language=C++]
+struct avl_node { int key; int height; avl_node* left; avl_node* right; };
+
+avl_node* insert(avl_node* root, int key) {
+    if (!root) return new avl_node{key, 0, nullptr, nullptr};
+    if (key < root->key) root->left = insert(root->left, key);
+    else if (key > root->key) root->right = insert(root->right, key);
+    root->height = 1 + max(height(root->left), height(root->right));
+    return rebalance(root);  // rotations enforce invariant
+}
+\end{lstlisting}
+
+The structure \emph{actively} enforces balance: the caller cannot corrupt the BST property without going through the API.
+
+\subsection{Passive Data Structure Example: C-Array}
+
+A C-style array stores elements contiguously but provides no operations:
+
+\begin{lstlisting}[language=C++]
+int arr[100];
+int n = 0;
+
+// Caller must manage size, bounds, sorting manually
+void push(int val) { arr[n++] = val; }
+int pop() { return arr[--n]; }
+// No bounds checking, no invariants enforced
+\end{lstlisting}
+
+The array is \emph{passive}: it stores bytes but does nothing with them.
+
+\subsection{Hybrid Approach: C++ Containers}
+
+Most C++ STL containers are active: \texttt{std::vector}, \texttt{std::list}, \texttt{std::map}. They combine active memory management with passive storage elements:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v;           // active container
+v.push_back(42);              // managed internally
+
+struct point { int x, y; };   // passive element type
+std::vector<point> pts;       // active container, passive elements
+pts.push_back({3, 4});        // element is a plain struct
+\end{lstlisting}
+
+This separation is deliberate: the container handles memory while the element type stays simple and cache-friendly.
+
+\subsection{When to Use Each}
+
+Use \textbf{active} structures when:
+\begin{itemize}
+\item The collection grows or shrinks dynamically.
+\item Invariants (sorted order, balance, uniqueness) must be maintained.
+\item Safety and correctness are more important than raw speed.
+\end{itemize}
+
+Use \textbf{passive} structures when:
+\begin{itemize}
+\item The size is fixed or known in advance.
+\item You need maximum cache efficiency and minimal overhead.
+\item You want full control over memory layout (e.g., SoA vs AoS for GPU compute).
+\item Building a higher-level active structure on top (e.g., implementing your own allocator).
+\end{itemize}
+
+\subsection{Active vs Passive in Modern C++}
+
+C++17 and C++20 blur the boundary with \texttt{constexpr}, \texttt{std::array}, and \texttt{std::span}:
+
+\begin{lstlisting}[language=C++]
+constexpr std::array<int, 5> arr = {3, 1, 4, 1, 5};
+// Compile-time fixed array: passive but zero-cost
+
+std::vector<int> v = {3, 1, 4, 1, 5};
+std::span<int> view = v;  // passive view over active container
+// span provides bounds-checked access without owning memory
+\end{lstlisting}
+
+A \texttt{std::span} is a passive view: it references memory managed by an active container. This pattern lets you write generic algorithms that work on both active and passive data:
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+int sum(std::span<const T> s) {
+    int total = 0;
+    for (const auto& x : s) total += x;
+    return total;
+}
+
+// Works with vector, array, C-array, or any contiguous range
+\end{lstlisting}
+
+\subsection{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{When building a custom container, what invariants should you enforce internally vs.\ leave to the caller?}
+
+Always enforce internally: memory lifetime (RAII), size tracking, and structural invariants (sorted order, balance). Leave to the caller: value-level invariants (e.g., ``all keys are positive'') and thread safety. The principle is: the container should make \emph{impossible states unrepresentable}. If your stack can underflow, your API design is wrong. The cost of enforcement is indirection and bookkeeping --- use passive structures only when you've measured that the overhead matters and can manage correctness yourself (e.g., arena allocators, SoA layouts for SIMD).
+
+\item \textbf{Can a passive struct accidentally become active through its members?}
+
+Yes --- and this is a common source of hidden costs. A \texttt{struct Node \{ std::vector<int> children; \}} is a passive POD, but constructing it triggers a heap allocation, and copying it deep-copies the vector. Smart pointers are worse: \texttt{struct Obj \{ std::shared\_ptr<Data> d; \}} has an atomic reference count that modifies memory on copy and destruction. This is why hot-path code often uses raw pointers + explicit lifetime management, or arena allocation. The struct's \emph{interface} is passive, but its \emph{behavior} is active --- and that mismatch causes surprises.
+
+\item \textbf{Give a concrete example where replacing \texttt{std::vector} with a raw array improved performance by 10x or more.}
+
+GPU compute: CUDA kernels can't dereference \texttt{std::vector} pointers because the data is on the host. You must copy into a raw \texttt{float*} buffer with a known stride. Similarly, in hot SIMD loops (e.g., dot product over 1M floats), \texttt{std::vector}'s bounds-checking in debug mode and the extra indirection through the control block can cost 2--3x. In lock-free data structures (e.g., LMAX Disruptor), the ring buffer is a raw array specifically because you need predictable memory layout for cache-line padding between producer and consumer indices. The ``active'' wrapper is overhead you're paying on every access.
+
+\item \textbf{Why does \texttt{std::span} exist when we already have iterators and pointers?}
+
+\texttt{std::span} bundles a pointer + size into one value type, making it safe to pass by value (unlike raw pointers where the size is decoupled). Unlike iterators, it works with raw arrays, \texttt{std::vector}, \texttt{std::array}, and C arrays uniformly --- no template bloat. The key insight: \texttt{std::span} lets you write a function \emph{once} and call it with any contiguous range, including stack-allocated arrays. This eliminates the common pattern of needing overloads for \texttt{vector<T>} and \texttt{T*}. In modern C++, \texttt{std::span<const T>} is the idiomatic parameter type for ``read-only contiguous data'' --- it's the non-owning equivalent of \texttt{std::vector<T>}.
+
+\item \textbf{When wrapping a raw buffer in a class, what's the first invariant you should enforce --- and what's the common mistake?}
+
+The first invariant is size tracking: the wrapper must know how many elements are valid, not just how much memory is allocated. The common mistake is adding a \texttt{push\_back} that grows the buffer without invalidating existing iterators/pointers --- this silently creates dangling references. RAII is the second invariant: the destructor must free memory. The transition from passive to active is really a decision about \emph{who is responsible for correctness}. If you wrap but don't enforce invariants, you've added indirection with zero benefit. If you over-enforce (e.g., bounds-checking on every access in a hot loop), you've paid a cost for safety you may not need.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Google Benchmark documentation: https://github.com/google/benchmark
+\item Chandler Carruth, "Tuning C++: Benchmarks, and CPUs, and Compilers! Oh My!" — CppCon 2015 talk.
+\item Agner Fog, "Optimizing Software in C++" — https://www.agner.org/optimize/
+\item Ulrich Drepper, "What Every Programmer Should Know About Memory" — https://people.freebsd.org/\textasciitilde{}lstewart/articles/cpumemory.pdf
+\item John L. Hennessy and David A. Patterson, \textit{Computer Architecture: A Quantitative Approach}, 6th Edition. Morgan Kaufmann, 2017.
+\item David Levinthal, "Performance Analysis Guide for Intel Core i7 and Intel Xeon 5500 Processors" — Intel, 2009.
+\item Paul E. McKenney, "Memory Barriers: a Hardware View for Software Hackers" — Linux Technical Conference, 2009.
+\end{itemize}
+

@@ -1,0 +1,13 @@
+Array: [1, 3, 5, 7, 9, 11, 2, 4, 6, 8]
+n = 10, B = 4 (block size)
+
+Block 0: [1, 3, 5, 7]  -> sum = 16, min = 1
+Block 1: [9, 11, 2, 4] -> sum = 26, min = 2
+Block 2: [6, 8]         -> sum = 14, min = 6
+
+Query sum(2, 8):
+  Boundary left:  A[2] + A[3] = 5 + 7 = 12  (partial block 0)
+  Full blocks:    sum(block 1) = 26
+  Boundary right: A[8] = 6                    (partial block 2)
+  Total: 12 + 26 + 6 = 44
+  Check: 5+7+9+11+2+4+6 = 44 (OK)

@@ -1,0 +1,6 @@
+T(n) = a*T(n/b) + f(n)
+
+where:
+a = number of subproblems
+n/b = size of each subproblem
+f(n) = cost of divide + combine

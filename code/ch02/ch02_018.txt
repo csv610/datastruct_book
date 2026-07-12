@@ -1,0 +1,14 @@
+hanoi(3, A, C, B):
+  hanoi(2, A, B, C):
+    hanoi(1, A, C, B):
+      move disk 1: A -> C
+    move disk 2: A -> B
+    hanoi(1, C, B, A):
+      move disk 1: C -> B
+  move disk 3: A -> C
+  hanoi(2, B, C, A):
+    hanoi(1, B, A, C):
+      move disk 1: B -> A
+    move disk 2: B -> C
+    hanoi(1, A, C, B):
+      move disk 1: A -> C

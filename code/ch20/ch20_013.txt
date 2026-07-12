@@ -1,0 +1,6 @@
+Round 1: s -> A -> J1 -> t. Match: {A-J1}.
+Round 2: s -> B -> J2 -> t. Match: {A-J1, B-J2}.
+Round 3: s -> C: C->J2 only, J2->t saturated.
+  Path: s -> C -> J2 -> B -> J1 -> t?
+  Residual: J2->B(1, reverse), B->J1 has no edge. Dead end.
+  No augmenting path. Max matching = 2. C is unmatched.

@@ -1,0 +1,30 @@
+Initial state:  text = ""
+                undo: []    redo: []
+
+type("hello"):
+  Inverse: delete("hello")
+  undo: [del("hello")]    redo: []
+  text = "hello"
+
+type(" world"):
+  Inverse: delete(" world")
+  undo: [del("hello"), del(" world")]    redo: []
+  text = "hello world"
+
+undo():
+  Pop: del(" world"), apply it
+  Push inverse onto redo
+  undo: [del("hello")]    redo: [type(" world")]
+  text = "hello"
+
+type("!"):
+  Inverse: delete("!")
+  Clear redo
+  undo: [del("hello"), del("!")]    redo: []
+  text = "hello!"
+
+redo():
+  Pop: type("!"), apply it
+  Push inverse onto undo
+  undo: [del("hello"), del("!"), del("!")]    redo: []
+  text = "hello!!"

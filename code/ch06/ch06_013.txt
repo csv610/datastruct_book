@@ -1,0 +1,11 @@
+Token "10"  ->  push 10.0    Stack: [10]
+Token "2"   ->  push 2.0     Stack: [10, 2]
+Token "3"   ->  push 3.0     Stack: [10, 2, 3]
+Token "+"   ->  pop 3, 2     ->  push 5.0
+               Stack: [10, 5]
+Token "*"   ->  pop 5, 10    ->  push 50.0
+               Stack: [50]
+Token "4"   ->  push 4.0     Stack: [50, 4]
+Token "-"   ->  pop 4, 50    ->  push 46.0
+               Stack: [46]
+Result: 46.0

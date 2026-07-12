@@ -1,0 +1,1312 @@
+\chapter{Stacks}\label{ch06:stacks}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The Stack ADT}
+
+A \textbf{stack} is a linear list where insertions and deletions occur only at one end, called the \textbf{top}. This LIFO (Last In, First Out) discipline is fundamental in computing.
+
+\subsection{Operations}
+
+\begin{itemize}
+\item \textbf{push(value)} — insert at top
+\item \textbf{pop()} — remove and return the top element
+\item \textbf{top()} — return the top element without removing it
+\item \textbf{empty()} — true if no elements
+\item \textbf{size()} — number of elements
+\end{itemize}
+
+\subsection{Applications}
+
+Stacks are used for:
+\begin{itemize}
+\item Function call/return management (the call stack)
+\item Expression evaluation (postfix, infix conversion)
+\item Undo operations
+\item Depth-first search (Chapter 12)
+\item Parsing (balanced parentheses, HTML/XML)
+\item Backtracking algorithms (Chapter 20)
+\end{itemize}
+
+\section{Array-Based Stack}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class array_stack {
+public:
+    array_stack() = default;
+
+    void push(const T& value) {
+        if (size_ >= data_.size()) {
+            data_.push_back(value);
+        } else {
+            data_[size_] = value;
+        }
+        ++size_;
+    }
+
+    void push(T&& value) {
+        if (size_ >= data_.size()) {
+            data_.push_back(std::move(value));
+        } else {
+            data_[size_] = std::move(value);
+        }
+        ++size_;
+    }
+
+    template <typename... Args>
+    void emplace(Args&&... args) {
+        if (size_ >= data_.size()) {
+            data_.emplace_back(std::forward<Args>(args)...);
+        } else {
+            data_[size_] = T(std::forward<Args>(args)...);
+        }
+        ++size_;
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("stack is empty");
+        --size_;
+    }
+
+    T& top() {
+        if (empty()) throw std::underflow_error("stack is empty");
+        return data_[size_ - 1];
+    }
+    const T& top() const {
+        if (empty()) throw std::underflow_error("stack is empty");
+        return data_[size_ - 1];
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    size_t size() const noexcept { return size_; }
+
+private:
+    std::vector<T> data_;
+    size_t size_ = 0;
+};
+\end{lstlisting}
+
+All operations are O(1) amortized. The \texttt{std::vector} grows as needed, but we track \texttt{size\_} separately to support O(1) \texttt{pop} without deallocating memory.
+
+\section{Linked Stack}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class linked_stack {
+public:
+    linked_stack() = default;
+
+    void push(const T& value) {
+        head_ = std::make_unique<node<T>>(value, std::move(head_));
+        ++size_;
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("stack is empty");
+        head_ = std::move(head_->next);
+        --size_;
+    }
+
+    T& top() {
+        if (empty()) throw std::underflow_error("stack is empty");
+        return head_->data;
+    }
+    const T& top() const {
+        if (empty()) throw std::underflow_error("stack is empty");
+        return head_->data;
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    size_t size() const noexcept { return size_; }
+
+private:
+    struct node {
+        T data;
+        std::unique_ptr<node> next;
+        node(const T& d, std::unique_ptr<node> nxt)
+            : data(d), next(std::move(nxt)) {}
+    };
+    std::unique_ptr<node> head_;
+    size_t size_ = 0;
+};
+\end{lstlisting}
+
+All operations: O(1).
+
+\section{Applications}
+
+\subsection{Balanced Parentheses}
+
+Check whether parentheses, brackets, and braces are properly matched:
+
+\begin{lstlisting}[language=C++]
+bool is_balanced(std::string_view expr) {
+    linked_stack<char> s;
+    for (char c : expr) {
+        switch (c) {
+            case '(': case '[': case '{':
+                s.push(c);
+                break;
+            case ')':
+                if (s.empty() || s.top() != '(') return false;
+                s.pop();
+                break;
+            case ']':
+                if (s.empty() || s.top() != '[') return false;
+                s.pop();
+                break;
+            case '}':
+                if (s.empty() || s.top() != '{') return false;
+                s.pop();
+                break;
+        }
+    }
+    return s.empty();
+}
+\end{lstlisting}
+
+\textbf{Trace:} \texttt{"\{[()]\}"}
+
+\begin{lstlisting}[language=Java]
+c = '{'  ->  push: stack = ['{']
+c = '['  ->  push: stack = ['{', '[']
+c = '('  ->  push: stack = ['{', '[', '(']
+c = ')'  ->  top is '('  ->  pop: stack = ['{', '[']
+c = ']'  ->  top is '['  ->  pop: stack = ['{']
+c = '}'  ->  top is '{'  ->  pop: stack = []
+Result: true
+\end{lstlisting}
+
+\subsection{Postfix Evaluation}
+
+Postfix (Reverse Polish Notation) places operators after operands: \texttt{3 4 + 5 *} = (3+4)$\times $5 = 35.
+
+\begin{lstlisting}[language=C++]
+int evaluate_postfix(std::string_view expr) {
+    linked_stack<int> s;
+    for (char c : expr) {
+        if (std::isspace(c)) continue;
+        if (std::isdigit(c)) {
+            s.push(c - '0');
+        } else {
+            int b = s.top(); s.pop();
+            int a = s.top(); s.pop();
+            switch (c) {
+                case '+': s.push(a + b); break;
+                case '-': s.push(a - b); break;
+                case '*': s.push(a * b); break;
+                case '/': s.push(a / b); break;
+            }
+        }
+    }
+    return s.top();
+}
+\end{lstlisting}
+
+\textbf{Trace:} \texttt{"3 4 + 5 *"}
+
+\begin{lstlisting}[language=Java]
+'3'  ->  push: [3]
+'4'  ->  push: [3, 4]
+'+'  ->  pop 4, pop 3  ->  push 7: [7]
+'5'  ->  push: [7, 5]
+'*'  ->  pop 5, pop 7  ->  push 35: [35]
+Result: 35
+\end{lstlisting}
+
+\subsection{Expression Evaluation in a Spreadsheet Engine (e.g., Excel, Google Sheets)}
+
+Modern spreadsheet engines evaluate cell formulas using an operator-precedence parser backed by a stack. When a cell contains \texttt{=(A1+B2)*C3-D4}, the engine:
+
+\begin{enumerate}
+\item Converts infix to postfix (shunting-yard, stack-based)
+\item Evaluates the postfix expression (also stack-based)
+\end{enumerate}
+
+The shunting-yard algorithm uses an operator stack:
+
+\begin{lstlisting}[language=C++]
+int precedence(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    if (op == '^') return 3;
+    return 0;
+}
+
+std::string infix_to_postfix(std::string_view expr) {
+    linked_stack<char> ops;
+    std::string output;
+    for (char c : expr) {
+        if (std::isalnum(c)) {
+            output += c;
+        } else if (c == '(') {
+            ops.push(c);
+        } else if (c == ')') {
+            while (!ops.empty() && ops.top() != '(') {
+                output += ops.top(); ops.pop();
+            }
+            ops.pop();  // discard '('
+        } else { // operator
+            while (!ops.empty() && precedence(ops.top()) >= precedence(c)) {
+                output += ops.top(); ops.pop();
+            }
+            ops.push(c);
+        }
+    }
+    while (!ops.empty()) { output += ops.top(); ops.pop(); }
+    return output;
+}
+\end{lstlisting}
+
+\textbf{Trace:} \texttt{"(A1+B2)\textbackslash\{\}textit\{C3-D4"} $\to $ \texttt{"A1 B2 + C3 \} D4 -"}
+
+This is the same algorithm PostgreSQL uses in its expression parser (src/backend/parser/expr\_parse.c) and that Google Sheets applies to every formula cell update.
+
+\section{STL Connection: std::stack}
+
+\texttt{std::stack} is a container adapter — it wraps any sequence container providing \texttt{push\_back}, \texttt{pop\_back}, and \texttt{back}:
+
+\begin{lstlisting}[language=C++]
+std::stack<int> s;                          // uses std::deque by default
+std::stack<int, std::vector<int>> sv;     // vector-based
+std::stack<int, std::list<int>> sl;       // list-based
+
+s.push(10);
+s.push(20);
+int x = s.top();  // 20
+s.pop();          // removes 20
+\end{lstlisting}
+
+Our \texttt{array\_stack} is more efficient than \texttt{std::stack} for push/pop because we avoid deallocation (we only decrement \texttt{size\_}), while \texttt{std::stack::pop} destroys the element immediately.
+
+\section{Balanced Symbol Checking with Error Reporting}
+
+The basic balanced-parentheses checker (Section~\ref{ch06:stacks} Applications) returns only a boolean. A production-quality checker must report the exact location and nature of the mismatch. This version tracks line numbers and column positions, and tells the user which closing symbol was expected versus which was found.
+
+\begin{lstlisting}[language=C++]
+struct parse_error {
+    int line;
+    int column;
+    char expected;
+    char found;
+    parse_error(int l, int c, char e, char f)
+        : line(l), column(c), expected(e), found(f) {}
+};
+
+std::vector<parse_error> check_balanced(std::string_view src) {
+    std::vector<parse_error> errors;
+    linked_stack<std::pair<char, std::pair<int, int>>> stk;
+    int line = 1, col = 0;
+    for (char c : src) {
+        ++col;
+        if (c == '\n') { ++line; col = 0; continue; }
+        if (c == '(' || c == '[' || c == '{') {
+            stk.push({c, {line, col}});
+        } else if (c == ')' || c == ']' || c == '}') {
+            if (stk.empty()) {
+                errors.emplace_back(line, col, '\0', c);
+            } else {
+                auto [open, pos] = stk.top();
+                stk.pop();
+                char match = (c == ')') ? '('
+                           : (c == ']') ? '[' : '{';
+                if (open != match) {
+                    errors.emplace_back(
+                        line, col, match, c);
+                }
+            }
+        }
+    }
+    while (!stk.empty()) {
+        auto [open, pos] = stk.top();
+        stk.pop();
+        char expected_close = (open == '(') ? ')'
+                            : (open == '[') ? ']' : '}';
+        errors.emplace_back(
+            pos.first, pos.second,
+            expected_close, '\0');
+    }
+    return errors;
+}
+\end{lstlisting}
+
+\textbf{Trace:} \texttt{"(a + b] * c"}
+
+\begin{lstlisting}[language=Java]
+Line 1, Col 4: expected ')' but found ']'
+\end{lstlisting}
+
+\textbf{Trace:} \texttt{"\{(a + b) * c"}
+
+\begin{lstlisting}[language=Java]
+Line 1, Col 1: expected '}' but found EOF
+\end{lstlisting}
+
+The algorithm is still O(n) time and O(n) space, but the stack now stores metadata (line, column) alongside each opening symbol.
+
+\section{Postfix Evaluation: A Complete Worked Example}
+
+Postfix (Reverse Polish Notation) evaluation is one of the clearest applications of a stack. We present a full implementation that handles multi-digit numbers, and then trace a non-trivial example.
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <vector>
+#include <stdexcept>
+
+double eval_postfix(const std::vector<std::string>& tokens) {
+    linked_stack<double> stk;
+    for (const auto& tok : tokens) {
+        if (tok == "+" || tok == "-" ||
+            tok == "*" || tok == "/") {
+            if (stk.size() < 2)
+                throw std::runtime_error("bad expr");
+            double b = stk.top(); stk.pop();
+            double a = stk.top(); stk.pop();
+            if (tok == "+") stk.push(a + b);
+            else if (tok == "-") stk.push(a - b);
+            else if (tok == "*") stk.push(a * b);
+            else stk.push(a / b);
+        } else {
+            stk.push(std::stod(tok));
+        }
+    }
+    if (stk.size() != 1)
+        throw std::runtime_error("bad expr");
+    return stk.top();
+}
+\end{lstlisting}
+
+\textbf{Complete trace for expression \texttt{"10 2 3 + * 4 -"}:}
+
+\begin{lstlisting}[language=Java]
+Token "10"  ->  push 10.0    Stack: [10]
+Token "2"   ->  push 2.0     Stack: [10, 2]
+Token "3"   ->  push 3.0     Stack: [10, 2, 3]
+Token "+"   ->  pop 3, 2     ->  push 5.0
+               Stack: [10, 5]
+Token "*"   ->  pop 5, 10    ->  push 50.0
+               Stack: [50]
+Token "4"   ->  push 4.0     Stack: [50, 4]
+Token "-"   ->  pop 4, 50    ->  push 46.0
+               Stack: [46]
+Result: 46.0
+\end{lstlisting}
+
+The key insight: operands are pushed eagerly; operators pop their operands and push the result. The stack always holds intermediate values waiting to be consumed.
+
+\section{Function Call Simulation with Activation Records}
+
+Every language runtime uses a call stack to manage function calls. Each call creates an \textbf{activation record} (stack frame) containing parameters, local variables, and a return address. We simulate this manually to understand what happens under the hood.
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <vector>
+
+struct activation_record {
+    std::string function;
+    int param_n;
+    int local_product;
+    int return_to;  // index in call sequence
+};
+
+int factorial_simulated(int n) {
+    linked_stack<activation_record> call_stack;
+    int next_call_id = 0;
+    // push initial call
+    call_stack.push({"fact", n, 1, -1});
+
+    while (!call_stack.empty()) {
+        auto& frame = call_stack.top();
+
+        if (frame.function == "fact") {
+            if (frame.param_n <= 1) {
+                // base case: return 1
+                int result = 1;
+                call_stack.pop();
+                if (!call_stack.empty()) {
+                    // multiply into parent frame
+                    auto& parent = call_stack.top();
+                    parent.local_product =
+                        parent.param_n * result;
+                    parent.function = "fact_returned";
+                }
+                continue;
+            }
+            // recursive case: push new frame
+            frame.function = "fact_awaiting";
+            call_stack.push(
+                {"fact", frame.param_n - 1, 1, 0});
+        } else if (frame.function == "fact_awaiting") {
+            // child returned, product is in local_product
+            int result = frame.local_product;
+            call_stack.pop();
+            if (!call_stack.empty()) {
+                auto& parent = call_stack.top();
+                parent.local_product =
+                    parent.param_n * result;
+                parent.function = "fact_returned";
+            }
+        } else {  // fact_returned
+            return frame.local_product;
+        }
+    }
+    return 1;
+}
+\end{lstlisting}
+
+\textbf{Trace for \texttt{factorial\_simulated(4)}:}
+
+\begin{lstlisting}[language=Java]
+Push:  fact(n=4)           Stack: [fact(4)]
+Push:  fact(n=3)           Stack: [fact(4), fact(3)]
+Push:  fact(n=2)           Stack: [fact(4), fact(3), fact(2)]
+Push:  fact(n=1)           Stack: [fact(4), fact(3), fact(2), fact(1)]
+Base:  fact(1) -> 1        Stack: [fact(4), fact(3), fact(2)]
+       fact(2) = 2 * 1 = 2
+Return:                    Stack: [fact(4), fact(3)]
+       fact(3) = 3 * 2 = 6
+Return:                    Stack: [fact(4)]
+       fact(4) = 4 * 6 = 24
+Return:                    Stack: []
+Result: 24
+\end{lstlisting}
+
+The activation record mirrors what the hardware does: the x86-64 ABI places parameters in registers (\texttt{rdi}, \texttt{rsi}), allocates space for locals on the stack, and stores the return address via the \texttt{call} instruction.
+
+\section{Min Stack: O(1) Minimum Queries}
+
+A stack that supports \texttt{getMin()} in O(1) time is a classic interview problem. The idea: maintain an auxiliary stack that tracks the minimum at each depth.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class min_stack {
+public:
+    void push(const T& value) {
+        data_.push(value);
+        if (min_.empty() || value <= min_.top()) {
+            min_.push(value);
+        }
+    }
+
+    void pop() {
+        if (data_.empty())
+            throw std::underflow_error("empty");
+        if (data_.top() == min_.top()) {
+            min_.pop();
+        }
+        data_.pop();
+    }
+
+    const T& top() const { return data_.top(); }
+
+    const T& get_min() const {
+        if (min_.empty())
+            throw std::underflow_error("empty");
+        return min_.top();
+    }
+
+    bool empty() const { return data_.empty(); }
+    size_t size() const { return data_.size(); }
+
+private:
+    linked_stack<T> data_;
+    linked_stack<T> min_;
+};
+\end{lstlisting}
+
+\textbf{Trace for pushing 5, 3, 7, 2, 8, 2:}
+
+\begin{lstlisting}[language=Java]
+push(5)  ->  data: [5]       min: [5]       getMin -> 5
+push(3)  ->  data: [5,3]     min: [5,3]     getMin -> 3
+push(7)  ->  data: [5,3,7]   min: [5,3]     getMin -> 3
+push(2)  ->  data: [5,3,7,2] min: [5,3,2]   getMin -> 2
+pop()    ->  data: [5,3,7]   min: [5,3]     getMin -> 3
+push(8)  ->  data: [5,3,7,8] min: [5,3]     getMin -> 3
+push(2)  ->  data: [5,3,7,8,2] min: [5,3,2] getMin -> 2
+\end{lstlisting}
+
+Each operation is O(1) time, O(n) space. The critical detail: use \texttt{<=} (not \texttt{<}) when comparing to the min stack top, so duplicate minimum values are tracked correctly.
+
+\section{Stack Using Queues}
+
+Implementing a stack using only queue operations is a common exercise that tests understanding of both data structures. We present two variants.
+
+\subsection{Push O(n), Pop O(1)}
+
+On each push, enqueue to \texttt{q2}, then transfer all elements from \texttt{q1} to \texttt{q2}, then swap the queues.
+
+\begin{lstlisting}[language=C++]
+class stack_via_queues {
+public:
+    void push(int x) {
+        q2_.push(x);
+        while (!q1_.empty()) {
+            q2_.push(q1_.front());
+            q1_.pop();
+        }
+        std::swap(q1_, q2_);
+    }
+
+    void pop() {
+        if (q1_.empty())
+            throw std::underflow_error("empty");
+        q1_.pop();
+    }
+
+    int top() {
+        if (q1_.empty())
+            throw std::underflow_error("empty");
+        return q1_.front();
+    }
+
+    bool empty() const { return q1_.empty(); }
+
+private:
+    std::queue<int> q1_, q2_;
+};
+\end{lstlisting}
+
+\textbf{Trace for push 1, push 2, push 3:}
+
+\begin{lstlisting}[language=Java]
+push(1): q2=[1] -> q1=[1]
+push(2): q2=[2,1] -> q1=[2,1]      (front is 2, LIFO)
+push(3): q2=[3,2,1] -> q1=[3,2,1]  (front is 3)
+pop():   removes 3, q1=[2,1]
+top():   returns 2
+\end{lstlisting}
+
+\subsection{Push O(1), Pop O(n)}
+
+On each push, enqueue to \texttt{q1}. On pop, transfer all but the last element to \texttt{q2}, pop the last element, then swap.
+
+\begin{lstlisting}[language=C++]
+class stack_via_queues_v2 {
+public:
+    void push(int x) {
+        q1_.push(x);
+    }
+
+    void pop() {
+        if (q1_.empty())
+            throw std::underflow_error("empty");
+        while (q1_.size() > 1) {
+            q2_.push(q1_.front());
+            q1_.pop();
+        }
+        q1_.pop();
+        std::swap(q1_, q2_);
+    }
+
+    int top() {
+        if (q1_.empty())
+            throw std::underflow_error("empty");
+        while (q1_.size() > 1) {
+            q2_.push(q1_.front());
+            q1_.pop();
+        }
+        int val = q1_.front();
+        q2_.push(val);
+        q1_.pop();
+        std::swap(q1_, q2_);
+        return val;
+    }
+
+    bool empty() const { return q1_.empty(); }
+
+private:
+    std::queue<int> q1_, q2_;
+};
+\end{lstlisting}
+
+In practice, the O(1)-push version is preferred when pushes are more frequent than pops. The choice depends on the workload.
+
+\section{Stack for Infix to Prefix Conversion}
+
+While the shunting-yard algorithm converts infix to postfix using one operator stack, converting infix to \textbf{prefix} (Polish notation) requires two stacks: one for operators and one for operands. The key difference is that operands are pushed in reverse order and the entire output is read from right to left.
+
+\subsection{Algorithm}
+
+\begin{enumerate}
+\item Scan the infix expression from \textbf{right to left}.
+\item If the token is an \textbf{operand}, push it onto the operand stack.
+\item If the token is \texttt{)}, push it onto the operator stack.
+\item If the token is \texttt{(}, pop and output operators from the operator stack until \texttt{)} is found. Discard both parentheses.
+\item If the token is an \textbf{operator}:
+    \begin{itemize}
+    \item While the operator stack is not empty, the top is not \texttt{)}, and the top operator has \textbf{strictly greater} precedence than the current operator, pop and output it.
+    \item Push the current operator onto the operator stack.
+    \item For \textbf{right-associative} operators (like \texttt{\^{}}), use $\geq$ instead of $>$ when comparing precedence.
+    \end{itemize}
+\item After scanning all tokens, pop and output all remaining operators.
+\item The operand stack now contains the prefix expression (read it by popping, then reverse the result).
+\end{enumerate}
+
+\subsection{Worked Trace: ``A*(B+C)-D/E''}
+
+We scan from right to left. We use two stacks: \texttt{ops} (operators) and \texttt{out} (operand/operator output tokens in prefix order).
+
+\begin{lstlisting}[language=Java]
+Read '/' (operator):
+  ops: ['/']
+  out: []
+
+Read 'E' (operand):
+  ops: ['/']
+  out: ['E']
+
+Read '-' (operator):
+  Top of ops is '/' which has higher precedence -> pop '/' and output
+  ops: ['-']
+  out: ['E', '/']
+
+Read 'C' (operand):
+  ops: ['-']
+  out: ['E', '/', 'C']
+
+Read '+' (operator):
+  Top of ops is '-' which has lower or equal precedence -> push '+'
+  ops: ['-', '+']
+  out: ['E', '/', 'C']
+
+Read 'B' (operand):
+  ops: ['-', '+']
+  out: ['E', '/', 'C', 'B']
+
+Read '(' : pop until ')'
+  Pop '+' and output
+  ops: ['-']
+  out: ['E', '/', 'C', 'B', '+']
+
+Read ')' : discard
+
+Read '*' (operator):
+  Top of ops is '-' which has lower precedence -> push '*'
+  ops: ['-', '*']
+  out: ['E', '/', 'C', 'B', '+']
+
+Read 'A' (operand):
+  ops: ['-', '*']
+  out: ['E', '/', 'C', 'B', '+', 'A']
+
+End of input. Pop remaining operators:
+  Pop '*' and output -> out: ['E', '/', 'C', 'B', '+', 'A', '*']
+  Pop '-' and output -> out: ['E', '/', 'C', 'B', '+', 'A', '*', '-']
+
+Final prefix expression (reverse of out):
+  Result: "- * A + B C / D E"
+\end{lstlisting}
+
+Verification: \texttt{- * A + B C / D E} parses as $(A \times (B + C)) - (D / E)$, which is the original infix expression. Correct.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <vector>
+#include <stack>
+#include <algorithm>
+#include <cctype>
+
+int prefix_prec(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    if (op == '^') return 3;
+    return 0;
+}
+
+bool is_right_assoc(char op) { return op == '^'; }
+
+std::string infix_to_prefix(std::string_view expr) {
+    std::stack<char> ops;
+    std::vector<std::string> out;
+
+    for (int i = expr.size() - 1; i >= 0; --i) {
+        char c = expr[i];
+        if (std::isalnum(c)) {
+            out.push_back(std::string(1, c));
+        } else if (c == ')') {
+            ops.push(c);
+        } else if (c == '(') {
+            while (!ops.empty() && ops.top() != ')') {
+                out.push_back(std::string(1, ops.top()));
+                ops.pop();
+            }
+            if (!ops.empty()) ops.pop();
+        } else { // operator
+            while (!ops.empty() && ops.top() != ')' &&
+                   (prefix_prec(ops.top()) > prefix_prec(c) ||
+                    (prefix_prec(ops.top()) == prefix_prec(c) &&
+                     !is_right_assoc(c)))) {
+                out.push_back(std::string(1, ops.top()));
+                ops.pop();
+            }
+            ops.push(c);
+        }
+    }
+    while (!ops.empty()) {
+        out.push_back(std::string(1, ops.top()));
+        ops.pop();
+    }
+
+    std::reverse(out.begin(), out.end());
+    std::string result;
+    for (size_t i = 0; i < out.size(); ++i) {
+        if (i) result += ' ';
+        result += out[i];
+    }
+    return result;
+}
+\end{lstlisting}
+
+Time complexity: O(n) to scan, O(n) to reverse and join. Space: O(n) for the two stacks and output vector.
+
+\textbf{Note on associativity:} For the \texttt{\^{}} operator, we only pop operators with \textbf{strictly greater} precedence (not equal), because exponentiation is right-associative. For all other operators (left-associative), we pop on $\geq$, matching the infix-to-postfix convention.
+
+\section{Stack for Undo/Redo}
+
+Text editors, spreadsheets, and graphics tools all need undo/redo functionality. The classic solution uses \textbf{two stacks}: one for the undo history and one for the redo history.
+
+\subsection{Algorithm}
+
+\begin{itemize}
+\item \textbf{Do(action)}: Push the \textbf{inverse} of the action onto the undo stack. Clear the redo stack (any redo history is invalidated by a new action).
+\item \textbf{Undo()}: Pop from the undo stack, apply the inverse, push the action onto the redo stack.
+\item \textbf{Redo()}: Pop from the redo stack, apply the action, push its inverse onto the undo stack.
+\end{itemize}
+
+This is exactly how most editors work: performing a new operation after undo discards the redo history.
+
+\subsection{Worked Trace}
+
+Operations: \texttt{type("hello")}, \texttt{type(" world")}, \texttt{undo()}, \texttt{type("!")}, \texttt{redo()}
+
+\begin{lstlisting}[language=Java]
+Initial state:  text = ""
+                undo: []    redo: []
+
+type("hello"):
+  Inverse: delete("hello")
+  undo: [del("hello")]    redo: []
+  text = "hello"
+
+type(" world"):
+  Inverse: delete(" world")
+  undo: [del("hello"), del(" world")]    redo: []
+  text = "hello world"
+
+undo():
+  Pop: del(" world"), apply it
+  Push inverse onto redo
+  undo: [del("hello")]    redo: [type(" world")]
+  text = "hello"
+
+type("!"):
+  Inverse: delete("!")
+  Clear redo
+  undo: [del("hello"), del("!")]    redo: []
+  text = "hello!"
+
+redo():
+  Pop: type("!"), apply it
+  Push inverse onto undo
+  undo: [del("hello"), del("!"), del("!")]    redo: []
+  text = "hello!!"
+\end{lstlisting}
+
+\textbf{Important detail:} After \texttt{undo()} followed by \texttt{type("!")} in step 4, the redo stack was cleared because the user made a new edit. The subsequent \texttt{redo()} in step 5 only reapplies the most recent undone action that is still in the redo stack.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <stack>
+#include <functional>
+#include <iostream>
+
+struct action {
+    std::string description;
+    std::function<void()> do_fn;
+    std::function<void()> undo_fn;
+};
+
+class text_editor {
+public:
+    void execute(action act) {
+        act.do_fn();
+        undo_stack_.push(std::move(act));
+        // new action invalidates redo history
+        while (!redo_stack_.empty()) redo_stack_.pop();
+    }
+
+    bool undo() {
+        if (undo_stack_.empty()) return false;
+        action act = std::move(undo_stack_.top());
+        undo_stack_.pop();
+        act.undo_fn();
+        redo_stack_.push(std::move(act));
+        return true;
+    }
+
+    bool redo() {
+        if (redo_stack_.empty()) return false;
+        action act = std::move(redo_stack_.top());
+        redo_stack_.pop();
+        act.do_fn();
+        undo_stack_.push(std::move(act));
+        return true;
+    }
+
+    bool can_undo() const { return !undo_stack_.empty(); }
+    bool can_redo() const { return !redo_stack_.empty(); }
+
+private:
+    std::stack<action> undo_stack_;
+    std::stack<action> redo_stack_;
+};
+\end{lstlisting}
+
+Each operation is O(1) amortized (the stack push/pop is O(1), though the action closures may do arbitrary work). Space is O(n) where n is the number of recorded actions.
+
+\section{Stack for DFS Applications}
+
+Depth-first search can be implemented with an \textbf{explicit stack} rather than recursion. This avoids stack overflow on deep graphs and gives more control over traversal order. Two important applications are topological sort and cycle detection.
+
+\subsection{DFS on an Implicit Graph Using an Explicit Stack}
+
+Consider a grid-based maze where you can move right or down. We search from \texttt{(0,0)} to \texttt{(n-1,m-1)}:
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <stack>
+#include <utility>
+
+bool dfs_maze(const std::vector<std::vector<bool>>& wall,
+              int n, int m) {
+    std::stack<std::pair<int,int>> stk;
+    std::vector<std::vector<bool>> visited(n, std::vector<bool>(m));
+    stk.push({0, 0});
+    visited[0][0] = true;
+
+    const int dr[] = {1, 0};  // down, right
+    const int dc[] = {0, 1};
+
+    while (!stk.empty()) {
+        auto [r, c] = stk.top();
+        stk.pop();
+        if (r == n - 1 && c == m - 1) return true;
+
+        for (int d = 0; d < 2; ++d) {
+            int nr = r + dr[d], nc = c + dc[d];
+            if (nr < n && nc < m && !wall[nr][nc] &&
+                !visited[nr][nc]) {
+                visited[nr][nc] = true;
+                stk.push({nr, nc});
+            }
+        }
+    }
+    return false;
+}
+\end{lstlisting}
+
+Time: O(n$\times$m). Space: O(n$\times$m) for the visited array and stack.
+
+\subsection{Topological Sort Using a Stack}
+
+Topological sort orders vertices of a DAG so that every edge goes from earlier to later. The algorithm uses DFS and a stack: after fully processing a vertex, push it onto the stack. The stack, read top-to-bottom, gives a valid topological order.
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <stack>
+
+void dfs_topo(int u, const std::vector<std::vector<int>>& adj,
+              std::vector<bool>& visited,
+              std::stack<int>& order) {
+    visited[u] = true;
+    for (int v : adj[u]) {
+        if (!visited[v]) {
+            dfs_topo(v, adj, visited, order);
+        }
+    }
+    order.push(u);
+}
+
+std::vector<int> topological_sort(
+        const std::vector<std::vector<int>>& adj) {
+    int n = adj.size();
+    std::vector<bool> visited(n, false);
+    std::stack<int> order;
+    for (int i = 0; i < n; ++i) {
+        if (!visited[i]) {
+            dfs_topo(i, adj, visited, order);
+        }
+    }
+    std::vector<int> result;
+    while (!order.empty()) {
+        result.push_back(order.top());
+        order.pop();
+    }
+    return result;
+}
+\end{lstlisting}
+
+Time: O(V + E). Space: O(V) for the visited array and stack.
+
+\textbf{Trace for a small DAG:} Edges: 0$\to$1, 0$\to$2, 1$\to$3, 2$\to$3.
+
+\begin{lstlisting}[language=Java]
+DFS from 0:
+  Visit 0 -> visit 1 -> visit 3 (no unvisited neighbors)
+    Push 3. Stack: [3]
+  Back to 1: all neighbors done. Push 1. Stack: [3, 1]
+  Back to 0: visit 2 -> 3 already visited. Push 2. Stack: [3, 1, 2]
+  Back to 0: all done. Push 0. Stack: [3, 1, 2, 0]
+
+Topological order (pop stack): 0, 2, 1, 3
+Verification: 0->1 (0 before 1), 0->2 (0 before 2), 1->3 (1 before 3), 2->3 (2 before 3). Valid.
+\end{lstlisting}
+
+\subsection{Cycle Detection Using DFS}
+
+A directed graph has a cycle if and only if DFS discovers a \textbf{back edge} (an edge to a vertex currently on the recursion stack). We track three states per vertex: \texttt{UNVISITED}, \texttt{IN\_STACK} (being processed), and \texttt{DONE} (fully processed).
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+
+enum state { UNVISITED, IN_STACK, DONE };
+
+bool has_cycle_dfs(int u, const std::vector<std::vector<int>>& adj,
+                   std::vector<state>& vis) {
+    vis[u] = IN_STACK;
+    for (int v : adj[u]) {
+        if (vis[v] == IN_STACK) return true;   // back edge -> cycle
+        if (vis[v] == UNVISITED &&
+            has_cycle_dfs(v, adj, vis))
+            return true;
+    }
+    vis[u] = DONE;
+    return false;
+}
+
+bool has_cycle(int n, const std::vector<std::vector<int>>& adj) {
+    std::vector<state> vis(n, UNVISITED);
+    for (int i = 0; i < n; ++i) {
+        if (vis[i] == UNVISITED && has_cycle_dfs(i, adj, vis))
+            return true;
+    }
+    return false;
+}
+\end{lstlisting}
+
+Time: O(V + E). Space: O(V) for the state array and implicit recursion stack.
+
+The explicit-stack DFS variant (used in the maze example above) can also detect cycles by tracking which vertices are ``on the current path'' using a parallel stack of states. However, the recursive three-color approach shown above is the standard and clearest solution for cycle detection in directed graphs.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{itemize}
+\item \textbf{Pop on empty stack} — undefined behavior (or exception) if you call \texttt{pop()} or \texttt{top()} on an empty stack. Always guard with \texttt{empty()}.
+\item \textbf{Incorrect top() semantics} — many textbooks define \texttt{pop()} as "remove and return," but C++ convention separates \texttt{top()} (read) and \texttt{pop()} (remove). Confusing these leads to lost data.
+\item \textbf{Forgetting the amortization} — \texttt{array\_stack::push} is O(1) amortized, but individual pushes can be O(n) when the vector grows. In hard real-time systems, use linked stack instead.
+\item \textbf{Stack overflow in recursion} — the call stack is a real stack with finite size. Deep recursion (e.g., recursive DFS on a large graph) causes stack overflow. Use an explicit stack instead.
+\item \textbf{Memory leak in linked stack} — with raw pointers, popping without deleting the node leaks memory. Our \texttt{linked\_stack} uses \texttt{unique\_ptr}, which is safe, but manually written linked stacks are a common source of leaks in production code.
+\end{itemize}
+
+\section{Summary}
+
+\begin{enumerate}
+\item A \textbf{stack} is a LIFO structure — insertions and deletions at one end (the top).
+\item \textbf{Array-based stacks} use a dynamic array for O(1) amortized operations.
+\item \textbf{Linked stacks} use a singly linked list for O(1) worst-case operations.
+\item Industrial applications include the system call stack, spreadsheet expression engines (Excel, Google Sheets), stack-based VMs (JVM), and undo/redo systems.
+\item \texttt{std::stack} is a container adapter that wraps any sequence container.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Implement a stack that supports \texttt{getMin()} in O(1) time.}
+
+Use two stacks: the main stack and a minimum stack. On \texttt{push(x)}, push $x$ onto the main stack. Push $x$ onto the min stack only if $x \leq$ top of min stack. On \texttt{pop}, pop from both if the values match. \texttt{getMin()} returns the top of the min stack. Space: O(n).
+
+\begin{lstlisting}[language=C++]
+class min_stack {
+    std::stack<int> data_, min_;
+public:
+    void push(int x) {
+        data_.push(x);
+        if (min_.empty() || x <= min_.top()) min_.push(x);
+    }
+    int pop() {
+        int x = data_.top(); data_.pop();
+        if (x == min_.top()) min_.pop();
+        return x;
+    }
+    int getMin() const { return min_.top(); }
+};
+\end{lstlisting}
+
+\textit{Variant:} ``Do it with O(1) extra space'' -- store the difference between the current element and the minimum in the main stack.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why do HP calculators, Lua, Forth, and the JVM bytecode use postfix notation instead of infix?}
+
+Postfix eliminates parentheses entirely — the order of operations is determined by the operator position, not precedence rules. This makes parsing trivial: scan left to right, push operands, pop and apply on operators. No operator precedence table, no associativity rules, no shunting-yard algorithm needed. HP calculators used RPN because it reduced the complexity of the calculator's parser (1970s hardware constraints). The JVM uses postfix bytecodes because the stack machine is trivial to implement and verify. The tradeoff: postfix is harder for humans to read, which is why no mainstream programming language uses it for source code.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What are the limitations of the shunting-yard algorithm, and what do production parsers use instead?}
+
+The basic shunting-yard handles +,-,*,/ with left associativity but struggles with: (1) right-associative operators (\texttt{\^{}}, =); (2) function calls with multiple arguments; (3) unary operators (-x, !x); (4) custom precedence levels. Production parsers use recursive descent or Pratt parsing (top-down operator precedence), which handles all of these naturally. Pratt parsing assigns a binding power to each token type and uses a simple precedence climbing loop — it's what most C/C++ compilers actually use for expression parsing. The shunting-yard is a historical curiosity; Pratt parsing is the practical choice.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does the stack-based parentheses checker fail for expressions with nested brackets of different types, and how do you fix it?}
+
+The basic algorithm pushes opening brackets and pops on closing brackets, but it doesn't verify \textit{type matching} — \texttt{([)]} would be accepted as balanced. The fix: instead of just pushing the bracket character, push it and check that the popped character matches the expected closing type. For \texttt{(}, expect \texttt{)}; for \texttt{[}, expect \texttt{]}; for \texttt{\{}, expect \texttt{\}}. This is the actual production-quality algorithm used in compilers and linters. The deeper insight: the stack tracks \textit{nesting context} — each level must close in the reverse order it was opened, which is exactly the LIFO property of stacks. This is why stacks are the natural data structure for parsing nested structures (JSON, XML, SQL, arithmetic expressions).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Implement a queue using two stacks.}
+
+Amortized O(1) per operation. Maintain two stacks: \texttt{inbox} (for pushes) and \texttt{outbox} (for pops). On \texttt{pop}/\texttt{front}, if \texttt{outbox} is empty, transfer all elements from \texttt{inbox} to \texttt{outbox} (reversing the order). Each element is moved at most once, giving amortized O(1) per operation.
+
+\begin{lstlisting}[language=C++]
+class queue_two_stacks {
+    std::stack<int> inbox_, outbox_;
+public:
+    void push(int x) { inbox_.push(x); }
+    int pop() {
+        if (outbox_.empty()) {
+            while (!inbox_.empty()) { outbox_.push(inbox_.top()); inbox_.pop(); }
+        }
+        int x = outbox_.top(); outbox_.pop();
+        return x;
+    }
+    int front() {
+        if (outbox_.empty()) {
+            while (!inbox_.empty()) { outbox_.push(inbox_.top()); inbox_.pop(); }
+        }
+        return outbox_.top();
+    }
+};
+\end{lstlisting}
+
+\textit{Follow-up:} ``Implement it with O(1) worst-case'' -- requires interleaving, not just two stacks.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the maximum depth of valid parentheses?}
+
+Scan left to right, tracking the current depth and the maximum seen. On \texttt{(}, increment depth. On \texttt{)}, decrement depth (if depth $> 0$, else reset the start position). Track the maximum depth seen. Time O(n), space O(1).
+
+\begin{lstlisting}[language=C++]
+int max_depth_parens(std::string_view s) {
+    int depth = 0, max_d = 0;
+    for (char c : s) {
+        if (c == '(') { ++depth; max_d = std::max(max_d, depth); }
+        else if (c == ')') { if (depth > 0) --depth; else depth = 0; }
+    }
+    return max_d;
+}
+\end{lstlisting}
+
+\textit{Variant:} ``Length of the longest valid substring'' -- harder, requires tracking the last invalid position.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does the call stack work and why does deep recursion cause a stack overflow?}
+
+Each function call allocates a stack frame containing local variables, parameters, and the return address. The call stack has a fixed size (typically 1--8 MB). Deep recursion (e.g., $10^{6}$ recursive calls) exhausts this space. Tail-recursive functions can be optimized by the compiler into loops (no new frame), but non-tail recursion cannot. Solutions: increase stack size (\texttt{-Wl,-stack\_size}), convert to iteration, or use an explicit stack data structure.
+
+\textit{Real-world:} JVM uses a separate stack per thread; default 512 KB. Python limits recursion to 1000 by default (\texttt{sys.setrecursionlimit}).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a stack that supports \texttt{push}, \texttt{pop}, \texttt{top}, and \texttt{getMin} in O(1) worst-case with O(1) extra space.}
+
+Store the minimum as an encoding: when pushing a new minimum, push \texttt{2*val - prev\_min} instead of \texttt{val}. On \texttt{pop}, if the popped value is less than the current minimum, the previous minimum is recovered from the encoded value. This uses O(1) extra space (just the minimum variable) but works only for integer stacks.
+
+\begin{lstlisting}[language=C++]
+class min_stack_o1 {
+    std::stack<long long> data_;
+    long long min_ = LLONG_MAX;
+public:
+    void push(int x) {
+        if (data_.empty()) { data_.push(x); min_ = x; }
+        else if (x >= min_) { data_.push(x); }
+        else { data_.push(2LL * x - min_); min_ = x; }
+    }
+    int pop() {
+        long long top = data_.top(); data_.pop();
+        if (top < min_) { long long prev = min_; min_ = 2 * min_ - top; return prev; }
+        return top;
+    }
+    int getMin() const { return min_; }
+};
+\end{lstlisting}
+
+\textit{This is LeetCode 155 with the O(1) space optimization -- a very popular interview question.}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Use a stack to solve the ``next greater element'' problem.}
+
+For each element in the array, find the next element that is greater. Scan right to left, maintaining a stack of elements in decreasing order. For each element, pop elements from the stack that are smaller — the top of the remaining stack is the next greater element. Time O(n), space O(n).
+
+\begin{lstlisting}[language=C++]
+std::vector<int> next_greater(const std::vector<int>& nums) {
+    std::vector<int> result(nums.size(), -1);
+    std::stack<int> st;
+    for (int i = nums.size() - 1; i >= 0; --i) {
+        while (!st.empty() && st.top() <= nums[i]) st.pop();
+        if (!st.empty()) result[i] = st.top();
+        st.push(nums[i]);
+    }
+    return result;
+}
+\end{lstlisting}
+
+\textit{Variants:} ``Next smaller element'', ``Daily temperatures'' (LeetCode 739), ``Stock span problem''.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does \texttt{std::stack} differ from a raw container, and when would you NOT use it?}
+
+\texttt{std::stack} is a container adapter that restricts access to \texttt{top}/\texttt{push}/\texttt{pop}. It prevents accidental misuse (e.g., iterating the underlying container). However, you would NOT use it when you need: (a) iteration, (b) random access, (c) \texttt{size()} (deque-backed \texttt{std::stack} has \texttt{size()}, but the standard doesn't require it for all backends), or (d) access to the underlying container for optimization. In performance-critical code, use a \texttt{std::vector} directly with a manual size index.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item Trace the call stack for a recursive \texttt{fibonacci(5)} computation. Show the stack frame contents (return address, parameters) at each push and pop. How deep does the stack grow?
+\end{enumerate}
+
+\begin{enumerate}
+\item Convert the infix expression \texttt{price > 100 AND (quantity < 10 OR discount > 0.2)} to postfix using the shunting-yard algorithm. Treat \texttt{AND} and \texttt{OR} as binary operators with precedence: NOT (3), AND (2), OR (1).
+\end{enumerate}
+
+\begin{enumerate}
+\item Evaluate \texttt{"5 3 + 7 2 - \$\textbackslash\{\}times \$"} using a stack. Show the stack state after each token.
+\end{enumerate}
+
+\begin{enumerate}
+\item A production web server receives requests at 1000 req/s. Each request enters a middleware pipeline (stack of handlers). If each handler takes 50 us and the pipeline is 10 handlers deep, what is the minimum time before the first byte is sent? Where does the LIFO order matter for middleware semantics?
+\end{enumerate}
+
+\begin{enumerate}
+\item A Just-In-Time compiler's register allocator uses a stack to spill registers. If 6 registers are available, how many spills occur when evaluating \texttt{a + b * c / d - e} with the usual precedence? Show the stack states.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a stack-based calculator that evaluates expressions in standard (infix) notation. Use two stacks: one for operands and one for operators. Handle parentheses, operator precedence (+,- at level 1; *,/ at level 2), and unary minus. Test with \texttt{(3 + 4) * (2 - 9) / 5}.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a string of angle brackets \texttt{<><<>><>} representing open (\texttt{<}) and close (\texttt{>}) tags, use a stack to find the length of the longest contiguous valid (balanced) segment. Show the stack state at each step.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Min-stack for stock price monitoring.} You are implementing a real-time trading system that must report the minimum stock price seen in O(1) time (without scanning history). Implement \texttt{array\_stack} with an auxiliary stack that tracks the current minimum. Feed it a stream of 10,000 NASDAQ price ticks. Verify that \texttt{get\_min()} returns the correct minimum at every point.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Spreadsheet expression engine.} Implement a postfix evaluator that supports cell references, arithmetic (+, -, $\times $, /, \textasciicircum{}), and functions (SUM, AVG, MIN, MAX). Test with the expression \texttt{SUM(A1:A3) * (B1 + B2)}. Hint: resolve cell references against a symbol table before pushing values.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Chromium's browser back/forward.} Implement a dual-stack navigation manager as used in Chrome's tab history. Support \texttt{visit(url, is\_new\_page)} (pushes onto back stack, clears forward stack), \texttt{back()} (moves current to forward stack), and \texttt{forward()}. Handle the edge case of no history.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{V8 JavaScript call stack.} V8 maintains a stack of execution contexts (global, function, eval). Simulate this: each function call creates a \texttt{context} object with local variables and a return address. Implement a trace that shows the context stack during a recursive factorial computation. Detect and report stack overflow at depth 1000.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Redis transaction stack.} Redis uses a stack to batch commands in a \texttt{MULTI}/\texttt{EXEC} transaction. Implement a \texttt{TransactionStack} that supports \texttt{queue(command)}, \texttt{execute()} (pops all and runs them atomically), and \texttt{discard()} (clears without executing). Handle nested transactions by stacking transaction states.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Expression syntax checker (ESLint-style).} Implement a balanced-parentheses checker that also validates bracket matching in source code. Extend it to detect mismatched HTML/XML tags using a stack: \texttt{<div><p>text</p></div>} is valid, \texttt{<div><p>text</div></p>} is not. Test on real-world HTML snippets from the web.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Largest rectangle in a histogram.} Given an array of bar heights, find the area of the largest rectangle that fits within the histogram. Use a stack to maintain indices of bars in increasing height order. For each bar, pop taller bars and compute areas. Time O(n). Test with heights \texttt{{2, 1, 5, 6, 2, 3}}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Asteroid collision\index{collision}.} Given an array of asteroids (positive = rightward, negative = leftward), simulate collisions using a stack. When a rightward asteroid meets a leftward one, the smaller explodes. If equal, both explode. Return the surviving asteroids. Test with \texttt{{5, 10, -5}}, \texttt{{8, -8}}, and \texttt{{10, 2, -5}}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Decode string.} Given a string like \texttt{3[a2[c]]}, decode it to \texttt{accaccacc} using a stack. Push characters and digits; on \texttt{]}, pop until \texttt{[}, collect the substring, pop the multiplier, and push the repeated string. Handle nested encodings.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Simplify path.} Given a Unix-style absolute path like \texttt{/a/./b/../../c/}, simplify it to \texttt{/c} using a stack. Push directory names on \texttt{/name}, pop on \texttt{..}, skip on \texttt{.} or empty. Test with \texttt{/home/user/Documents/../Downloads} and \texttt{/../}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Infix to prefix converter.} Implement the two-stack infix-to-prefix algorithm described in this chapter. Test it on \texttt{A*(B+C)-D/E} and \texttt{(A+B)*(C-D)/E}. Verify that prefix-to-inversion of the result reproduces the original expression. Handle operator precedence and right-associative exponentiation (\texttt{\^{}}).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Undo/redo text editor.} Build a complete text editor using the two-stack undo/redo pattern. Support \texttt{type(text)}, \texttt{delete(n)}, \texttt{undo()}, and \texttt{redo()}. After a sequence of 20 mixed operations, verify that the document state is correct after every undo/redo. Test that a new \texttt{type()} after \texttt{undo()} clears the redo stack.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Course prerequisite ordering.} A university offers courses with prerequisites modeled as a DAG. Given a list of courses and prerequisite pairs, implement topological sort using an explicit stack (not recursion). Test with at least 10 courses. What happens when a cycle is introduced (e.g., course A requires B, B requires C, C requires A)? Detect and report the cycle.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Grid pathfinding with explicit stack DFS.} Implement maze pathfinding using an explicit stack (no recursion). The grid has walls, open cells, and a goal. Support 4-directional movement (up, down, left, right). Compare the path found by stack-based DFS with the shortest path found by BFS. On what grid sizes does DFS find a path that is more than twice as long as BFS?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Stack-based browser history simulator.} Simulate a full browser tab with back, forward, and visit. Track the current URL using two stacks. Add a ``history log'' that records every navigation event with a timestamp. After 15 operations mixing visit/back/forward, print the complete log and verify correctness. How would you extend this to support multiple tabs?
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Stack-based VMs)} JVM, CPython, and the Ethereum EVM are all stack-based machines. Write a minimal bytecode interpreter that supports PUSH, POP, ADD, SUB, MUL, DUP, SWAP, and JMP. Execute a small program that computes \texttt{(3 + 4) * 5}. Compare the bytecode size with a register-based ISA (e.g., Lua VM).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Treiber stack)} Implement the Treiber lock-free stack using \texttt{std::atomic<std::shared\_ptr<node>>}. Benchmark it against \texttt{std::stack} protected by \texttt{std::mutex} on 2, 4, and 8 threads. At what contention level does the lock-free version win? Where does it lose?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Amortized analysis)} Prove that our \texttt{array\_stack} has O(1) amortized push cost using both the accounting method and the potential method. Then compare real-world benchmark results: measure the worst-case push latency (when the vector grows) vs the average across 10$^{6}$ pushes. How much slower is the worst case?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Stack security)} Stack buffer overflows are a classic attack vector. Research how modern systems mitigate them: stack canaries (\texttt{-fstack-protector}), ASLR, DEP/NX bits, and Control Flow Integrity (CFI). Write a report explaining how each defense works and what attack techniques they defeat.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Continuation-passing style)} Continuations represent the ``rest of the computation'' and can be thought of as an explicit call stack. Research how Scheme's \texttt{call/cc} (call-with-current-continuation) works and how it relates to stack frames. Implement a trampolined factorial in C++ that avoids stack overflow by storing continuations in a heap-allocated stack.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Forth stack machine)} Forth is a stack-based language where all computation happens on two stacks: the data stack and the return stack. Write a minimal Forth interpreter that supports \texttt{DUP}, \texttt{SWAP}, \texttt{DROP}, \texttt{+}, \texttt{-}, \texttt{*}, \texttt{.}, and \texttt{IF}/\texttt{ELSE}/\texttt{THEN}. Execute a program that computes and prints the first 10 Fibonacci numbers.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Donald E. Knuth, \textit{The Art of Computer Programming}, Volume 1: Fundamental Algorithms. Section 2.2.1.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Section 10.1.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Section 1.3.
+\item R. K. Treiber, "Systems Programming: Coping with Parallelism" — IBM Technical Report, 1986.
+\end{itemize}
+

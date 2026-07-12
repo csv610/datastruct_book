@@ -1,0 +1,14 @@
+Interval Tree with intervals:
+[15,20], [10,30], [17,19], [12,15], [5,20], [30,40]
+
+BST ordered by low endpoint:
+
+              [10,30] max=40
+             /        \
+        [5,20] max=20  [17,19] max=40
+       /              /         \
+ (empty)       [12,15] max=15  [15,20] max=20
+                                        \
+                                    [30,40] max=40
+
+Key: Each node shows [low,high] max=maximum_high_in_subtree

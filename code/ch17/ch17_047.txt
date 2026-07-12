@@ -1,0 +1,10 @@
+x=10: tails = [10]                 (new pile)
+x=9:  tails = [9]                  (9 replaces 10 in pile 1)
+x=2:  tails = [2]                  (2 replaces 9 in pile 1)
+x=5:  tails = [2, 5]               (5 starts pile 2)
+x=3:  tails = [2, 3]               (3 replaces 5 in pile 2)
+x=7:  tails = [2, 3, 7]            (7 starts pile 3)
+x=101: tails = [2, 3, 7, 101]      (101 starts pile 4)
+x=18: tails = [2, 3, 7, 18]        (18 replaces 101 in pile 4)
+
+Number of piles = 4 -> LIS length = 4

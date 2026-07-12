@@ -1,0 +1,1 @@
+Probe sequence: p(i) = (h(k) + i$^{2}$) mod m

@@ -1,0 +1,11 @@
+Shared structure across versions:
+  Version 0:   A -> (B, C)
+  Version 1:   A' -> (B, D)     -- B is shared, C replaced by D
+  Version 2:   A'' -> (E, D)    -- D is shared with version 1
+
+DAG representation:
+  [A]  [A']  [A'']     <-- three roots
+   |     |      |
+  [B]--[B]    [E]      <-- single node B shared by v0 and v1
+   |           |
+  [C]         [D]--[D] <-- single node D shared by v1 and v2

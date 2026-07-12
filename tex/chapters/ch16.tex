@@ -1,0 +1,1388 @@
+\chapter{Divide and Conquer}\label{ch16:divide-and-conquer}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The General Method}
+
+\textbf{Divide and conquer}\index{divide and conquer} solves a problem by:
+\begin{enumerate}
+\item \textbf{Divide:} break the problem into smaller subproblems of the same type
+\item \textbf{Conquer:} solve each subproblem recursively
+\item \textbf{Combine:} merge the solutions into the overall solution
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+T(n) = a*T(n/b) + f(n)
+
+where:
+a = number of subproblems
+n/b = size of each subproblem
+f(n) = cost of divide + combine
+\end{lstlisting}
+
+The \textbf{Master Theorem} (Chapter 2) gives solutions for common recurrences:
+\begin{itemize}
+\item T(n) = 2T(n/2) + O(n) $\to$ O(n log n) — merge sort\index{merge sort}, closest pair\index{closest pair}
+\item T(n) = T(n/2) + O(1) $\to$ O(log n) — binary search\index{binary search}
+\item T(n) = 7T(n/2) + O(n$^{2}$) $\to$ O(n$^{2.807}$) — Strassen\index{Strassen's algorithm}
+\end{itemize}
+
+\section{Defective Chessboard}
+
+\textbf{Problem:} A 2$^{k}$ $\times $ 2$^{k}$ chessboard has one defective square. Cover the remaining squares with L-shaped trominoes (3 squares each).
+
+Divide the board into four quadrants. Place one tromino at the center to ``defect'' the three quadrants that don't have the original defect. Recurse on each quadrant.
+
+\begin{lstlisting}[language=C++]
+enum quadrant { TL, TR, BL, BR };
+
+void cover_board(std::vector<std::vector<int>>& board,
+                 size_t row, size_t col,
+                 size_t defect_r, size_t defect_c,
+                 size_t size, int& tile) {
+    if (size == 1) return;
+
+    size_t half = size / 2;
+    int t = tile++;
+
+    // Top-left quadrant
+    if (defect_r < row + half && defect_c < col + half) {
+        cover_board(board, row, col, defect_r, defect_c, half, tile);
+    } else {
+        board[row + half - 1][col + half - 1] = t;
+        cover_board(board, row, col, row + half - 1, col + half - 1, half, tile);
+    }
+
+    // Top-right quadrant
+    if (defect_r < row + half && defect_c >= col + half) {
+        cover_board(board, row, col + half, defect_r, defect_c, half, tile);
+    } else {
+        board[row + half - 1][col + half] = t;
+        cover_board(board, row, col + half, row + half - 1, col + half, half, tile);
+    }
+
+    // Bottom-left quadrant
+    if (defect_r >= row + half && defect_c < col + half) {
+        cover_board(board, row + half, col, defect_r, defect_c, half, tile);
+    } else {
+        board[row + half][col + half - 1] = t;
+        cover_board(board, row + half, col, row + half, col + half - 1, half, tile);
+    }
+
+    // Bottom-right quadrant
+    if (defect_r >= row + half && defect_c >= col + half) {
+        cover_board(board, row + half, col + half, defect_r, defect_c, half, tile);
+    } else {
+        board[row + half][col + half] = t;
+        cover_board(board, row + half, col + half, row + half, col + half, half, tile);
+    }
+}
+\end{lstlisting}
+
+\textbf{Complexity:} T(n) = 4T(n/2) + O(1) $\to$ T(n) = O(n$^{2}$) = O(4$^{k}$), which is optimal (there are exactly (4$^{k}$ - 1)/3 squares to cover).
+
+\section{Binary Search}
+
+\textbf{Problem:} Find a target value in a sorted array.
+
+\textbf{Idea:} Compare the target with the middle element. If equal, done. If target is smaller, search the left half. If larger, search the right half. Each step halves the search space.
+
+\begin{lstlisting}[language=C++]
+template <std::random_access_iterator Iter, typename T>
+Iter binary_search_iter(Iter first, Iter last, const T& value) {
+    while (first < last) {
+        auto mid = first + (last - first) / 2;
+        if (*mid == value) return mid;
+        if (*mid < value) first = mid + 1;
+        else last = mid;
+    }
+    return last;  // not found
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} Search for 7 in [1, 3, 5, 7, 9, 11, 13]:
+
+\begin{lstlisting}[language=Java]
+Step 1: low=0, high=6, mid=3. arr[3]=7. Found!
+\end{lstlisting}
+
+Search for 10 in [1, 3, 5, 7, 9, 11, 13]:
+
+\begin{lstlisting}[language=Java]
+Step 1: low=0, high=6, mid=3. arr[3]=7 < 10. low=4.
+Step 2: low=4, high=6, mid=5. arr[5]=11 > 10. high=4.
+Step 3: low=4, high=4. low == high. Not found.
+\end{lstlisting}
+
+\textbf{Why (last - first) / 2 instead of (first + last) / 2:} The latter can overflow for large indices. For example, if first = 2$^{31}$ - 1 and last = 2$^{31}$ - 1, the sum overflows a 32-bit int.
+
+\textbf{The ``buggy binary search'' problem:} Binary search is notoriously easy to get wrong. Common bugs include: using \texttt{low <= high} when \texttt{low < high} is needed (or vice versa), returning \texttt{mid} when \texttt{low} should be returned, and off-by-one in the update: \texttt{low = mid} vs \texttt{low = mid + 1}. The version above uses the invariant that the answer, if present, is always in [\texttt{first}, \texttt{last}).
+
+\textbf{Recursive version:}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+int binary_search_rec(const std::vector<T>& arr, int low, int high, const T& target) {
+    if (low > high) return -1;
+    int mid = low + (high - low) / 2;
+    if (arr[mid] == target) return mid;
+    if (arr[mid] > target) return binary_search_rec(arr, low, mid - 1, target);
+    return binary_search_rec(arr, mid + 1, high, target);
+}
+\end{lstlisting}
+
+\textbf{Recurrence:} T(n) = T(n/2) + O(1) $\to$ T(n) = O(log n). This is optimal — any comparison-based search on sorted data requires $\Omega$(log n) comparisons.
+
+\textbf{Applications:} database index lookups (B-tree leaf search), finding insertion position in \texttt{std::lower\_bound}, searching in rotated sorted arrays, and searching for a value in a sorted 2D matrix.
+
+\section{Finding Min and Max}
+
+\textbf{Problem:} Find both the minimum and maximum of an array using fewer than 2n - 2 comparisons.
+
+\textbf{Divide and conquer approach:} 
+\begin{itemize}
+\item Divide array in half
+\item Recursively find min and max of each half
+\item Combine: overall min = min(left\_min, right\_min), overall max = max(left\_max, right\_max)
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+std::pair<int, int> min_max(std::span<const int> arr) {
+    if (arr.size() == 1) return {arr[0], arr[0]};
+    if (arr.size() == 2) {
+        return {std::min(arr[0], arr[1]), std::max(arr[0], arr[1])};
+    }
+
+    size_t mid = arr.size() / 2;
+    auto [lmin, lmax] = min_max(arr.subspan(0, mid));
+    auto [rmin, rmax] = min_max(arr.subspan(mid));
+
+    return {std::min(lmin, rmin), std::max(lmax, rmax)};
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} arr = [3, 1, 4, 1, 5, 9, 2, 6]
+
+\begin{lstlisting}[language=Java]
+min_max([3, 1, 4, 1]):
+  min_max([3, 1]) = (1, 3)
+  min_max([4, 1]) = (1, 4)
+  combine: min(1,1)=1, max(3,4)=4 -> (1, 4)
+
+min_max([5, 9, 2, 6]):
+  min_max([5, 9]) = (5, 9)
+  min_max([2, 6]) = (2, 6)
+  combine: min(5,2)=2, max(9,6)=9 -> (2, 9)
+
+combine: min(1,2)=1, max(4,9)=9 -> (1, 9)
+\end{lstlisting}
+
+\textbf{Comparisons:} T(n) = 2T(n/2) + 2 $\to$ T(n) = 3n/2 - 2. This is optimal for finding both min and max simultaneously.
+
+\section{Sorting Algorithms}
+
+\subsection{Merge Sort}
+
+Divide array in half, sort each half, merge.
+
+\begin{lstlisting}[language=C++]
+void merge_sort(std::span<int> arr) {
+    if (arr.size() <= 1) return;
+
+    size_t mid = arr.size() / 2;
+    std::vector<int> left(arr.begin(), arr.begin() + mid);
+    std::vector<int> right(arr.begin() + mid, arr.end());
+
+    merge_sort(left);
+    merge_sort(right);
+
+    // Merge
+    size_t i = 0, j = 0, k = 0;
+    while (i < left.size() && j < right.size()) {
+        arr[k++] = (left[i] <= right[j]) ? left[i++] : right[j++];
+    }
+    while (i < left.size()) arr[k++] = left[i++];
+    while (j < right.size()) arr[k++] = right[j++];
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} arr = [3, 1, 4, 1, 5, 9, 2, 6]
+
+\begin{lstlisting}[language=Java]
+Level 0 (original):        [3, 1, 4, 1, 5, 9, 2, 6]
+Level 1 (divide):    [3, 1, 4, 1]  [5, 9, 2, 6]
+Level 2 (divide):  [3, 1] [4, 1]  [5, 9] [2, 6]
+Level 3 (base):   [3][1] [4][1]  [5][9] [2][6]
+Level 3 (merge):  [1, 3] [1, 4]  [5, 9] [2, 6]
+Level 2 (merge):  [1, 1, 3, 4]  [2, 5, 6, 9]
+Level 1 (merge):  [1, 1, 2, 3, 4, 5, 6, 9]
+\end{lstlisting}
+
+\textbf{Recurrence:} T(n) = 2T(n/2) + O(n) $\to$ T(n) = O(n log n).  
+\textbf{Space:} O(n) extra — merge sort is not in-place.  
+\textbf{Stability:} merge sort is stable — equal elements retain their relative order.
+
+\subsection{Natural Merge Sort}
+
+A variant that identifies existing sorted runs in the data. If the input is already sorted, natural merge sort runs in O(n).
+
+\begin{lstlisting}[language=C++]
+// Natural merge sort: identify runs, then merge adjacent runs
+void natural_merge_sort(std::span<int> arr) {
+    if (arr.size() <= 1) return;
+
+    // Phase 1: find all natural runs
+    std::vector<std::pair<size_t, size_t>> runs;  // (start, length)
+    size_t start = 0;
+    for (size_t i = 1; i <= arr.size(); ++i) {
+        if (i == arr.size() || arr[i] < arr[i - 1]) {
+            runs.push_back({start, i - start});
+            start = i;
+        }
+    }
+
+    // Phase 2: merge adjacent runs until one remains
+    while (runs.size() > 1) {
+        std::vector<std::pair<size_t, size_t>> merged;
+        for (size_t i = 0; i + 1 < runs.size(); i += 2) {
+            // Merge runs[i] and runs[i+1]
+            size_t s1 = runs[i].first, len1 = runs[i].second;
+            size_t s2 = runs[i+1].first, len2 = runs[i+1].second;
+            std::inplace_merge(arr.begin() + s1, arr.begin() + s1 + len1,
+                               arr.begin() + s2 + len2);
+            merged.push_back({s1, len1 + len2});
+        }
+        if (runs.size() % 2 == 1) merged.push_back(runs.back());
+        runs = merged;
+    }
+}
+\end{lstlisting}
+
+\textbf{Best case:} O(n) when the input is already sorted (one run of length n).  
+\textbf{Average/Worst:} O(n log n) — same as standard merge sort.  
+\textbf{When it wins:} partially sorted data (e.g., merging results from multiple sorted files in a database).
+
+\subsection{Quick Sort}
+
+Choose a \textbf{pivot}, partition the array into elements $\le $ pivot and $\ge $ pivot, recurse on each partition.
+
+\begin{lstlisting}[language=C++]
+size_t partition(std::span<int> arr) {
+    // Lomuto partition scheme
+    int pivot = arr.back();
+    size_t i = 0;
+    for (size_t j = 0; j < arr.size() - 1; ++j) {
+        if (arr[j] <= pivot) {
+            std::swap(arr[i], arr[j]);
+            ++i;
+        }
+    }
+    std::swap(arr[i], arr.back());
+    return i;
+}
+
+void quick_sort(std::span<int> arr) {
+    if (arr.size() <= 1) return;
+    size_t p = partition(arr);
+    quick_sort(arr.subspan(0, p));
+    quick_sort(arr.subspan(p + 1));
+}
+\end{lstlisting}
+
+\textbf{Average:} T(n) = O(n log n). \textbf{Worst case (already sorted):} O(n$^{2}$).  
+Mitigated by random pivot\index{random pivot} selection:
+
+\begin{lstlisting}[language=C++]
+size_t random_partition(std::span<int> arr) {
+    size_t r = std::rand() % arr.size();
+    std::swap(arr[r], arr.back());
+    return partition(arr);
+}
+\end{lstlisting}
+
+\textbf{Space:} O(log n) for the recursion stack (worst case O(n)).
+
+\subsection{Comparison}
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+Algorithm & Worst Case & Average & Best Case & Space & Stable \\
+Merge sort & O(n log n) & O(n log n) & O(n log n) & O(n) & Yes \\
+Quick sort & O(n$^{2}$) & O(n log n) & O(n log n) & O(log n) & No \\
+Heap sort & O(n log n) & O(n log n) & O(n log n) & O(1) & No \\
+Introsort & O(n log n) & O(n log n) & O(n log n) & O(log n) & No \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Introsort} (used by \texttt{std::sort}) starts with quicksort\index{quicksort}, switches to heapsort if recursion depth exceeds log n, and uses insertion sort for small arrays.
+
+%% ============================================================
+%% RADIX SORT (industrially relevant)
+%% ============================================================
+
+\section{Radix Sort}
+\label{sec:radix-sort}
+
+Comparison-based sorting has a lower bound of $\Omega(n \log n)$. Radix sort\index{radix sort} breaks this barrier by exploiting the structure of the keys themselves. Instead of comparing elements, radix sort processes each digit (or bit) of the key.
+
+\subsection{LSD Radix Sort}
+
+\emph{Least Significant Digit (LSD) radix sort} processes digits from right to left. For each digit position, it performs a stable sort (typically counting sort) on that digit. Because the sort is stable, earlier digits maintain their relative order.
+
+\begin{lstlisting}[language=C++]
+void lsd_radix_sort(std::vector<int>& arr) {
+    if (arr.empty()) return;
+    int maxVal = *std::max_element(
+        arr.begin(), arr.end());
+
+    for (int exp = 1; maxVal / exp > 0; exp *= 10) {
+        std::vector<int> output(arr.size());
+        int count[10] = {0};
+
+        for (int x : arr)
+            count[(x / exp) % 10]++;
+
+        for (int i = 1; i < 10; i++)
+            count[i] += count[i - 1];
+
+        for (int i = arr.size() - 1; i >= 0; i--) {
+            int digit = (arr[i] / exp) % 10;
+            output[count[digit] - 1] = arr[i];
+            count[digit]--;
+        }
+        arr = output;
+    }
+}
+\end{lstlisting}
+
+For $n$ $w$-bit integers, LSD radix sort runs in $O(nw)$ time. When $w = O(\log n)$, this is $O(n \log n)$; when $w$ is a constant (e.g., sorting 32-bit integers with byte-wise passes), it is $O(n)$.
+
+\subsection{MSD Radix Sort}
+
+\emph{Most Significant Digit (MSD) radix sort} processes digits from left to right. It is naturally recursive: after partitioning by the first digit, it recursively sorts each bucket by the next digit.
+
+\begin{lstlisting}[language=C++]
+void msd_radix_sort(std::vector<int>& arr,
+        int lo, int hi, int bit) {
+    if (lo >= hi || bit < 0) return;
+
+    int mask = 1 << bit;
+    int mid = lo;
+    // Three-way partition: 0s, then 1s
+    for (int i = lo; i <= hi; i++) {
+        if ((arr[i] & mask) == 0) {
+            std::swap(arr[mid++], arr[i]);
+        }
+    }
+    msd_radix_sort(arr, lo, mid - 1, bit - 1);
+    msd_radix_sort(arr, mid, hi, bit - 1);
+}
+
+void msd_radix_sort(std::vector<int>& arr) {
+    if (arr.empty()) return;
+    int maxVal = *std::max_element(
+        arr.begin(), arr.end());
+    int highestBit = 31 - __builtin_clz(maxVal);
+    msd_radix_sort(arr, 0, arr.size() - 1,
+                   highestBit);
+}
+\end{lstlisting}
+
+MSD radix sort is better for variable-length keys (like strings) because it can stop early when buckets become small.
+
+\subsection{Radix Sort for Strings}
+
+LSD radix sort works naturally for fixed-length strings (e.g., IP addresses, UUIDs). For variable-length strings, MSD radix sort with insertion sort for small buckets is the standard approach. This is the basis of sorting in database engines and file systems.
+
+\begin{lstlisting}[language=C++]
+void radix_sort_strings(std::vector<std::string>& arr,
+        int lo, int hi, int d) {
+    if (lo >= hi) return;
+    const int R = 256;  // ASCII alphabet
+
+    std::vector<std::vector<std::string>> buckets(R);
+    for (int i = lo; i <= hi; i++) {
+        int c = d < (int)arr[i].size()
+              ? (unsigned char)arr[i][d] : 0;
+        buckets[c].push_back(arr[i]);
+    }
+
+    int idx = lo;
+    for (int r = 0; r < R; r++) {
+        if (buckets[r].size() > 1)
+            radix_sort_strings(buckets[r], 0,
+                buckets[r].size() - 1, d + 1);
+        for (auto& s : buckets[r])
+            arr[idx++] = s;
+    }
+}
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Variant & Time & Space & Best For \\
+\midrule
+LSD radix sort & $O(nw)$ & $O(n + R)$ & Fixed-length integer keys \\
+MSD radix sort & $O(nw)$ avg & $O(n + wR)$ & Variable-length strings \\
+MSD + insertion cutoff & $O(nw)$ avg & $O(n + wR)$ & Practical string sorting \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Where $w$ = number of digits/bits per key, $R$ = radix (base, typically 256 for bytes).
+
+\subsection{Industrial Applications}
+
+\begin{itemize}
+    \item \textbf{Database engines:} MySQL, PostgreSQL use radix sort for sorting integer keys and fixed-length records
+    \item \textbf{Distributed systems:} MapReduce/BigTable use radix-based partitioning for sort-keys across nodes
+    \item \textbf{Network packet classification:} sorting packets by IP address/port using multi-key radix sort
+    \item \textbf{Genomics:} sorting DNA sequences (4-letter alphabet) with MSD radix sort
+    \item \textbf{File systems:} ext4 and NTFS sort directory entries using radix-based methods
+    \item \textbf{Search engines:} sorting document IDs and inverted list indices
+\end{itemize}
+
+\section{Selection (Finding the k-th Smallest)}
+
+\textbf{Problem:} Find the k-th smallest element without fully sorting the array.
+
+\textbf{Quickselect:} Partition the array around a pivot, then recurse only on the partition containing the k-th element.
+
+\begin{lstlisting}[language=C++]
+int quick_select(std::span<int> arr, size_t k) {
+    if (arr.size() == 1) return arr[0];
+
+    size_t p = random_partition(arr);
+
+    if (k == p) return arr[p];
+    if (k < p) return quick_select(arr.subspan(0, p), k);
+    return quick_select(arr.subspan(p + 1), k - p - 1);
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} arr = [3, 1, 4, 1, 5, 9, 2, 6], k = 4 (find 5th smallest).
+
+\begin{lstlisting}[language=Java]
+pivot = 6 (last element). Partition: [3, 1, 4, 1, 5, 2] [6] [9]
+k = 4 > pivot index 6. Recurse on [9], k = 4 - 6 - 1 = ... 
+
+Wait, let me redo with k=4 (0-indexed):
+pivot = 6. After partition: [3, 1, 4, 1, 5, 2] [6] [9]
+pivot index = 6. k = 4 < 6. Recurse on [3, 1, 4, 1, 5, 2], k = 4.
+pivot = 2. After partition: [1, 1] [2] [3, 4, 5]
+pivot index = 2. k = 4 > 2. Recurse on [3, 4, 5], k = 4 - 2 - 1 = 1.
+pivot = 5. After partition: [3, 4] [5] []
+pivot index = 2. k = 1 < 2. Recurse on [3, 4], k = 1.
+pivot = 4. After partition: [3] [4]
+pivot index = 1. k = 1. Return 4.
+\end{lstlisting}
+
+Wait — the 5th smallest (k=4) in [1, 1, 2, 3, 4, 5, 6, 9] is 4. Correct.
+
+\textbf{Average:} O(n). \textbf{Worst:} O(n$^{2}$).  
+The \textbf{Median of Medians} algorithm achieves O(n) worst-case selection by choosing a pivot that guarantees a 30-70 split: divide into groups of 5, find the median of each group, then find the median of those medians. The guaranteed split gives T(n) = T(3n/10) + T(7n/10) + O(n) = O(n).
+
+\textbf{Applications:} finding medians, order statistics, percentile calculations, and as a subroutine in quicksort.
+
+\section{Closest Pair of Points}
+
+\textbf{Problem:} Given n points in the plane, find the pair with the smallest Euclidean distance.
+
+\textbf{Divide and conquer approach:}
+\begin{enumerate}
+\item Sort points by x-coordinate
+\item Divide at median x
+\item Recursively find d = min(closest in left, closest in right)
+\item Consider the strip of width 2d around the median — only O(n) points to check
+\end{enumerate}
+
+\begin{lstlisting}[language=C++]
+struct point { double x, y; };
+
+double closest_pair(std::span<point> points) {
+    if (points.size() <= 3) return brute_force(points);
+
+    size_t mid = points.size() / 2;
+    double mid_x = points[mid].x;
+
+    double dl = closest_pair(points.subspan(0, mid));
+    double dr = closest_pair(points.subspan(mid));
+    double d = std::min(dl, dr);
+
+    // Collect points within the strip
+    std::vector<point> strip;
+    for (const auto& p : points) {
+        if (std::abs(p.x - mid_x) < d) strip.push_back(p);
+    }
+
+    // Sort strip by y
+    std::sort(strip.begin(), strip.end(),
+              [](const point& a, const point& b) { return a.y < b.y; });
+
+    // Check each point against next few (at most 7)
+    for (size_t i = 0; i < strip.size(); ++i) {
+        for (size_t j = i + 1; j < strip.size() && (strip[j].y - strip[i].y) < d; ++j) {
+            double dist = euclidean(strip[i], strip[j]);
+            d = std::min(d, dist);
+        }
+    }
+    return d;
+}
+\end{lstlisting}
+
+\textbf{Why only 7 comparisons per point:} In the strip, divide each point's neighborhood into 8 cells of size d/2 $\times$ d/2. By the pigeonhole principle, at most one point can be in each cell (otherwise two points in the same cell would be closer than d). So each point has at most 7 neighbors to check.
+
+\textbf{Complexity:} T(n) = 2T(n/2) + O(n log n) [sorting by y each level] $\to$ O(n log$^{2}$ n).  
+\textbf{Optimized:} Pre-sort by y once $\to$ T(n) = 2T(n/2) + O(n) $\to$ O(n log n).
+
+\section{Strassen's Matrix Multiplication}
+
+Standard matrix multiplication: 8 multiplications of n/2 $\times $ n/2 submatrices $\to $ T(n) = 8T(n/2) + O(n$^{2}$) $\to $ O(n$^{3}$).
+
+Strassen's algorithm reduces multiplication count to 7:
+
+\begin{lstlisting}[language=Java]
+M$_{1}$ = (A$_{1}$$_{1}$ + A$_{2}$$_{2}$) * (B$_{1}$$_{1}$ + B$_{2}$$_{2}$)
+M$_{2}$ = (A$_{2}$$_{1}$ + A$_{2}$$_{2}$) * B$_{1}$$_{1}$
+M$_{3}$ = A$_{1}$$_{1}$ * (B$_{1}$$_{2}$ - B$_{2}$$_{2}$)
+M$_{4}$ = A$_{2}$$_{2}$ * (B$_{2}$$_{1}$ - B$_{1}$$_{1}$)
+M$_{5}$ = (A$_{1}$$_{1}$ + A$_{1}$$_{2}$) * B$_{2}$$_{2}$
+M$_{6}$ = (A$_{2}$$_{1}$ - A$_{1}$$_{1}$) * (B$_{1}$$_{1}$ + B$_{1}$$_{2}$)
+M$_{7}$ = (A$_{1}$$_{2}$ - A$_{2}$$_{2}$) * (B$_{2}$$_{1}$ + B$_{2}$$_{2}$)
+
+C$_{1}$$_{1}$ = M$_{1}$ + M$_{4}$ - M$_{5}$ + M$_{7}$
+C$_{1}$$_{2}$ = M$_{3}$ + M$_{5}$
+C$_{2}$$_{1}$ = M$_{2}$ + M$_{4}$
+C$_{2}$$_{2}$ = M$_{1}$ - M$_{2}$ + M$_{3}$ + M$_{6}$
+\end{lstlisting}
+
+\textbf{Worked trace (2x2 matrices):}
+\begin{lstlisting}[language=Java]
+A = [[1, 2], [3, 4]], B = [[5, 6], [7, 8]]
+
+Standard: 8 multiplications = 1*5 + 1*6 + 2*7 + 2*8 + 3*5 + 3*6 + 4*7 + 4*8 = 154
+
+Strassen:
+M1 = (1+4)*(5+8) = 5*13 = 65
+M2 = (3+4)*5 = 7*5 = 35
+M3 = 1*(6-8) = 1*(-2) = -2
+M4 = 4*(7-5) = 4*2 = 8
+M5 = (1+2)*8 = 3*8 = 24
+M6 = (3-1)*(5+6) = 2*11 = 22
+M7 = (2-4)*(7+8) = (-2)*15 = -30
+
+C11 = 65 + 8 - 24 + (-30) = 19
+C12 = -2 + 24 = 22
+C21 = 35 + 8 = 43
+C22 = 65 - 35 + (-2) + 22 = 50
+
+C = [[19, 22], [43, 50]]  -- matches standard multiplication
+\end{lstlisting}
+
+\textbf{Complexity:} T(n) = 7T(n/2) + O(n$^{2}$) $\to$ T(n) = O(n\textasciicircum{}(log$_{2}$7)) $\approx $ O(n\textasciicircum{}(2.807)).
+
+\textbf{Practical considerations:} Strassen's algorithm has worse numerical stability (subtractive cancellation) and cache performance for small matrices. Libraries like BLAS use it only for large matrices (n > 512-1024). The crossover point depends on hardware cache sizes.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{itemize}
+\item \textbf{Incorrect base case} — forgetting the base case (n $\le $ 1) causes infinite recursion and stack overflow. Always verify that every recursive call moves toward the base case.
+\item \textbf{Expensive combine step} — if the combine step is O(n$^{2}$), a divide-and-conquer algorithm may be slower than a naive solution. This is why the closest-pair algorithm must carefully limit the strip check to O(n).
+\item \textbf{Quick sort with bad pivot selection} — always using the first/last element as pivot causes O(n$^{2}$) on sorted/almost-sorted data. Use median-of-three or random pivots in production.
+\item \textbf{Merge sort's extra memory} — merge sort requires O(n) additional space. In-place merge sort exists but is complex and rarely used. For systems with tight memory (embedded), consider heap sort or introsort instead.
+\item \textbf{Strassen's numerical stability} — Strassen's algorithm uses subtractions that can cause catastrophic cancellation for ill-conditioned matrices. Production matrix libraries (BLAS, Eigen) use Strassen only for large matrices where the error is bounded.
+\end{itemize}
+
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Divide and conquer} breaks a problem into independent subproblems, solves them recursively, and combines solutions.
+\item \textbf{Binary search} is the simplest and most widely used divide-and-conquer algorithm: O(log n) search in sorted data.
+\item \textbf{Merge sort} and \textbf{quick sort} are the canonical divide-and-conquer sorts. Merge sort guarantees O(n log n) but uses O(n) space; quick sort is in-place but has O(n$^{2}$) worst case.
+\item \textbf{Closest pair} and \textbf{Strassen's multiplication} demonstrate non-trivial divide and combine steps.
+\item Industrial applications include \textbf{merge sort in PostgreSQL} (external sorting), \textbf{quick sort in C++ std::sort} (introsort hybrid), \textbf{Strassen in matrix libraries}, \textbf{FFT in JPEG/MP3}, \textbf{binary search in database indexes}, and \textbf{quickselect}\index{quickselect} in Netflix's recommendation rankings.
+\item The \textbf{Master Theorem} (Chapter 2) provides the complexity framework.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{What is the invariant of binary search, and why do most implementations get it wrong?}
+
+The invariant is: the answer is always in the range [lo, hi]. On each iteration, you eliminate half the range by comparing the midpoint with the target. Most implementations get the midpoint calculation wrong: \texttt{lo + (hi - lo) / 2} is correct; \texttt{(lo + hi) / 2} overflows for large indices. The bigger bug: the loop termination condition. \texttt{while (lo <= hi)} with \texttt{lo = mid + 1} and \texttt{hi = mid - 1} is correct for finding an exact match. \texttt{while (lo < hi)} with \texttt{hi = mid} is correct for finding the leftmost insertion point. Mixing these up gives subtle bugs that pass most test cases. The C++ standard library uses \texttt{std::lower\_bound} and \texttt{std::upper\_bound} --- never write binary search by hand.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When is quicksort better than merge sort in practice?}
+
+Quicksort has better cache performance (in-place, sequential access) and smaller constants. For in-memory sorting of primitive types, quicksort (or introsort) is typically 2-3x faster than merge sort. Merge sort wins when stability is required, when worst-case O(n log n) is mandatory, or for external sorting (data on disk, where sequential access dominates).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is quickselect O(n) average but O(n$^{2}$) worst-case, and how does introselect fix this?}
+
+Quickselect partitions like quicksort but recurses into only ONE partition --- the one containing the $k$-th element. On average, each partition halves the search space: $n + n/2 + n/4 + \ldots = 2n = O(n)$. Worst case: if the pivot is always the smallest/largest element, you get $n + (n-1) + (n-2) + \ldots = O(n^{2})$. Introselect (used in \texttt{std::nth\_element}) starts with quickselect's partitioning but switches to median-of-medians (guaranteed $O(n)$ pivot) if recursion depth exceeds $2 \log_{2} n$. This gives $O(n)$ worst-case while preserving quickselect's cache-friendly behavior for the common case.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain the strip optimization in closest pair.}
+
+After finding d = min distance in left and right halves, we only need to check points in a strip of width 2d around the dividing line. Within this strip, sort by y and compare each point with at most 7 neighbors. This reduces the combine step from O(n$^{2}$) to O(n), making the overall algorithm O(n log n).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does Strassen's algorithm only save one multiplication?}
+
+Naive multiplication needs 8 multiplications for 2x2 blocks. Strassen discovered that by computing 7 clever products (using additions/subtractions of the input elements), the 4 output blocks can be reconstructed. The key insight is that multiplication is more expensive than addition, so reducing one multiplication at the cost of several additions is a net win when n is large.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between tail recursion and regular recursion in divide-and-conquer?}
+
+Tail recursion is when the recursive call is the last operation — the compiler can optimize it into a loop (O(1) stack). Binary search's iterative version demonstrates this optimization. Merge sort and quicksort cannot be tail-recursive because they make TWO recursive calls and then combine. The second call must be deferred on the stack.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you handle the base case for floating-point divide-and-conquer?}
+
+For continuous problems (root finding, integration), use a tolerance threshold: stop when the interval width $< \varepsilon$ or when the function value is close enough to zero. Binary search for roots (bisection method) converges in O(log((b-a)/$\varepsilon$)) iterations. The base case must account for floating-point precision — never test \texttt{mid == target} exactly for doubles.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is bottom-up merge sort the foundation for external sorting on disk?}
+
+Bottom-up merge sort processes subarrays of size 1, 2, 4, 8\ldots\ with no recursion --- each pass makes one sequential scan of the data. For external sorting (data too large for RAM), you: (1)~sort chunks that fit in RAM (using any $O(n \log n)$ algorithm), (2)~merge pairs of sorted chunks using bottom-up merge with $k$-way merging. The key insight: sequential I/O is 100$\times$ faster than random I/O on disks. Bottom-up merge sort reads and writes sequentially, making it ideal for magnetic tapes and HDDs. For SSDs, the gap is smaller but sequential access still wins. The pass structure (1, 2, 4, 8\ldots) also enables pipeline parallelism: while one pass writes, the next can read.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does introsort switch to heapsort at depth $2 \log_{2} n$, and why not just use heapsort everywhere?}
+
+Heapsort has $O(n \log n)$ worst-case but poor cache locality --- the parent-child index relationship jumps across the array, causing cache misses. Quicksort has $O(n^{2})$ worst-case but excellent cache locality --- partitioning scans sequentially. Introsort gets the best of both: quicksort's cache behavior for the common case, heapsort's guarantee for the worst case. The threshold $2 \log_{2} n$ is chosen because: (1)~a well-pivoted quicksort finishes in $\sim \log_{2} n$ levels, so $2 \log_{2} n$ means the pivot quality is severely degraded; (2)~switching to heapsort at this point limits the total work to $O(n \log n)$ while keeping the cache-friendly quicksort for 99.9\% of partitions.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain the natural merge sort advantage for partially sorted data.}
+
+Natural merge sort detects existing sorted runs before merging. If the data already has long sorted segments (e.g., two merged files, or data with small perturbations), the number of merge passes is determined by the number of runs, not by log n. For k already-sorted runs, natural merge sort runs in O(n log k) — much faster than O(n log n) when k $\ll$ n.
+\end{enumerate}
+
+\section{Closest Pair of Points: Detailed Treatment}
+
+The section on closest pair earlier gave the high-level idea. Here we provide a complete treatment with brute force, a detailed divide-and-conquer trace, and a full implementation.
+
+\subsection{Brute Force: \texorpdfstring{O(n$^{2}$)}{O(n squared)}}
+
+The simplest approach checks every pair of points:
+
+\begin{lstlisting}[language=C++]
+double brute_force_closest(std::span<point> pts) {
+    double best = std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < pts.size(); ++i) {
+        for (size_t j = i + 1; j < pts.size(); ++j) {
+            double dx = pts[i].x - pts[j].x;
+            double dy = pts[i].y - pts[j].y;
+            double dist = std::sqrt(dx * dx + dy * dy);
+            best = std::min(best, dist);
+        }
+    }
+    return best;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} T(n) = n(n-1)/2 = O(n$^{2}$) comparisons. For n = 10$^{6}$ points, this requires about 5 $\times$ 10$^{11}$ distance computations --- far too slow.
+
+\subsection{Divide and Conquer: O(n log n)}
+
+\textbf{Step 1:} Sort all points by x-coordinate (done once, O(n log n)).
+
+\textbf{Step 2:} Recursively split at the median x-coordinate.
+
+\textbf{Step 3:} Let d = min(d$_{left}$, d$_{right}$). Any closer pair must straddle the dividing line, with both points within distance d of it.
+
+\textbf{Step 4:} Build the strip of points within distance d of the median line. Sort the strip by y-coordinate. For each point, compare with at most 7 subsequent points in the strip (pigeonhole argument on d/2 $\times$ d/2 cells).
+
+\textbf{Why 7?} Partition the strip into a grid of cells of size d/2 $\times$ d/2. Each cell contains at most one point (otherwise two points in the same cell would be closer than d, contradicting d = min(d$_{left}$, d$_{right}$)). A point can have neighbors in at most 8 surrounding cells, but the cell directly below is excluded (already processed), leaving at most 7.
+
+\textbf{Worked trace on 8 points:}
+
+Points (sorted by x): P$_{1}$(1,1), P$_{2}$(2,3), P$_{3}$(3,4), P$_{4}$(4,1), P$_{5}$(5,5), P$_{6}$(6,2), P$_{7}$(7,3), P$_{8}$(8,6)
+
+\begin{lstlisting}[language=Java]
+Split at median (x=4.5):
+  Left:  P1(1,1) P2(2,3) P3(3,4) P4(4,1)
+  Right: P5(5,5) P6(6,2) P7(7,3) P8(8,6)
+
+Recurse on Left half:
+  Split at x=2.5:
+    Left-Left:  P1(1,1)
+    Left-Right: P2(2,3) P3(3,4) P4(4,1)
+    d_LL = infinity (one point)
+    d_LR = min(dist(P2,P3), dist(P2,P4), dist(P3,P4))
+         = min(1.414, 2.236, 3.162) = 1.414  [P2-P3]
+    d_L = 1.414
+
+Recurse on Right half:
+  Split at x=6.5:
+    Right-Left:  P5(5,5) P6(6,2) P7(7,3)
+    Right-Right: P8(8,6)
+    d_RL = min(dist(P5,P6), dist(P5,P7), dist(P6,P7))
+         = min(3.606, 2.828, 1.414) = 1.414  [P6-P7]
+    d_RR = infinity (one point)
+    d_R = 1.414
+
+d = min(d_L, d_R) = 1.414
+
+Build strip (points within d=1.414 of x=4.5):
+  Strip: P3(3,4), P4(4,1), P5(5,5), P6(6,2), P7(7,3)
+  (P2 at x=2 is 2.5 away -- outside strip)
+
+Sort strip by y: P4(4,1), P6(6,2), P7(7,3), P3(3,4), P5(5,5)
+
+Check pairs in strip:
+  P4(4,1) vs P6(6,2): dist = 2.236 > d.
+  P4(4,1) vs P7(7,3): dy=2 > d. Move on.
+  P6(6,2) vs P7(7,3): dist = 1.414 = d. Tie, no improvement.
+  P7(7,3) vs P3(3,4): dy=1, but dx=4 > d. Skip.
+  P3(3,4) vs P5(5,5): dist = 2.236 > d.
+
+No closer pair found. d = 1.414.
+Closest pairs: (P2,P3) and (P6,P7), both at distance sqrt(2) ~ 1.414.
+\end{lstlisting}
+
+\textbf{Full implementation:}
+
+\begin{lstlisting}[language=C++]
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <vector>
+
+struct point { double x, y; };
+
+double dist(const point& a, const point& b) {
+    double dx = a.x - b.x, dy = a.y - b.y;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+double strip_closest(std::vector<point>& strip, double d) {
+    double best = d;
+    std::sort(strip.begin(), strip.end(),
+              [](const point& a, const point& b) { return a.y < b.y; });
+    for (size_t i = 0; i < strip.size(); ++i) {
+        for (size_t j = i + 1;
+             j < strip.size() && (strip[j].y - strip[i].y) < best;
+             ++j) {
+            best = std::min(best, dist(strip[i], strip[j]));
+        }
+    }
+    return best;
+}
+
+double closest_rec(std::vector<point>& pts, size_t lo, size_t hi) {
+    if (hi - lo <= 3) {
+        double d = std::numeric_limits<double>::infinity();
+        for (size_t i = lo; i < hi; ++i)
+            for (size_t j = i + 1; j < hi; ++j)
+                d = std::min(d, dist(pts[i], pts[j]));
+        return d;
+    }
+
+    size_t mid = lo + (hi - lo) / 2;
+    double mid_x = pts[mid].x;
+    double dl = closest_rec(pts, lo, mid);
+    double dr = closest_rec(pts, mid, hi);
+    double d = std::min(dl, dr);
+
+    std::vector<point> strip;
+    for (size_t i = lo; i < hi; ++i) {
+        if (std::abs(pts[i].x - mid_x) < d)
+            strip.push_back(pts[i]);
+    }
+    return strip_closest(strip, d);
+}
+
+double closest_pair(std::vector<point> pts) {
+    std::sort(pts.begin(), pts.end(),
+              [](const point& a, const point& b) { return a.x < b.x; });
+    return closest_rec(pts, 0, pts.size());
+}
+\end{lstlisting}
+
+\textbf{Complexity:} Sorting by x: O(n log n). Recurrence: T(n) = 2T(n/2) + O(n) (strip construction + sort by y) = O(n log n). With pre-sorted y arrays carried through the recursion, the strip sort is eliminated and the recurrence becomes T(n) = 2T(n/2) + O(n) = O(n log n) with smaller constants. Total: O(n log n).
+
+\section{Maximum Subarray}
+
+\textbf{Problem:} Given an array of integers (possibly negative), find the contiguous subarray with the largest sum.
+
+\subsection{Divide and Conquer Approach}
+
+Split the array in half. The maximum subarray either lies entirely in the left half, entirely in the right half, or crosses the midpoint. The first two cases are recursive; the third is solved in O(n) by scanning outward from the midpoint.
+
+\begin{lstlisting}[language=C++]
+struct result { int left, right, sum; };
+
+result max_crossing(std::span<const int> arr, int lo, int mid, int hi) {
+    int left_sum = std::numeric_limits<int>::min();
+    int sum = 0, best_left = mid;
+    for (int i = mid; i >= lo; --i) {
+        sum += arr[i];
+        if (sum > left_sum) { left_sum = sum; best_left = i; }
+    }
+
+    int right_sum = std::numeric_limits<int>::min();
+    sum = 0;
+    int best_right = mid + 1;
+    for (int j = mid + 1; j <= hi; ++j) {
+        sum += arr[j];
+        if (sum > right_sum) { right_sum = sum; best_right = j; }
+    }
+    return {best_left, best_right, left_sum + right_sum};
+}
+
+result max_subarray(std::span<const int> arr, int lo, int hi) {
+    if (lo == hi) return {lo, hi, arr[lo]};
+
+    int mid = lo + (hi - lo) / 2;
+    auto left  = max_subarray(arr, lo, mid);
+    auto right = max_subarray(arr, mid + 1, hi);
+    auto cross = max_crossing(arr, lo, mid, hi);
+
+    if (left.sum >= right.sum && left.sum >= cross.sum) return left;
+    if (right.sum >= left.sum && right.sum >= cross.sum) return right;
+    return cross;
+}
+\end{lstlisting}
+
+\textbf{Recurrence:} T(n) = 2T(n/2) + O(n) $\to$ T(n) = O(n log n).
+
+\subsection{Kadane's Algorithm: O(n)}
+
+A dynamic programming approach scans left to right, tracking the maximum subarray ending at each position:
+
+\begin{lstlisting}[language=C++]
+result kadane(std::span<const int> arr) {
+    int best_sum = arr[0], cur_sum = arr[0];
+    int best_start = 0, best_end = 0, cur_start = 0;
+
+    for (int i = 1; i < (int)arr.size(); ++i) {
+        if (cur_sum < 0) { cur_sum = arr[i]; cur_start = i; }
+        else { cur_sum += arr[i]; }
+
+        if (cur_sum > best_sum) {
+            best_sum = cur_sum;
+            best_start = cur_start;
+            best_end = i;
+        }
+    }
+    return {best_start, best_end, best_sum};
+}
+\end{lstlisting}
+
+\textbf{Key idea:} At each position i, the maximum subarray ending at i is either arr[i] alone or the maximum subarray ending at i-1 extended by arr[i]. This gives the recurrence: max\_ending\_here[i] = max(arr[i], max\_ending\_here[i-1] + arr[i]).
+
+\textbf{Worked trace:} arr = [-2, 1, -3, 4, -1, 2, 1, -5, 4]
+
+\begin{lstlisting}[language=Java]
+i=0: cur=-2, best=-2. Reset: cur=-2, start=0
+i=1: cur<0 -> cur=1, start=1. best=1.
+i=2: cur=1+(-3)=-2. best still 1.
+i=3: cur<0 -> cur=4, start=3. best=4.
+i=4: cur=4+(-1)=3. best still 4.
+i=5: cur=3+2=5. best=5.
+i=6: cur=5+1=6. best=6. [4,-1,2,1] sum=6
+i=7: cur=6+(-5)=1. best still 6.
+i=8: cur=1+4=5. best still 6.
+
+Result: subarray [4, -1, 2, 1] from index 3 to 6, sum = 6.
+\end{lstlisting}
+
+\textbf{Comparison:}
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Approach & Time & Space & Notes \\
+Divide \& Conquer & O(n log n) & O(log n) stack & Good for parallel \\
+Kadane's & O(n) & O(1) & Optimal, sequential \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Kadane's O(n) is optimal (any algorithm must examine every element). The divide-and-conquer version is useful as an exercise in the paradigm and as a basis for parallel prefix-sum implementations on GPUs.
+
+\textbf{Applications:} stock trading (max profit from one buy-sell), image processing (brightest contiguous region), genomic sequence analysis (maximum scoring segment), and the Kadane vs D\&C comparison is a classic interview question.
+
+\section{Counting Inversions}
+
+\textbf{Problem:} Given an array, count the number of pairs (i, j) where i < j but arr[i] > arr[j]. Inversions measure how far an array is from being sorted.
+
+\textbf{Application:} Collaborative filtering --- if two users rank the same movies, the number of inversions between their rankings measures dissimilarity. This is used in recommendation systems (e.g., comparing user preferences on Netflix).
+
+\subsection{Brute Force: \texorpdfstring{O(n$^{2}$)}{O(n squared)}}
+
+\begin{lstlisting}[language=C++]
+int count_inversions_brute(std::span<const int> arr) {
+    int count = 0;
+    for (size_t i = 0; i < arr.size(); ++i)
+        for (size_t j = i + 1; j < arr.size(); ++j)
+            if (arr[i] > arr[j]) ++count;
+    return count;
+}
+\end{lstlisting}
+
+\subsection{Merge Sort Variant: O(n log n)}
+
+During the merge step, when an element from the right half is placed before remaining elements in the left half, each of those remaining left elements forms an inversion with it. Count these during merge.
+
+\begin{lstlisting}[language=C++]
+long long merge_and_count(std::vector<int>& arr, std::vector<int>& tmp,
+                         int lo, int mid, int hi) {
+    long long inversions = 0;
+    int i = lo, j = mid, k = lo;
+
+    while (i < mid && j <= hi) {
+        if (arr[i] <= arr[j]) {
+            tmp[k++] = arr[i++];
+        } else {
+            tmp[k++] = arr[j++];
+            inversions += mid - i;  // all remaining left > arr[j]
+        }
+    }
+    while (i < mid) tmp[k++] = arr[i++];
+    while (j <= hi)  tmp[k++] = arr[j++];
+
+    for (int i = lo; i <= hi; ++i) arr[i] = tmp[i];
+    return inversions;
+}
+
+long long count_inversions(std::vector<int>& arr, std::vector<int>& tmp,
+                           int lo, int hi) {
+    if (lo >= hi) return 0;
+    int mid = lo + (hi - lo) / 2;
+    long long inv = 0;
+    inv += count_inversions(arr, tmp, lo, mid);
+    inv += count_inversions(arr, tmp, mid + 1, hi);
+    inv += merge_and_count(arr, tmp, lo, mid, hi);
+    return inv;
+}
+\end{lstlisting}
+
+\textbf{Recurrence:} T(n) = 2T(n/2) + O(n) $\to$ O(n log n), same as merge sort. The extra work per merge step is O(1) per element (one comparison and one potential count update).
+
+\textbf{Worked trace:} arr = [2, 4, 1, 3, 5]
+
+\begin{lstlisting}[language=Java]
+Split: [2, 4, 1] and [3, 5]
+
+Left half [2, 4, 1]:
+  Split [2] and [4, 1].
+    [4, 1] merge: 4>1 -> 1 inversion. Merged: [1, 4].
+  Merge [2] [1, 4]:
+    2>1 -> 1 inv (1 remaining in left: [2]).
+    2<=4 -> 0 inv.
+    Merged: [1, 2, 4]. Total left inversions = 1 + 1 = 2.
+
+Right half [3, 5]:
+  3<=5 -> 0 inversions.
+
+Merge [1,2,4] [3,5]:
+  1<=3 -> 0 inv.
+  2<=3 -> 0 inv.
+  4>3 -> 1 inv (1 remaining in left: [4]).
+  4<=5 -> 0 inv.
+  Merged: [1, 2, 3, 4, 5]. Cross inversions = 1.
+
+Total inversions: 2 + 0 + 1 = 3.
+Verification: pairs (2,1), (4,1), (4,3). Correct.
+\end{lstlisting}
+
+\textbf{Applications:} measuring ranking similarity (Kendall tau distance), detecting sortedness in adaptive sort algorithms, and the ``minimum swaps to sort'' problem (inversions give a lower bound).
+
+\textbf{Variant --- count non-strict inversions:} Change the merge condition from \texttt{arr[i] <= arr[j]} to \texttt{arr[i] < arr[j]} to count pairs where arr[i] $\ge$ arr[j] (i.e., count equal elements as inversions too).
+
+\section{Strassen's Algorithm: Recursive Trace}
+
+The earlier section stated the 7 products and reconstruction formulas. Here we trace the recursion on 4$\times$4 matrices to show how the algorithm decomposes.
+
+\textbf{Input:} Two 4$\times$4 matrices A and B, each partitioned into four 2$\times$2 blocks.
+
+\begin{lstlisting}[language=Java]
+A = [[A11, A12],    B = [[B11, B12],
+     [A21, A22]]         [B21, B22]]
+
+where each Aij, Bij is a 2x2 matrix.
+\end{lstlisting}
+
+\textbf{Step 1:} Compute 7 products of 2$\times$2 matrices (each product itself may recurse if the submatrices are larger than the base case):
+
+\begin{lstlisting}[language=Java]
+M1 = (A11 + A22) * (B11 + B22)     // 1 add + 1 add + 1 mult
+M2 = (A21 + A22) * B11              // 1 add + 1 mult
+M3 = A11 * (B12 - B22)              // 1 sub + 1 mult
+M4 = A22 * (B21 - B11)              // 1 sub + 1 mult
+M5 = (A11 + A12) * B22              // 1 add + 1 mult
+M6 = (A21 - A11) * (B11 + B12)     // 1 sub + 1 add + 1 mult
+M7 = (A12 - A22) * (B21 + B22)     // 1 sub + 1 add + 1 mult
+\end{lstlisting}
+
+Total additions/subtractions: 18 on 2$\times$2 submatrices. Total multiplications: 7 (down from 8 in the naive approach).
+
+\textbf{Step 2:} Reconstruct the four 2$\times$2 output blocks:
+
+\begin{lstlisting}[language=Java]
+C11 = M1 + M4 - M5 + M7     // 3 ops
+C12 = M3 + M5               // 1 op
+C21 = M2 + M4               // 1 op
+C22 = M1 - M2 + M3 + M6     // 3 ops
+\end{lstlisting}
+
+Total reconstruction additions: 8.
+
+\textbf{Recursion tree for 8$\times$8 matrices:}
+
+\begin{lstlisting}[language=Java]
+Level 0: 1 call  of size 8  -> 7 mults of size 4
+Level 1: 7 calls of size 4  -> 7*7 = 49 mults of size 2
+Level 2: 49 calls of size 2 -> 49*7 = 343 mults of size 1 (base case)
+
+Total 1x1 multiplications: 7^3 = 343
+Naive would require: 8^3 = 512 multiplications.
+Speedup ratio: 512/343 = 1.49x at size 8.
+\end{lstlisting}
+
+\textbf{General speedup at depth k:} Naive: 8$^{k}$ multiplications of n/2$^{k}$-sized matrices. Strassen: 7$^{k}$. For n = 2$^{k}$, the ratio is (8/7)$^{k}$ = n$^{(log_{2}8 - log_{2}7)}$ = n$^{3 - 2.807}$ = n$^{0.193}$.
+
+\textbf{For 1024$\times$1024 matrices:} k = 10 levels. Naive: 8$^{10}$ = 1,073,741,824 scalar multiplications. Strassen: 7$^{10}$ = 282,475,249. Ratio: 3.8x fewer multiplications. However, the 18 extra additions per level add O(n$^{2}$) work, so the net gain depends on the relative cost of multiplication vs addition on the hardware.
+
+\section{Median of Two Sorted Arrays}
+
+\textbf{Problem:} Given two sorted arrays $A$ of size $m$ and $B$ of size $n$, find the median of the combined sorted array in $O(\log(\min(m, n)))$ time.
+
+\textbf{Key insight:} Rather than merging (which costs $O(m + n)$), we binary-search on the smaller array to find a partition that splits both arrays into equal halves.
+
+Let $A[0 \ldots m{-}1]$ and $B[0 \ldots n{-}1]$ with $m \leq n$. We choose an index $i$ in $A$ (so $0 \leq i \leq m$) and set $j = \lfloor(m + n + 1) / 2\rfloor - i$ in $B$. This guarantees the left half has exactly $\lfloor(m + n + 1) / 2\rfloor$ elements. The partition is valid when:
+
+\[
+A[i{-}1] \leq B[j] \quad \text{and} \quad B[j{-}1] \leq A[i]
+\]
+
+If $A[i{-}1] > B[j]$, we move $i$ left (decrease). If $B[j{-}1] > A[i]$, we move $i$ right (increase). This is a standard binary search on $[0, m]$.
+
+\textbf{Worked trace.} $A = [1, 3, 8, 9, 15]$, $B = [2, 4, 6, 7, 10, 12]$. Here $m = 5$, $n = 6$. Total elements: 11. Left half needs $\lfloor 11/2 \rfloor = 6$ elements.
+
+\begin{lstlisting}[language=C++]
+Step 1:  lo=0, hi=5.  i=(0+5)/2=2,  j=6-2=4.
+         A[1]=3 <= B[4]=10  OK
+         B[3]=7 <= A[2]=8   OK  -> valid!
+         Left half: {1,3,2,4,6,7}  max=7
+         Right half: {8,9,15,10,12}  min=8
+         Median = (7 + 8) / 2 = 7.5
+
+Step 2 (alternate input for odd total):
+  A=[1,3,8], B=[2,4,6,7,10].  m=3, n=5, left=4.
+  lo=0, hi=3.  i=1, j=3.
+    A[0]=1 <= B[3]=7  OK
+    B[2]=6 <= A[1]=3  FAIL (6 > 3) -> move i right.
+  lo=2, hi=3.  i=2, j=2.
+    A[1]=3 <= B[2]=6  OK
+    B[1]=4 <= A[2]=8  OK  -> valid!
+    Left half: {1,3,2,4}  max=4
+    Right half: {8,6,7,10}  min=6
+    Since 4+4=8 > 11/2..  Actually total=8 (even), median=(4+6)/2=5.
+\end{lstlisting}
+
+\textbf{C++ implementation:}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <algorithm>
+
+double findMedianSortedArrays(std::vector<int>& A, std::vector<int>& B) {
+    if (A.size() > B.size())
+        return findMedianSortedArrays(B, A);
+
+    int m = A.size(), n = B.size();
+    int lo = 0, hi = m;
+    int halfLen = (m + n + 1) / 2;
+
+    while (lo <= hi) {
+        int i = (lo + hi) / 2;
+        int j = halfLen - i;
+
+        int aLeft  = (i > 0) ? A[i - 1] : INT_MIN;
+        int aRight = (i < m) ? A[i]     : INT_MAX;
+        int bLeft  = (j > 0) ? B[j - 1] : INT_MIN;
+        int bRight = (j < n) ? B[j]     : INT_MAX;
+
+        if (aLeft <= bRight && bLeft <= aRight) {
+            if ((m + n) % 2 == 1)
+                return std::max(aLeft, bLeft);
+            return (std::max(aLeft, bLeft)
+                  + std::min(aRight, bRight)) / 2.0;
+        } else if (aLeft > bRight) {
+            hi = i - 1;
+        } else {
+            lo = i + 1;
+        }
+    }
+    return 0.0;
+}
+\end{lstlisting}
+
+The sentinel values \texttt{INT\_MIN} and \texttt{INT\_MAX} handle the edge cases where $i$ is 0 or $m$ (the corresponding ``virtual'' element is $-\infty$ or $+\infty$). The loop runs at most $\log_2(m) + 1$ iterations, and each iteration does $O(1)$ work, giving $O(\log(\min(m, n)))$ overall.
+
+\section{Karatsuba Multiplication}
+
+\textbf{Problem:} Multiply two $n$-digit integers $x$ and $y$ faster than the textbook $O(n^{2})$ long multiplication algorithm.
+
+\textbf{Divide and conquer approach.} Split each number into two halves of $d = \lceil n/2 \rceil$ digits:
+
+\[
+x = x_1 \cdot 10^{d} + x_0, \qquad y = y_1 \cdot 10^{d} + y_0
+\]
+
+The product is:
+
+\[
+x \cdot y = x_1 y_1 \cdot 10^{2d} + (x_1 y_0 + x_0 y_1) \cdot 10^{d} + x_0 y_0
+\]
+
+Naively this requires four multiplications of $d$-digit numbers: $x_1 y_1$, $x_1 y_0$, $x_0 y_1$, $x_0 y_0$. Karatsuba's trick\index{Karatsuba multiplication} computes the middle term with only one extra multiplication:
+
+\[
+z_2 = x_1 y_1, \quad z_0 = x_0 y_0, \quad z_1 = (x_1 + x_0)(y_1 + y_0) - z_2 - z_0
+\]
+
+Then $x \cdot y = z_2 \cdot 10^{2d} + z_1 \cdot 10^{d} + z_0$.
+
+Three multiplications instead of four gives the recurrence $T(n) = 3T(n/2) + O(n)$, which solves to $O(n^{\log_2 3}) = O(n^{1.585})$ by the Master Theorem.
+
+\textbf{Worked trace on 2-digit numbers.} Multiply $x = 23$ and $y = 45$ ($d = 1$):
+
+\begin{lstlisting}[language=C++]
+x = 23 -> x1 = 2, x0 = 3
+y = 45 -> y1 = 4, y0 = 5
+
+z2 = x1 * y1       = 2 * 4        = 8
+z0 = x0 * y0       = 3 * 5        = 15
+z1 = (x1+x0)*(y1+y0) - z2 - z0
+    = (2+3) * (4+5) - 8 - 15
+    = 5 * 9 - 8 - 15
+    = 45 - 23 = 22
+
+Result = z2*10^2 + z1*10^1 + z0
+       = 8*100 + 22*10 + 15
+       = 800 + 220 + 15
+       = 1035
+
+Verify: 23 * 45 = 1035. Correct.
+\end{lstlisting}
+
+Three 1-digit multiplications ($8$, $15$, $45$) instead of four ($8$, $12$, $20$, $15$). The savings compound at deeper recursion levels.
+
+\textbf{C++ implementation (handles arbitrary-length integers via strings):}
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <algorithm>
+
+std::string addStrings(const std::string& a, const std::string& b) {
+    std::string result;
+    int carry = 0, i = a.size() - 1, j = b.size() - 1;
+    while (i >= 0 || j >= 0 || carry) {
+        int sum = carry;
+        if (i >= 0) sum += a[i--] - '0';
+        if (j >= 0) sum += b[j--] - '0';
+        result.push_back('0' + sum % 10);
+        carry = sum / 10;
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::string subtractStrings(const std::string& a, const std::string& b) {
+    std::string result;
+    int borrow = 0, i = a.size() - 1, j = b.size() - 1;
+    while (i >= 0) {
+        int diff = (a[i--] - '0') - borrow;
+        if (j >= 0) diff -= (b[j--] - '0');
+        if (diff < 0) { diff += 10; borrow = 1; }
+        else           { borrow = 0; }
+        result.push_back('0' + diff);
+    }
+    while (result.size() > 1 && result.back() == '0')
+        result.pop_back();
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::string karatsuba(const std::string& x, const std::string& y) {
+    int n = std::max(x.size(), y.size());
+    if (n <= 9)
+        return std::to_string(std::stoll(x) * std::stoll(y));
+
+    int d = (n + 1) / 2;
+    std::string x1 = x.substr(0, x.size() - d);
+    std::string x0 = x.substr(x.size() - d);
+    std::string y1 = y.substr(0, y.size() - d);
+    std::string y0 = y.substr(y.size() - d);
+
+    std::string z2 = karatsuba(x1, y1);
+    std::string z0 = karatsuba(x0, y0);
+    std::string sum1 = karatsuba(
+        addStrings(x1, x0), addStrings(y1, y0));
+    std::string z1 = subtractStrings(
+        subtractStrings(sum1, z2), z0);
+
+    for (int k = 0; k < 2 * d; k++) z2.push_back('0');
+    for (int k = 0; k < d; k++)     z1.push_back('0');
+
+    return addStrings(addStrings(z2, z1), z0);
+}
+\end{lstlisting}
+
+The base case switches to native \texttt{long long} multiplication when the numbers fit in a single decimal ``digit'' (i.e., $\leq 9$, or more practically, $\leq 10^{9}$ with a suitably chosen base). In production libraries, the base is typically $10^{9}$ or $2^{32}$ and the recursive splits operate on chunks rather than individual decimal digits, which reduces the overhead of string manipulation and improves cache performance.
+
+\textbf{Complexity comparison:}
+
+\begin{lstlisting}[language=C++]
+Algorithm          Recurrence          Exponent    n = 1024 digits
+-----------        ----------------    --------    ---------------
+Schoolbook         T(n) = 4T(n/2)+O(n)  2.0       ~1,048,576 mults
+Karatsuba          T(n) = 3T(n/2)+O(n)  1.585     ~  98,000 mults
+Toom-Cook 3        T(n) = 5T(n/3)+O(n)  1.465     ~  50,000 mults
+\end{lstlisting}
+
+Karatsuba is the simplest D\&C multiplication algorithm that beats schoolbook. For very large numbers ($> 10{,}000$ digits), fast Fourier transform--based methods (Sch\"{o}nhage--Strassen) achieve $O(n \log n \log \log n)$, but Karatsuba remains the practical choice for moderate sizes due to lower constant factors and simpler implementation.
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item Solve T(n) = 2T(n/2) + n, T(n) = T(n/2) + 1, and T(n) = 7T(n/2) + n$^{2}$. Which Master Theorem case applies to each?
+\end{enumerate}
+
+\begin{enumerate}
+\item Trace merge sort on [3, 1, 4, 1, 5, 9, 2, 6]. Show the array at each recursion level.
+\end{enumerate}
+
+\begin{enumerate}
+\item Trace quick sort on [3, 1, 4, 1, 5, 9, 2, 6] using the last element as pivot. Show the array after each partition step.
+\end{enumerate}
+
+\begin{enumerate}
+\item In PostgreSQL's external merge sort, data spills to disk when it doesn't fit in memory. If the sort requires 10GB of memory but only 1GB is available, how many merge passes are needed? What is the total I/O cost?
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the worst-case input for quick sort? For merge sort? For binary search? In each case, give a real scenario where that worst case arises in production.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{PostgreSQL external merge sort.} Implement an external merge sort that sorts a file larger than RAM. Split the input into chunks that fit in memory, sort each chunk (internal sort), write to temporary files, then merge the sorted runs. Test on a synthetic 1GB file with 100MB memory limit. Measure I/O volume and wall time.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{C++ std::sort introsort.} \texttt{std::sort} uses introsort: quick sort with a depth limit, falling back to heap sort when recursion exceeds 2$\cdot $log$_{2}$(n). Implement introsort and benchmark it against plain quick sort on sorted, reversed, and random arrays of 10$^{7}$ elements. Show that introsort avoids the O(n$^{2}$) worst case.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Netflix recommendation ranking (quickselect).} Netflix needs to find the top-100 movies from 10,000 candidates for each user. Implement quickselect to find the 100th highest score, then partition around it. Benchmark vs sorting all 10,000. At what k does sorting become cheaper than quickselect?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{FFT for audio processing.} Implement the Cooley-Tukey FFT for polynomial multiplication. Measure the time to multiply two degree-1,048,575 polynomials. Compare with naive O(n$^{2}$) multiplication. Show the crossover point where FFT becomes faster.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Karatsuba integer multiplication for cryptography.} RSA encryption uses large integers (2048+ bits). Implement Karatsuba multiplication and benchmark against GMP's built-in multiplication for 256-bit, 1024-bit, and 4096-bit integers. At what bit width does Karatsuba beat the O(n$^{2}$) algorithm?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Binary search in database index lookup.} MongoDB uses B-tree indexes with binary search within each node. Implement binary search on an array of 10$^{7}$ integers and measure cache misses using \texttt{perf stat}. Compare with \texttt{std::lower\_bound}. Why does branchless binary search (using \texttt{cmov} instructions) outperform the standard version for large arrays?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Closest pair in GPS trajectory compression.} The Douglas-Peucker algorithm for GPS trajectory simplification uses the closest-pair idea: find the point farthest from the line between endpoints. Implement the divide-and-conquer closest-pair algorithm and apply it to a GPS trace of 100,000 points (from OpenStreetMap data). Show the compressed trajectory at various tolerance levels.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Strassen's algorithm)} Implement Strassen's algorithm with a cutoff (switch to standard multiplication for n < 64). Measure the crossover point on various matrix sizes and hardware. Does the crossover change with CPU cache size? Compare with Intel MKL's performance.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Parallel merge sort)} Implement a parallel merge sort using C++17 parallel algorithms (\texttt{std::execution::par}) and \texttt{std::thread}. Measure speedup on 4, 8, and 16 cores. What is the parallel efficiency? Where does Amdahl's law limit the speedup?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Van Emde Boas layout)} Read about the cache-oblivious van Emde Boas array layout for binary search. Implement binary search on a vEB-laid-out array and compare cache misses with standard binary search. How much does cache-oblivious layout improve performance for very large arrays?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Sorting lower bound)} Prove the $\Omega $(n log n) lower bound for comparison sorting using decision trees. Show that merge sort achieves this bound. Then implement a non-comparison sort (counting sort or radix sort) and show that it beats the lower bound by exploiting the input structure.
+\end{enumerate}
+
+\subsection{Additional Problems}
+
+\begin{enumerate}
+\item \textbf{Closest pair: 3D extension.} Extend the divide-and-conquer closest-pair algorithm to 3D points. How does the strip check change? What is the maximum number of neighbors to check per point in 3D? Implement and test on 100,000 random 3D points.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Counting inversions in a stream.} Design a data structure that maintains a stream of insertions and supports the query: ``how many inversions exist in the current array?'' Hint: use a Fenwick tree (Binary Indexed Tree) with coordinate compression.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Maximum subarray in 2D.} Given an m $\times$ n matrix of integers, find the sub-rectangle with the largest sum. Reduce to 1D maximum subarray using Kadane's algorithm on column prefix sums. What is the time complexity?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Strassen crossover tuning.} Implement Strassen's algorithm with a configurable base-case threshold. Benchmark for thresholds from 8 to 128 on your hardware. At what threshold does Strassen beat naive multiplication? How does this change with matrix size?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Closest pair: presorted y.} Implement the O(n log n) closest-pair variant that maintains two sorted arrays (by x and by y) through the recursion, eliminating the O(n log n) strip-sort step at each level. Measure the speedup on 10$^{7}$ points compared to the simpler version.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Count inversions using BIT.} Implement counting inversions using a Fenwick tree instead of merge sort. Compare the constant factors with the merge-sort approach on arrays of size 10$^{6}$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Maximum subarray with indices.} Modify Kadane's algorithm to also return the starting and ending indices of the maximum subarray. Test on: [-2, 1, -3, 4, -1, 2, 1, -5, 4] and verify the result.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Stock buy-sell with at most k transactions.} Given daily stock prices and an integer k, find the maximum profit with at most k buy-sell transactions (no overlapping). Use divide and conquer with memoization. What is the time complexity for general k?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Strassen with floating-point error analysis.} Implement Strassen's algorithm for double-precision matrices. Compare the element-wise error against naive multiplication for random 256$\times$256 matrices. How does the error grow with matrix size? At what size does the error become unacceptable for your application?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Inversion count and sorting distance.} Prove that the number of inversions equals the minimum number of adjacent swaps needed to sort an array. Implement bubble sort and count the actual swaps performed; verify that it matches the inversion count from merge sort.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapters 4 (divide and conquer), 30 (FFT).
+\item Volker Strassen, "Gaussian Elimination is Not Optimal" — Numerische Mathematik, 1969.
+\item Jon Bentley, \textit{Programming Pearls}, 2nd Edition. Addison-Wesley, 2000.
+\item Michael I. Shamos and Dan Hoey, "Closest-Point Problems" — FOCS, 1975.
+\item Anatolii A. Karatsuba and Yuri Ofman, "Multiplication of Many-Digital Numbers by Automatic Computers" — Doklady Akademii Nauk SSSR, 1962.
+\item James W. Cooley and John W. Tukey, "An Algorithm for the Machine Calculation of Complex Fourier Series" — Mathematics of Computation, 1965.
+\end{itemize}

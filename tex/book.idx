@@ -1,0 +1,128 @@
+\indexentry{pointer|hyperpage}{2}
+\indexentry{array|hyperpage}{7}
+\indexentry{linked list|hyperpage}{14}
+\indexentry{tree|hyperpage}{14}
+\indexentry{hash table|hyperpage}{14}
+\indexentry{algorithm|hyperpage}{27}
+\indexentry{array|hyperpage}{30}
+\indexentry{matrix|hyperpage}{30}
+\indexentry{amortized|hyperpage}{35}
+\indexentry{dynamic array|hyperpage}{35}
+\indexentry{vector|hyperpage}{35}
+\indexentry{BFS|hyperpage}{67}
+\indexentry{DFS|hyperpage}{67}
+\indexentry{queue|hyperpage}{71}
+\indexentry{stack|hyperpage}{75}
+\indexentry{linked list|hyperpage}{93}
+\indexentry{doubly linked|hyperpage}{93}
+\indexentry{singly linked|hyperpage}{93}
+\indexentry{finger tree|hyperpage}{106}
+\indexentry{rope|hyperpage}{110}
+\indexentry{tortoise and hare|hyperpage}{116}
+\indexentry{shadow copy|hyperpage}{119}
+\indexentry{copy-on-write|hyperpage}{119}
+\indexentry{sentinel node|hyperpage}{121}
+\indexentry{circular linked list|hyperpage}{122}
+\indexentry{subset|hyperpage}{127}
+\indexentry{permutation|hyperpage}{148}
+\indexentry{collision|hyperpage}{182}
+\indexentry{trie|hyperpage}{484}
+\indexentry{Knuth-Morris-Pratt|hyperpage}{488}
+\indexentry{Rabin-Karp|hyperpage}{489}
+\indexentry{suffix array|hyperpage}{490}
+\indexentry{DC3 algorithm|hyperpage}{491}
+\indexentry{Skew algorithm|hyperpage}{491}
+\indexentry{LCP array|hyperpage}{492}
+\indexentry{suffix tree|hyperpage}{494}
+\indexentry{Aho-Corasick|hyperpage}{506}
+\indexentry{sparse table|hyperpage}{520}
+\indexentry{range minimum query|hyperpage}{522}
+\indexentry{segment tree|hyperpage}{522}
+\indexentry{Fenwick tree|hyperpage}{525}
+\indexentry{Fenwick tree!binary indexed tree|hyperpage}{525}
+\indexentry{kd-tree|hyperpage}{550}
+\indexentry{union-find|hyperpage}{557}
+\indexentry{greedy algorithm|hyperpage}{576}
+\indexentry{optimal substructure|hyperpage}{576}
+\indexentry{greedy choice property|hyperpage}{577}
+\indexentry{exchange argument|hyperpage}{577}
+\indexentry{container loading|hyperpage}{577}
+\indexentry{fractional knapsack|hyperpage}{578}
+\indexentry{Dijkstra's algorithm|hyperpage}{581}
+\indexentry{Kruskal's algorithm|hyperpage}{581}
+\indexentry{Prim's algorithm|hyperpage}{582}
+\indexentry{Huffman coding|hyperpage}{586}
+\indexentry{interval scheduling|hyperpage}{586}
+\indexentry{matroid|hyperpage}{587}
+\indexentry{scheduling|hyperpage}{588}
+\indexentry{optimal merge|hyperpage}{591}
+\indexentry{minimum spanning tree|hyperpage}{598}
+\indexentry{divide and conquer|hyperpage}{601}
+\indexentry{merge sort|hyperpage}{601}
+\indexentry{closest pair|hyperpage}{601}
+\indexentry{binary search|hyperpage}{601}
+\indexentry{Strassen's algorithm|hyperpage}{601}
+\indexentry{random pivot|hyperpage}{607}
+\indexentry{quicksort|hyperpage}{607}
+\indexentry{radix sort|hyperpage}{607}
+\indexentry{quickselect|hyperpage}{613}
+\indexentry{Karatsuba multiplication|hyperpage}{625}
+\indexentry{dynamic programming|hyperpage}{632}
+\indexentry{optimal substructure|hyperpage}{632}
+\indexentry{overlapping subproblems|hyperpage}{632}
+\indexentry{memoization|hyperpage}{632}
+\indexentry{tabulation|hyperpage}{632}
+\indexentry{knapsack|hyperpage}{633}
+\indexentry{matrix chain multiplication|hyperpage}{635}
+\indexentry{coin change|hyperpage}{640}
+\indexentry{rod cutting|hyperpage}{660}
+\indexentry{backtracking|hyperpage}{662}
+\indexentry{branch and bound|hyperpage}{662}
+\indexentry{state space tree|hyperpage}{662}
+\indexentry{A* search|hyperpage}{669}
+\indexentry{probabilistic data structure|hyperpage}{692}
+\indexentry{Bloom filter|hyperpage}{692}
+\indexentry{counting Bloom filter|hyperpage}{693}
+\indexentry{cuckoo filter|hyperpage}{693}
+\indexentry{Count-Min sketch|hyperpage}{699}
+\indexentry{LSH|hyperpage}{706}
+\indexentry{quotient filter|hyperpage}{709}
+\indexentry{MinHash|hyperpage}{713}
+\indexentry{locality-sensitive hashing|hyperpage}{715}
+\indexentry{HyperLogLog|hyperpage}{715}
+\indexentry{frequency estimation|hyperpage}{725}
+\indexentry{Ford-Fulkerson|hyperpage}{728}
+\indexentry{Dinic's algorithm|hyperpage}{728}
+\indexentry{bipartite matching|hyperpage}{728}
+\indexentry{Edmonds-Karp|hyperpage}{731}
+\indexentry{push-relabel|hyperpage}{731}
+\indexentry{max-flow|hyperpage}{732}
+\indexentry{min-cut|hyperpage}{732}
+\indexentry{max-flow min-cut theorem|hyperpage}{732}
+\indexentry{Hopcroft-Karp|hyperpage}{744}
+\indexentry{minimum cost flow|hyperpage}{744}
+\indexentry{capacity scaling|hyperpage}{746}
+\indexentry{feasible flow|hyperpage}{751}
+\indexentry{persistent data structure|hyperpage}{753}
+\indexentry{undo|hyperpage}{753}
+\indexentry{redo|hyperpage}{753}
+\indexentry{multi-version concurrency control|hyperpage}{753}
+\indexentry{MVCC|hyperpage}{753}
+\indexentry{partial persistence|hyperpage}{754}
+\indexentry{persistence|hyperpage}{754}
+\indexentry{full persistence|hyperpage}{754}
+\indexentry{fat nodes|hyperpage}{754}
+\indexentry{path copying|hyperpage}{756}
+\indexentry{functional data structure|hyperpage}{767}
+\indexentry{lazy evaluation|hyperpage}{767}
+\indexentry{lazy list|hyperpage}{767}
+\indexentry{lazy segment tree|hyperpage}{767}
+\indexentry{banker's method|hyperpage}{767}
+\indexentry{shadow paging|hyperpage}{768}
+\indexentry{differential file|hyperpage}{768}
+\indexentry{write-ahead logging|hyperpage}{768}
+\indexentry{WAL|hyperpage}{768}
+\indexentry{retroactive data structure|hyperpage}{769}
+\indexentry{partial retroactivity|hyperpage}{769}
+\indexentry{full retroactivity|hyperpage}{769}
+\indexentry{time-travel debugging|hyperpage}{769}

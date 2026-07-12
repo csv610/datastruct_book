@@ -1,0 +1,1509 @@
+\contentsline {part}{I\hspace {1em}Preliminaries}{1}{part.1}%
+\contentsline {chapter}{\numberline {1}Modern C++ Review}{2}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Introduction}{2}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Functions and Parameters}{2}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}Pass by Value, Reference, and Const Reference}{2}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}Default Arguments}{2}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {1.2.3}Function Overloading}{3}{subsection.1.2.3}%
+\contentsline {subsection}{\numberline {1.2.4}Lambda Expressions}{3}{subsection.1.2.4}%
+\contentsline {section}{\numberline {1.3}Dynamic Memory and RAII}{3}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}The Problem with Raw Pointers}{3}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}Smart Pointers (C++11)}{4}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {1.3.3}RAII (Resource Acquisition Is Initialization)}{4}{subsection.1.3.3}%
+\contentsline {section}{\numberline {1.4}Templates and Concepts}{5}{section.1.4}%
+\contentsline {subsection}{\numberline {1.4.1}Function Templates}{5}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {1.4.2}Class Templates}{5}{subsection.1.4.2}%
+\contentsline {subsection}{\numberline {1.4.3}Template Template Parameters and Variadic Templates}{5}{subsection.1.4.3}%
+\contentsline {subsection}{\numberline {1.4.4}Concepts (C++20)}{5}{subsection.1.4.4}%
+\contentsline {section}{\numberline {1.5}Move Semantics}{6}{section.1.5}%
+\contentsline {subsection}{\numberline {1.5.1}Lvalues and Rvalues}{6}{subsection.1.5.1}%
+\contentsline {subsection}{\numberline {1.5.2}Move Constructor and Move Assignment}{6}{subsection.1.5.2}%
+\contentsline {subsection}{\numberline {1.5.3}Rule of Five}{7}{subsection.1.5.3}%
+\contentsline {section}{\numberline {1.6}std::vector and std::span}{7}{section.1.6}%
+\contentsline {subsection}{\numberline {1.6.1}std::vector}{7}{subsection.1.6.1}%
+\contentsline {subsection}{\numberline {1.6.2}std::span (C++20)}{7}{subsection.1.6.2}%
+\contentsline {subsection}{\numberline {1.6.3}std::string\_view (C++17)}{8}{subsection.1.6.3}%
+\contentsline {section}{\numberline {1.7}Ranges and Views (C++20)}{8}{section.1.7}%
+\contentsline {subsection}{\numberline {1.7.1}Zip Containers (C++23)}{8}{subsection.1.7.1}%
+\contentsline {subsubsection}{Manual Zip Pattern (Pre-C++23)}{8}{subsubsection*.1}%
+\contentsline {subsubsection}{std::ranges::zip\_view (C++23)}{9}{subsubsection*.2}%
+\contentsline {subsubsection}{Use Cases}{10}{subsubsection*.3}%
+\contentsline {subsubsection}{Interview FAQs}{10}{subsubsection*.4}%
+\contentsline {section}{\numberline {1.8}Error Handling}{10}{section.1.8}%
+\contentsline {subsection}{\numberline {1.8.1}Exceptions}{10}{subsection.1.8.1}%
+\contentsline {subsection}{\numberline {1.8.2}noexcept}{11}{subsection.1.8.2}%
+\contentsline {section}{\numberline {1.9}Iterators and Ranges}{11}{section.1.9}%
+\contentsline {subsection}{\numberline {1.9.1}Iterator Categories}{11}{subsection.1.9.1}%
+\contentsline {subsection}{\numberline {1.9.2}Range-Based for Loop}{11}{subsection.1.9.2}%
+\contentsline {subsection}{\numberline {1.9.3}Iterator Adapters}{11}{subsection.1.9.3}%
+\contentsline {section}{\numberline {1.10}Type Deduction: auto and decltype}{12}{section.1.10}%
+\contentsline {section}{\numberline {1.11}Coroutines (C++20)}{12}{section.1.11}%
+\contentsline {section}{\numberline {1.12}Common Patterns in This Book}{13}{section.1.12}%
+\contentsline {subsection}{\numberline {1.12.1}Example: A Generic Container Skeleton}{13}{subsection.1.12.1}%
+\contentsline {section}{\numberline {1.13}Compiler and Build}{14}{section.1.13}%
+\contentsline {section}{\numberline {1.14}STL Containers Overview}{14}{section.1.14}%
+\contentsline {section}{\numberline {1.15}Smart Pointers}{16}{section.1.15}%
+\contentsline {subsection}{\numberline {1.15.1}std::unique\_ptr}{16}{subsection.1.15.1}%
+\contentsline {subsection}{\numberline {1.15.2}std::shared\_ptr}{16}{subsection.1.15.2}%
+\contentsline {subsection}{\numberline {1.15.3}std::weak\_ptr}{17}{subsection.1.15.3}%
+\contentsline {subsection}{\numberline {1.15.4}When to Use Each}{17}{subsection.1.15.4}%
+\contentsline {section}{\numberline {1.16}Lambda Expressions}{17}{section.1.16}%
+\contentsline {subsection}{\numberline {1.16.1}Basic Syntax}{17}{subsection.1.16.1}%
+\contentsline {subsection}{\numberline {1.16.2}Captures}{18}{subsection.1.16.2}%
+\contentsline {subsection}{\numberline {1.16.3}Use with STL Algorithms}{18}{subsection.1.16.3}%
+\contentsline {section}{\numberline {1.17}Move Semantics and Rvalue References}{19}{section.1.17}%
+\contentsline {subsection}{\numberline {1.17.1}Lvalues and Rvalues}{19}{subsection.1.17.1}%
+\contentsline {subsection}{\numberline {1.17.2}std::move}{19}{subsection.1.17.2}%
+\contentsline {subsection}{\numberline {1.17.3}Move Constructor and Move Assignment}{20}{subsection.1.17.3}%
+\contentsline {subsection}{\numberline {1.17.4}Perfect Forwarding}{20}{subsection.1.17.4}%
+\contentsline {subsection}{\numberline {1.17.5}Move Semantics in Practice}{21}{subsection.1.17.5}%
+\contentsline {subsection}{\numberline {1.17.6}constexpr and consteval}{21}{subsection.1.17.6}%
+\contentsline {subsection}{\numberline {1.17.7}Structured Bindings (C++17)}{22}{subsection.1.17.7}%
+\contentsline {subsection}{\numberline {1.17.8}std::optional and std::variant}{22}{subsection.1.17.8}%
+\contentsline {section}{\numberline {1.18}Common Bugs and Pitfalls}{23}{section.1.18}%
+\contentsline {section}{\numberline {1.19}Summary}{24}{section.1.19}%
+\contentsline {section}{\numberline {1.20}Exercises}{24}{section.1.20}%
+\contentsline {subsection}{\numberline {1.20.1}Drill}{24}{subsection.1.20.1}%
+\contentsline {subsection}{\numberline {1.20.2}Application}{25}{subsection.1.20.2}%
+\contentsline {subsection}{\numberline {1.20.3}Research}{26}{subsection.1.20.3}%
+\contentsline {subsection}{\numberline {1.20.4}Additional Exercises}{26}{subsection.1.20.4}%
+\contentsline {section}{\numberline {1.21}References and Further Reading}{27}{section.1.21}%
+\contentsline {chapter}{\numberline {2}Performance Analysis}{29}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Introduction}{29}{section.2.1}%
+\contentsline {section}{\numberline {2.2}What Is an Algorithm?}{29}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Measuring Algorithm Efficiency}{29}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Time Complexity}{29}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Space Complexity}{30}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}Asymptotic Notation}{30}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Big O Notation (O)}{30}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Big Omega Notation ($\Omega $)}{31}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}Big Theta Notation ($\Theta $)}{31}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}Little o and Little $\omega $}{31}{subsection.2.4.4}%
+\contentsline {section}{\numberline {2.5}Practical Complexity}{32}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Growth Rates Compared}{32}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Which Complexity Matters?}{32}{subsection.2.5.2}%
+\contentsline {section}{\numberline {2.6}Analyzing Iterative Algorithms}{32}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}Simple Loop}{32}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Nested Loops}{33}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.3}Dependent Nested Loops}{33}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {2.6.4}Logarithmic Loops}{33}{subsection.2.6.4}%
+\contentsline {section}{\numberline {2.7}Analyzing Recursive Algorithms}{33}{section.2.7}%
+\contentsline {subsection}{\numberline {2.7.1}Recurrence Relations}{33}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {2.7.2}Solving Recurrences}{34}{subsection.2.7.2}%
+\contentsline {section}{\numberline {2.8}Amortized Analysis}{35}{section.2.8}%
+\contentsline {subsection}{\numberline {2.8.1}Aggregate Method}{35}{subsection.2.8.1}%
+\contentsline {subsection}{\numberline {2.8.2}Accounting Method}{35}{subsection.2.8.2}%
+\contentsline {subsection}{\numberline {2.8.3}Potential Method}{35}{subsection.2.8.3}%
+\contentsline {section}{\numberline {2.9}Space Complexity}{36}{section.2.9}%
+\contentsline {subsection}{\numberline {2.9.1}Fixed vs. Variable Space}{36}{subsection.2.9.1}%
+\contentsline {subsection}{\numberline {2.9.2}Analyzing Space}{36}{subsection.2.9.2}%
+\contentsline {section}{\numberline {2.10}Best, Average, and Worst Case}{36}{section.2.10}%
+\contentsline {section}{\numberline {2.11}Smoothed Analysis}{37}{section.2.11}%
+\contentsline {subsection}{\numberline {2.11.1}The Idea}{37}{subsection.2.11.1}%
+\contentsline {subsection}{\numberline {2.11.2}The Simplex Example}{37}{subsection.2.11.2}%
+\contentsline {subsection}{\numberline {2.11.3}Formal Definition}{38}{subsection.2.11.3}%
+\contentsline {subsection}{\numberline {2.11.4}Why It Matters}{38}{subsection.2.11.4}%
+\contentsline {subsection}{\numberline {2.11.5}Known Results}{38}{subsection.2.11.5}%
+\contentsline {section}{\numberline {2.12}Recursion Deep Dive}{38}{section.2.12}%
+\contentsline {subsection}{\numberline {2.12.1}The Recursive Thought Process}{39}{subsection.2.12.1}%
+\contentsline {subsection}{\numberline {2.12.2}Recursion Tree Visualization}{39}{subsection.2.12.2}%
+\contentsline {subsection}{\numberline {2.12.3}Tail Recursion vs Non-Tail Recursion}{39}{subsection.2.12.3}%
+\contentsline {subsection}{\numberline {2.12.4}Converting Tail Recursion to Iteration}{40}{subsection.2.12.4}%
+\contentsline {subsection}{\numberline {2.12.5}Worked Example: Fibonacci (Optimized)}{40}{subsection.2.12.5}%
+\contentsline {subsection}{\numberline {2.12.6}Worked Example: Tower of Hanoi}{41}{subsection.2.12.6}%
+\contentsline {subsection}{\numberline {2.12.7}Worked Example: Power Function}{41}{subsection.2.12.7}%
+\contentsline {section}{\numberline {2.13}Loop Invariants}{42}{section.2.13}%
+\contentsline {subsection}{\numberline {2.13.1}The Three Parts}{42}{subsection.2.13.1}%
+\contentsline {subsection}{\numberline {2.13.2}Worked Example: Insertion Sort Correctness}{42}{subsection.2.13.2}%
+\contentsline {subsection}{\numberline {2.13.3}Worked Example: Binary Search Correctness}{43}{subsection.2.13.3}%
+\contentsline {section}{\numberline {2.14}Space Complexity Analysis (Deep Dive)}{44}{section.2.14}%
+\contentsline {subsection}{\numberline {2.14.1}Stack Space for Recursion}{44}{subsection.2.14.1}%
+\contentsline {subsection}{\numberline {2.14.2}Auxiliary Space vs Input Space}{44}{subsection.2.14.2}%
+\contentsline {subsection}{\numberline {2.14.3}Space-Time Tradeoffs}{45}{subsection.2.14.3}%
+\contentsline {section}{\numberline {2.15}Common Bugs and Pitfalls}{45}{section.2.15}%
+\contentsline {section}{\numberline {2.16}Summary}{45}{section.2.16}%
+\contentsline {section}{\numberline {2.17}Exercises}{46}{section.2.17}%
+\contentsline {subsection}{\numberline {2.17.1}Drill}{46}{subsection.2.17.1}%
+\contentsline {subsection}{\numberline {2.17.2}Application}{47}{subsection.2.17.2}%
+\contentsline {subsection}{\numberline {2.17.3}Research}{49}{subsection.2.17.3}%
+\contentsline {section}{\numberline {2.18}References and Further Reading}{49}{section.2.18}%
+\contentsline {chapter}{\numberline {3}Performance Measurement of Programs}{51}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Introduction}{51}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Why Measure?}{51}{section.3.2}%
+\contentsline {section}{\numberline {3.3}A First Measurement: std::chrono}{51}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Clock Types}{52}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Measuring Short Intervals}{52}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}Google Benchmark Library}{52}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Factors Affecting Performance}{53}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Hardware Effects}{53}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Operating System Effects}{53}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}Compiler Effects}{53}{subsection.3.5.3}%
+\contentsline {subsection}{\numberline {3.5.4}The Benchmarking Trap: Dead Code Elimination}{54}{subsection.3.5.4}%
+\contentsline {section}{\numberline {3.6}Case Study: Sorting Algorithms}{54}{section.3.6}%
+\contentsline {section}{\numberline {3.7}Profiling}{56}{section.3.7}%
+\contentsline {subsection}{\numberline {3.7.1}Sampling Profilers}{56}{subsection.3.7.1}%
+\contentsline {subsection}{\numberline {3.7.2}Instrumenting Profilers}{56}{subsection.3.7.2}%
+\contentsline {subsection}{\numberline {3.7.3}Cache Analysis with perf}{56}{subsection.3.7.3}%
+\contentsline {section}{\numberline {3.8}Measuring Memory Usage}{57}{section.3.8}%
+\contentsline {section}{\numberline {3.9}Practical Measurement Methodology}{57}{section.3.9}%
+\contentsline {section}{\numberline {3.10}ADT for Polynomial}{57}{section.3.10}%
+\contentsline {subsection}{\numberline {3.10.1}ADT Specification}{57}{subsection.3.10.1}%
+\contentsline {subsection}{\numberline {3.10.2}Implementation}{58}{subsection.3.10.2}%
+\contentsline {subsection}{\numberline {3.10.3}Example Usage}{60}{subsection.3.10.3}%
+\contentsline {subsection}{\numberline {3.10.4}Key Design Decisions}{61}{subsection.3.10.4}%
+\contentsline {section}{\numberline {3.11}ADT for Matrix}{61}{section.3.11}%
+\contentsline {subsection}{\numberline {3.11.1}ADT Specification}{61}{subsection.3.11.1}%
+\contentsline {subsection}{\numberline {3.11.2}Compressed Row Storage (CRS)}{62}{subsection.3.11.2}%
+\contentsline {subsection}{\numberline {3.11.3}Implementation}{63}{subsection.3.11.3}%
+\contentsline {subsection}{\numberline {3.11.4}When to Use CRS vs Dense}{66}{subsection.3.11.4}%
+\contentsline {section}{\numberline {3.12}ADT for Graph}{66}{section.3.12}%
+\contentsline {subsection}{\numberline {3.12.1}ADT Specification}{66}{subsection.3.12.1}%
+\contentsline {subsection}{\numberline {3.12.2}Representations}{67}{subsection.3.12.2}%
+\contentsline {subsection}{\numberline {3.12.3}C++ Implementation (Adjacency List)}{67}{subsection.3.12.3}%
+\contentsline {subsection}{\numberline {3.12.4}Complexity Summary}{69}{subsection.3.12.4}%
+\contentsline {section}{\numberline {3.13}Common Pitfalls}{69}{section.3.13}%
+\contentsline {section}{\numberline {3.14}Summary}{69}{section.3.14}%
+\contentsline {section}{\numberline {3.15}Exercises}{70}{section.3.15}%
+\contentsline {subsection}{\numberline {3.15.1}Drill}{70}{subsection.3.15.1}%
+\contentsline {subsection}{\numberline {3.15.2}Application}{71}{subsection.3.15.2}%
+\contentsline {subsection}{\numberline {3.15.3}ADT Design and Implementation}{72}{subsection.3.15.3}%
+\contentsline {subsection}{\numberline {3.15.4}Inheritance and Templates}{73}{subsection.3.15.4}%
+\contentsline {subsection}{\numberline {3.15.5}Research}{73}{subsection.3.15.5}%
+\contentsline {section}{\numberline {3.16}Primitive and Non-Primitive Data Structures}{74}{section.3.16}%
+\contentsline {subsection}{\numberline {3.16.1}Primitive Data Structures}{74}{subsection.3.16.1}%
+\contentsline {subsection}{\numberline {3.16.2}Non-Primitive Data Structures}{75}{subsection.3.16.2}%
+\contentsline {subsubsection}{Linear Data Structures}{75}{subsubsection*.5}%
+\contentsline {subsubsection}{Non-Linear Data Structures}{76}{subsubsection*.6}%
+\contentsline {subsection}{\numberline {3.16.3}Classification Tree}{76}{subsection.3.16.3}%
+\contentsline {subsection}{\numberline {3.16.4}Comparison}{77}{subsection.3.16.4}%
+\contentsline {subsection}{\numberline {3.16.5}Interview FAQs}{77}{subsection.3.16.5}%
+\contentsline {section}{\numberline {3.17}Active and Passive Data Structures}{78}{section.3.17}%
+\contentsline {subsection}{\numberline {3.17.1}Definitions}{78}{subsection.3.17.1}%
+\contentsline {subsection}{\numberline {3.17.2}Active Data Structure Example: AVL Tree}{78}{subsection.3.17.2}%
+\contentsline {subsection}{\numberline {3.17.3}Passive Data Structure Example: C-Array}{79}{subsection.3.17.3}%
+\contentsline {subsection}{\numberline {3.17.4}Hybrid Approach: C++ Containers}{79}{subsection.3.17.4}%
+\contentsline {subsection}{\numberline {3.17.5}When to Use Each}{79}{subsection.3.17.5}%
+\contentsline {subsection}{\numberline {3.17.6}Active vs Passive in Modern C++}{80}{subsection.3.17.6}%
+\contentsline {subsection}{\numberline {3.17.7}Interview FAQs}{80}{subsection.3.17.7}%
+\contentsline {section}{\numberline {3.18}References and Further Reading}{81}{section.3.18}%
+\contentsline {part}{II\hspace {1em}Data Structures}{83}{part.2}%
+\contentsline {chapter}{\numberline {4}Linear Lists}{84}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Introduction}{84}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Array-Based Lists}{84}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}The Linear List Abstract Data Type}{84}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Array Representation}{85}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Dynamic Array (Resizable Array)}{86}{subsection.4.2.3}%
+\contentsline {subsection}{\numberline {4.2.4}Complexity Analysis}{90}{subsection.4.2.4}%
+\contentsline {subsection}{\numberline {4.2.5}Application: Polynomial Arithmetic}{91}{subsection.4.2.5}%
+\contentsline {subsection}{\numberline {4.2.6}Application: Image Editor Layer Stack}{92}{subsection.4.2.6}%
+\contentsline {subsection}{\numberline {4.2.7}STL Connection: std::vector}{92}{subsection.4.2.7}%
+\contentsline {section}{\numberline {4.3}Linked Lists}{93}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Singly Linked List (Chain)}{93}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}Complexity Analysis}{97}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}Doubly Linked List}{97}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}Circular Linked Lists}{98}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.5}Application: Polynomial Using Linked List}{99}{subsection.4.3.5}%
+\contentsline {subsection}{\numberline {4.3.6}Application: Undo/Redo System}{100}{subsection.4.3.6}%
+\contentsline {subsection}{\numberline {4.3.7}Memory Overhead}{101}{subsection.4.3.7}%
+\contentsline {subsection}{\numberline {4.3.8}STL Connection: std::forward\_list and std::list}{101}{subsection.4.3.8}%
+\contentsline {section}{\numberline {4.4}Unrolled Linked List}{102}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Introduction}{102}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Structure}{102}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}C++ Implementation}{102}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Insert and Erase}{103}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}Search}{105}{subsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.4.6}Complexity Comparison}{106}{subsection.4.4.6}%
+\contentsline {section}{\numberline {4.5}Finger Tree}{106}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}Introduction}{106}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.2}Structure}{106}{subsection.4.5.2}%
+\contentsline {subsection}{\numberline {4.5.3}C++ Implementation}{107}{subsection.4.5.3}%
+\contentsline {subsection}{\numberline {4.5.4}Concatenation and Split}{109}{subsection.4.5.4}%
+\contentsline {subsection}{\numberline {4.5.5}Complexity}{110}{subsection.4.5.5}%
+\contentsline {section}{\numberline {4.6}Rope}{110}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Introduction}{110}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}Structure}{111}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}C++ Implementation}{111}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {4.6.4}Complexity Analysis}{113}{subsection.4.6.4}%
+\contentsline {subsection}{\numberline {4.6.5}Application: Text Editor Buffer}{114}{subsection.4.6.5}%
+\contentsline {subsection}{\numberline {4.6.6}Comparison with Alternative Structures}{114}{subsection.4.6.6}%
+\contentsline {section}{\numberline {4.7}Common Bugs and Pitfalls}{114}{section.4.7}%
+\contentsline {section}{\numberline {4.8}Summary}{115}{section.4.8}%
+\contentsline {section}{\numberline {4.9}Interview FAQs}{115}{section.4.9}%
+\contentsline {subsection}{\numberline {4.9.1}Fundamentals}{115}{subsection.4.9.1}%
+\contentsline {subsection}{\numberline {4.9.2}Linked List Algorithms}{116}{subsection.4.9.2}%
+\contentsline {subsection}{\numberline {4.9.3}Design}{118}{subsection.4.9.3}%
+\contentsline {section}{\numberline {4.10}Shadow Copies and Copy-on-Write}{119}{section.4.10}%
+\contentsline {subsection}{\numberline {4.10.1}Technique}{120}{subsection.4.10.1}%
+\contentsline {subsection}{\numberline {4.10.2}Applications}{120}{subsection.4.10.2}%
+\contentsline {section}{\numberline {4.11}Exercises}{121}{section.4.11}%
+\contentsline {subsection}{\numberline {4.11.1}Drill}{121}{subsection.4.11.1}%
+\contentsline {subsection}{\numberline {4.11.2}Application}{121}{subsection.4.11.2}%
+\contentsline {subsection}{\numberline {4.11.3}Research}{122}{subsection.4.11.3}%
+\contentsline {section}{\numberline {4.12}References and Further Reading}{123}{section.4.12}%
+\contentsline {chapter}{\numberline {5}Arrays, Matrices, and Sparse Representations}{124}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Introduction}{124}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Multi-Dimensional Arrays}{124}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Row-Major and Column-Major Ordering}{124}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Multi-Dimensional Arrays in C++}{124}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}A Generic Matrix Class}{125}{subsection.5.2.3}%
+\contentsline {section}{\numberline {5.3}Bit Arrays and Bitmaps}{126}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Implementation}{126}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Applications}{127}{subsection.5.3.2}%
+\contentsline {section}{\numberline {5.4}Dynamic Arrays}{127}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Growth Factor}{127}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Amortized Analysis}{128}{subsection.5.4.2}%
+\contentsline {section}{\numberline {5.5}Sorted Arrays}{128}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Operations}{128}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Complexity}{129}{subsection.5.5.2}%
+\contentsline {section}{\numberline {5.6}Circular Buffers}{129}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Implementation}{129}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}Applications}{130}{subsection.5.6.2}%
+\contentsline {section}{\numberline {5.7}Gap Buffers}{130}{section.5.7}%
+\contentsline {subsection}{\numberline {5.7.1}Implementation}{131}{subsection.5.7.1}%
+\contentsline {subsection}{\numberline {5.7.2}Comparison with Alternatives}{132}{subsection.5.7.2}%
+\contentsline {section}{\numberline {5.8}Special Matrices}{132}{section.5.8}%
+\contentsline {subsection}{\numberline {5.8.1}Diagonal Matrix}{132}{subsection.5.8.1}%
+\contentsline {subsection}{\numberline {5.8.2}Triangular Matrices}{133}{subsection.5.8.2}%
+\contentsline {subsection}{\numberline {5.8.3}Tridiagonal Matrix}{134}{subsection.5.8.3}%
+\contentsline {subsection}{\numberline {5.8.4}Thomas Algorithm}{134}{subsection.5.8.4}%
+\contentsline {subsection}{\numberline {5.8.5}Symmetric Matrices}{135}{subsection.5.8.5}%
+\contentsline {section}{\numberline {5.9}Sparse Matrices}{136}{section.5.9}%
+\contentsline {subsection}{\numberline {5.9.1}Coordinate Storage (COO)}{136}{subsection.5.9.1}%
+\contentsline {subsection}{\numberline {5.9.2}Compressed Sparse Row (CSR)}{137}{subsection.5.9.2}%
+\contentsline {subsection}{\numberline {5.9.3}Complexity Comparison}{139}{subsection.5.9.3}%
+\contentsline {section}{\numberline {5.10}Application: PageRank}{139}{section.5.10}%
+\contentsline {section}{\numberline {5.11}Application: Image Processing}{140}{section.5.11}%
+\contentsline {section}{\numberline {5.12}STL Connection: std::mdspan (C++23)}{140}{section.5.12}%
+\contentsline {section}{\numberline {5.13}Sparse Arrays}{140}{section.5.13}%
+\contentsline {subsection}{\numberline {5.13.1}Coordinate (COO) Representation}{141}{subsection.5.13.1}%
+\contentsline {subsection}{\numberline {5.13.2}Map-Based Representation}{141}{subsection.5.13.2}%
+\contentsline {section}{\numberline {5.14}Array Rotations}{142}{section.5.14}%
+\contentsline {subsection}{\numberline {5.14.1}Juggling Algorithm}{142}{subsection.5.14.1}%
+\contentsline {subsection}{\numberline {5.14.2}Reversal Algorithm}{143}{subsection.5.14.2}%
+\contentsline {subsection}{\numberline {5.14.3}Block Swap Algorithm}{143}{subsection.5.14.3}%
+\contentsline {section}{\numberline {5.15}Kadane's Algorithm: Maximum Subarray}{144}{section.5.15}%
+\contentsline {subsection}{\numberline {5.15.1}Core Idea}{144}{subsection.5.15.1}%
+\contentsline {subsection}{\numberline {5.15.2}Recovery of Subarray Indices}{144}{subsection.5.15.2}%
+\contentsline {subsection}{\numberline {5.15.3}Worked Trace}{145}{subsection.5.15.3}%
+\contentsline {section}{\numberline {5.16}Exercises}{146}{section.5.16}%
+\contentsline {section}{\numberline {5.17}Common Bugs and Pitfalls}{146}{section.5.17}%
+\contentsline {section}{\numberline {5.18}Summary}{146}{section.5.18}%
+\contentsline {section}{\numberline {5.19}Interview FAQs}{147}{section.5.19}%
+\contentsline {section}{\numberline {5.20}Exercises}{151}{section.5.20}%
+\contentsline {subsection}{\numberline {5.20.1}Drill}{151}{subsection.5.20.1}%
+\contentsline {subsection}{\numberline {5.20.2}Application}{151}{subsection.5.20.2}%
+\contentsline {subsection}{\numberline {5.20.3}Research}{152}{subsection.5.20.3}%
+\contentsline {subsection}{\numberline {5.20.4}Bit Array Exercises}{152}{subsection.5.20.4}%
+\contentsline {subsection}{\numberline {5.20.5}Circular Buffer Exercises}{153}{subsection.5.20.5}%
+\contentsline {subsection}{\numberline {5.20.6}Gap Buffer Exercises}{153}{subsection.5.20.6}%
+\contentsline {subsection}{\numberline {5.20.7}Sorted Array Exercises}{153}{subsection.5.20.7}%
+\contentsline {section}{\numberline {5.21}References and Further Reading}{153}{section.5.21}%
+\contentsline {chapter}{\numberline {6}Stacks}{155}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Introduction}{155}{section.6.1}%
+\contentsline {section}{\numberline {6.2}The Stack ADT}{155}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}Operations}{155}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}Applications}{155}{subsection.6.2.2}%
+\contentsline {section}{\numberline {6.3}Array-Based Stack}{156}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Linked Stack}{157}{section.6.4}%
+\contentsline {section}{\numberline {6.5}Applications}{158}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}Balanced Parentheses}{158}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}Postfix Evaluation}{159}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}Expression Evaluation in a Spreadsheet Engine (e.g., Excel, Google Sheets)}{159}{subsection.6.5.3}%
+\contentsline {section}{\numberline {6.6}STL Connection: std::stack}{160}{section.6.6}%
+\contentsline {section}{\numberline {6.7}Balanced Symbol Checking with Error Reporting}{161}{section.6.7}%
+\contentsline {section}{\numberline {6.8}Postfix Evaluation: A Complete Worked Example}{162}{section.6.8}%
+\contentsline {section}{\numberline {6.9}Function Call Simulation with Activation Records}{163}{section.6.9}%
+\contentsline {section}{\numberline {6.10}Min Stack: O(1) Minimum Queries}{165}{section.6.10}%
+\contentsline {section}{\numberline {6.11}Stack Using Queues}{166}{section.6.11}%
+\contentsline {subsection}{\numberline {6.11.1}Push O(n), Pop O(1)}{166}{subsection.6.11.1}%
+\contentsline {subsection}{\numberline {6.11.2}Push O(1), Pop O(n)}{167}{subsection.6.11.2}%
+\contentsline {section}{\numberline {6.12}Stack for Infix to Prefix Conversion}{168}{section.6.12}%
+\contentsline {subsection}{\numberline {6.12.1}Algorithm}{168}{subsection.6.12.1}%
+\contentsline {subsection}{\numberline {6.12.2}Worked Trace: ``A*(B+C)-D/E''}{168}{subsection.6.12.2}%
+\contentsline {subsection}{\numberline {6.12.3}C++ Implementation}{169}{subsection.6.12.3}%
+\contentsline {section}{\numberline {6.13}Stack for Undo/Redo}{171}{section.6.13}%
+\contentsline {subsection}{\numberline {6.13.1}Algorithm}{171}{subsection.6.13.1}%
+\contentsline {subsection}{\numberline {6.13.2}Worked Trace}{171}{subsection.6.13.2}%
+\contentsline {subsection}{\numberline {6.13.3}C++ Implementation}{172}{subsection.6.13.3}%
+\contentsline {section}{\numberline {6.14}Stack for DFS Applications}{173}{section.6.14}%
+\contentsline {subsection}{\numberline {6.14.1}DFS on an Implicit Graph Using an Explicit Stack}{173}{subsection.6.14.1}%
+\contentsline {subsection}{\numberline {6.14.2}Topological Sort Using a Stack}{174}{subsection.6.14.2}%
+\contentsline {subsection}{\numberline {6.14.3}Cycle Detection Using DFS}{175}{subsection.6.14.3}%
+\contentsline {section}{\numberline {6.15}Common Bugs and Pitfalls}{176}{section.6.15}%
+\contentsline {section}{\numberline {6.16}Summary}{176}{section.6.16}%
+\contentsline {section}{\numberline {6.17}Interview FAQs}{176}{section.6.17}%
+\contentsline {section}{\numberline {6.18}Exercises}{180}{section.6.18}%
+\contentsline {subsection}{\numberline {6.18.1}Drill}{180}{subsection.6.18.1}%
+\contentsline {subsection}{\numberline {6.18.2}Application}{181}{subsection.6.18.2}%
+\contentsline {subsection}{\numberline {6.18.3}Research}{183}{subsection.6.18.3}%
+\contentsline {section}{\numberline {6.19}References and Further Reading}{183}{section.6.19}%
+\contentsline {chapter}{\numberline {7}Queues}{184}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Introduction}{184}{section.7.1}%
+\contentsline {section}{\numberline {7.2}The Queue ADT}{184}{section.7.2}%
+\contentsline {subsection}{\numberline {7.2.1}Operations}{184}{subsection.7.2.1}%
+\contentsline {subsection}{\numberline {7.2.2}Applications}{184}{subsection.7.2.2}%
+\contentsline {section}{\numberline {7.3}Array-Based Queue (Circular Buffer)}{184}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Linked Queue}{186}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Applications}{187}{section.7.5}%
+\contentsline {subsection}{\numberline {7.5.1}Message Queue (Apache Kafka / AWS SQS)}{187}{subsection.7.5.1}%
+\contentsline {subsection}{\numberline {7.5.2}Web Crawler Frontier (BFS)}{188}{subsection.7.5.2}%
+\contentsline {subsection}{\numberline {7.5.3}Thread Pool Task Queue}{189}{subsection.7.5.3}%
+\contentsline {section}{\numberline {7.6}Deque (Double-Ended Queue)}{190}{section.7.6}%
+\contentsline {section}{\numberline {7.7}STL Connection: std::queue}{191}{section.7.7}%
+\contentsline {section}{\numberline {7.8}Circular Queue: Full Implementation}{191}{section.7.8}%
+\contentsline {section}{\numberline {7.9}Double-Ended Queue (Deque)}{193}{section.7.9}%
+\contentsline {subsection}{\numberline {7.9.1}Deque ADT}{193}{subsection.7.9.1}%
+\contentsline {subsection}{\numberline {7.9.2}Implementation 1: Doubly Linked List}{194}{subsection.7.9.2}%
+\contentsline {subsection}{\numberline {7.9.3}Implementation 2: Circular Array}{195}{subsection.7.9.3}%
+\contentsline {subsection}{\numberline {7.9.4}Applications}{197}{subsection.7.9.4}%
+\contentsline {section}{\numberline {7.10}Queue Using Two Stacks}{198}{section.7.10}%
+\contentsline {section}{\numberline {7.11}Priority Queue Applications}{199}{section.7.11}%
+\contentsline {subsection}{\numberline {7.11.1}Dijkstra's Shortest-Path Algorithm}{200}{subsection.7.11.1}%
+\contentsline {subsection}{\numberline {7.11.2}Job Scheduling with Priorities}{201}{subsection.7.11.2}%
+\contentsline {section}{\numberline {7.12}BFS Applications}{202}{section.7.12}%
+\contentsline {subsection}{\numberline {7.12.1}Word Ladder Problem}{202}{subsection.7.12.1}%
+\contentsline {subsection}{\numberline {7.12.2}Bipartiteness Checking}{204}{subsection.7.12.2}%
+\contentsline {section}{\numberline {7.13}Sliding Window Maximum (Deque Approach)}{204}{section.7.13}%
+\contentsline {subsection}{\numberline {7.13.1}Key Idea}{205}{subsection.7.13.1}%
+\contentsline {subsection}{\numberline {7.13.2}Worked Trace}{205}{subsection.7.13.2}%
+\contentsline {subsection}{\numberline {7.13.3}C++ Implementation}{205}{subsection.7.13.3}%
+\contentsline {section}{\numberline {7.14}Level Order Traversal Variants}{206}{section.7.14}%
+\contentsline {subsection}{\numberline {7.14.1}Zigzag Level Order}{207}{subsection.7.14.1}%
+\contentsline {subsection}{\numberline {7.14.2}Right Side View}{208}{subsection.7.14.2}%
+\contentsline {section}{\numberline {7.15}Common Bugs and Pitfalls}{208}{section.7.15}%
+\contentsline {section}{\numberline {7.16}Summary}{209}{section.7.16}%
+\contentsline {section}{\numberline {7.17}Interview FAQs}{209}{section.7.17}%
+\contentsline {section}{\numberline {7.18}Exercises}{213}{section.7.18}%
+\contentsline {subsection}{\numberline {7.18.1}Drill}{213}{subsection.7.18.1}%
+\contentsline {subsection}{\numberline {7.18.2}Application}{214}{subsection.7.18.2}%
+\contentsline {subsection}{\numberline {7.18.3}Research}{215}{subsection.7.18.3}%
+\contentsline {subsection}{\numberline {7.18.4}Additional Drill}{215}{subsection.7.18.4}%
+\contentsline {subsection}{\numberline {7.18.5}Additional Application}{216}{subsection.7.18.5}%
+\contentsline {subsection}{\numberline {7.18.6}Additional Research}{216}{subsection.7.18.6}%
+\contentsline {section}{\numberline {7.19}References and Further Reading}{216}{section.7.19}%
+\contentsline {chapter}{\numberline {8}Hashing and Hash Tables}{218}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Introduction}{218}{section.8.1}%
+\contentsline {section}{\numberline {8.2}The Dictionary ADT}{218}{section.8.2}%
+\contentsline {section}{\numberline {8.3}Hash Tables: Basic Idea}{218}{section.8.3}%
+\contentsline {section}{\numberline {8.4}Hash Functions}{218}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}Properties of a Good Hash Function}{218}{subsection.8.4.1}%
+\contentsline {subsection}{\numberline {8.4.2}Integer Keys}{219}{subsection.8.4.2}%
+\contentsline {subsection}{\numberline {8.4.3}String Keys}{219}{subsection.8.4.3}%
+\contentsline {subsection}{\numberline {8.4.4}Rob Dixon's "sdbm" hash}{219}{subsection.8.4.4}%
+\contentsline {subsection}{\numberline {8.4.5}std::hash}{219}{subsection.8.4.5}%
+\contentsline {section}{\numberline {8.5}Separate Chaining}{220}{section.8.5}%
+\contentsline {section}{\numberline {8.6}Open Addressing}{222}{section.8.6}%
+\contentsline {subsection}{\numberline {8.6.1}Linear Probing}{222}{subsection.8.6.1}%
+\contentsline {subsection}{\numberline {8.6.2}Quadratic Probing}{222}{subsection.8.6.2}%
+\contentsline {subsection}{\numberline {8.6.3}Double Hashing}{222}{subsection.8.6.3}%
+\contentsline {section}{\numberline {8.7}Skip Lists}{224}{section.8.7}%
+\contentsline {subsection}{\numberline {8.7.1}Structure}{224}{subsection.8.7.1}%
+\contentsline {subsection}{\numberline {8.7.2}Node Structure}{225}{subsection.8.7.2}%
+\contentsline {subsection}{\numberline {8.7.3}Search}{225}{subsection.8.7.3}%
+\contentsline {subsection}{\numberline {8.7.4}Insertion}{225}{subsection.8.7.4}%
+\contentsline {subsection}{\numberline {8.7.5}Choosing the Level}{226}{subsection.8.7.5}%
+\contentsline {subsection}{\numberline {8.7.6}Complexity}{226}{subsection.8.7.6}%
+\contentsline {subsection}{\numberline {8.7.7}Skip Lists vs. Hash Tables vs. Balanced Trees}{227}{subsection.8.7.7}%
+\contentsline {subsection}{\numberline {8.7.8}STL Connection}{227}{subsection.8.7.8}%
+\contentsline {section}{\numberline {8.8}Modern Hash Table Designs}{227}{section.8.8}%
+\contentsline {subsection}{\numberline {8.8.1}Robin Hood Hashing}{227}{subsection.8.8.1}%
+\contentsline {subsection}{\numberline {8.8.2}Cuckoo Hashing}{228}{subsection.8.8.2}%
+\contentsline {subsection}{\numberline {8.8.3}Swiss Table (Google's Abseil flat\_hash\_map)}{228}{subsection.8.8.3}%
+\contentsline {section}{\numberline {8.9}Distributed Hash Table (DHT)}{228}{section.8.9}%
+\contentsline {subsection}{\numberline {8.9.1}Introduction}{228}{subsection.8.9.1}%
+\contentsline {subsection}{\numberline {8.9.2}Chord Ring Structure}{228}{subsection.8.9.2}%
+\contentsline {subsection}{\numberline {8.9.3}Simplified C++ Implementation}{229}{subsection.8.9.3}%
+\contentsline {subsection}{\numberline {8.9.4}Complexity Analysis}{231}{subsection.8.9.4}%
+\contentsline {subsection}{\numberline {8.9.5}Applications}{231}{subsection.8.9.5}%
+\contentsline {subsection}{\numberline {8.9.6}DHT vs.\ Centralized Hash Table}{232}{subsection.8.9.6}%
+\contentsline {section}{\numberline {8.10}Count-Min Sketch}{232}{section.8.10}%
+\contentsline {subsection}{\numberline {8.10.1}Idea}{232}{subsection.8.10.1}%
+\contentsline {subsection}{\numberline {8.10.2}Parameters}{232}{subsection.8.10.2}%
+\contentsline {subsection}{\numberline {8.10.3}C++ Implementation}{233}{subsection.8.10.3}%
+\contentsline {subsection}{\numberline {8.10.4}Properties}{234}{subsection.8.10.4}%
+\contentsline {subsection}{\numberline {8.10.5}Heavy Hitters}{235}{subsection.8.10.5}%
+\contentsline {section}{\numberline {8.11}Swiss Table Hash}{235}{section.8.11}%
+\contentsline {subsection}{\numberline {8.11.1}Control Bytes}{235}{subsection.8.11.1}%
+\contentsline {subsection}{\numberline {8.11.2}Probe Sequence}{235}{subsection.8.11.2}%
+\contentsline {subsection}{\numberline {8.11.3}Probe Diagram}{235}{subsection.8.11.3}%
+\contentsline {subsection}{\numberline {8.11.4}Comparison with std::unordered\_map}{236}{subsection.8.11.4}%
+\contentsline {section}{\numberline {8.12}Robin Hood Hashing}{236}{section.8.12}%
+\contentsline {subsection}{\numberline {8.12.1}Invariant}{236}{subsection.8.12.1}%
+\contentsline {subsection}{\numberline {8.12.2}Benefits}{236}{subsection.8.12.2}%
+\contentsline {subsection}{\numberline {8.12.3}C++ Sketch}{236}{subsection.8.12.3}%
+\contentsline {section}{\numberline {8.13}Extendible Hashing}{239}{section.8.13}%
+\contentsline {subsection}{\numberline {8.13.1}Core Idea}{239}{subsection.8.13.1}%
+\contentsline {subsection}{\numberline {8.13.2}Directory Doubling}{239}{subsection.8.13.2}%
+\contentsline {subsection}{\numberline {8.13.3}Shrinking the Directory}{242}{subsection.8.13.3}%
+\contentsline {subsection}{\numberline {8.13.4}Complexity}{242}{subsection.8.13.4}%
+\contentsline {section}{\numberline {8.14}Complexity Analysis}{242}{section.8.14}%
+\contentsline {section}{\numberline {8.15}Comparison of Dictionaries}{243}{section.8.15}%
+\contentsline {section}{\numberline {8.16}Application: LZW Compression}{243}{section.8.16}%
+\contentsline {section}{\numberline {8.17}STL Connection: std::unordered\_map}{244}{section.8.17}%
+\contentsline {section}{\numberline {8.18}Common Bugs and Pitfalls}{244}{section.8.18}%
+\contentsline {section}{\numberline {8.19}Summary}{245}{section.8.19}%
+\contentsline {section}{\numberline {8.20}Interview FAQs}{245}{section.8.20}%
+\contentsline {section}{\numberline {8.21}Hash Trees (Merkle Trees)}{248}{section.8.21}%
+\contentsline {subsection}{\numberline {8.21.1}Structure}{248}{subsection.8.21.1}%
+\contentsline {subsection}{\numberline {8.21.2}Verification}{249}{subsection.8.21.2}%
+\contentsline {subsection}{\numberline {8.21.3}Applications}{249}{subsection.8.21.3}%
+\contentsline {section}{\numberline {8.22}Exercises}{250}{section.8.22}%
+\contentsline {subsection}{\numberline {8.22.1}Drill}{250}{subsection.8.22.1}%
+\contentsline {subsection}{\numberline {8.22.2}Application}{250}{subsection.8.22.2}%
+\contentsline {subsection}{\numberline {8.22.3}Research}{251}{subsection.8.22.3}%
+\contentsline {subsection}{\numberline {8.22.4}Additional Exercises}{251}{subsection.8.22.4}%
+\contentsline {section}{\numberline {8.23}References and Further Reading}{252}{section.8.23}%
+\contentsline {chapter}{\numberline {9}Trees and Binary Trees}{254}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Introduction}{254}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Terminology}{254}{section.9.2}%
+\contentsline {section}{\numberline {9.3}Binary Trees}{255}{section.9.3}%
+\contentsline {subsection}{\numberline {9.3.1}Properties}{255}{subsection.9.3.1}%
+\contentsline {subsection}{\numberline {9.3.2}Binary Tree Node}{255}{subsection.9.3.2}%
+\contentsline {subsection}{\numberline {9.3.3}Binary Tree Class}{256}{subsection.9.3.3}%
+\contentsline {subsection}{\numberline {9.3.4}Traversal Walkthrough}{257}{subsection.9.3.4}%
+\contentsline {subsection}{\numberline {9.3.5}Iterative Traversals (No Recursion)}{258}{subsection.9.3.5}%
+\contentsline {section}{\numberline {9.4}Array Representation of Binary Trees}{259}{section.9.4}%
+\contentsline {section}{\numberline {9.5}Applications of Binary Trees}{259}{section.9.5}%
+\contentsline {subsection}{\numberline {9.5.1}Expression Trees}{259}{subsection.9.5.1}%
+\contentsline {subsection}{\numberline {9.5.2}Morse Code Tree}{260}{subsection.9.5.2}%
+\contentsline {section}{\numberline {9.6}Union-Find (Disjoint Set Union)}{260}{section.9.6}%
+\contentsline {subsection}{\numberline {9.6.1}Tree Representation}{260}{subsection.9.6.1}%
+\contentsline {subsection}{\numberline {9.6.2}Application: Kruskal's MST}{261}{subsection.9.6.2}%
+\contentsline {subsection}{\numberline {9.6.3}Application: Image Connected Components}{261}{subsection.9.6.3}%
+\contentsline {section}{\numberline {9.7}Reconstructing Binary Trees from Traversals}{262}{section.9.7}%
+\contentsline {section}{\numberline {9.8}Decision Trees}{263}{section.9.8}%
+\contentsline {subsection}{\numberline {9.8.1}Structure}{263}{subsection.9.8.1}%
+\contentsline {subsection}{\numberline {9.8.2}Prediction}{264}{subsection.9.8.2}%
+\contentsline {subsection}{\numberline {9.8.3}Building from Training Data}{264}{subsection.9.8.3}%
+\contentsline {subsection}{\numberline {9.8.4}Complexity}{266}{subsection.9.8.4}%
+\contentsline {subsection}{\numberline {9.8.5}Comparison with Hash Table for Classification}{266}{subsection.9.8.5}%
+\contentsline {section}{\numberline {9.9}Threaded Binary Trees}{267}{section.9.9}%
+\contentsline {subsection}{\numberline {9.9.1}Motivation}{267}{subsection.9.9.1}%
+\contentsline {subsection}{\numberline {9.9.2}Structure}{267}{subsection.9.9.2}%
+\contentsline {subsection}{\numberline {9.9.3}Implementation}{267}{subsection.9.9.3}%
+\contentsline {subsection}{\numberline {9.9.4}In-Order Successor Without a Stack}{268}{subsection.9.9.4}%
+\contentsline {subsection}{\numberline {9.9.5}Complexity}{268}{subsection.9.9.5}%
+\contentsline {section}{\numberline {9.10}Lowest Common Ancestor (LCA)}{269}{section.9.10}%
+\contentsline {subsection}{\numberline {9.10.1}Approach 1: Recursive (Binary Tree)}{269}{subsection.9.10.1}%
+\contentsline {subsection}{\numberline {9.10.2}Approach 2: Euler Tour + RMQ}{269}{subsection.9.10.2}%
+\contentsline {subsection}{\numberline {9.10.3}Approach 3: Binary Lifting (Preprocessing for $O(\log n)$ Queries)}{270}{subsection.9.10.3}%
+\contentsline {subsection}{\numberline {9.10.4}Comparison}{271}{subsection.9.10.4}%
+\contentsline {section}{\numberline {9.11}Tree Diameter and Center}{271}{section.9.11}%
+\contentsline {subsection}{\numberline {9.11.1}Diameter}{271}{subsection.9.11.1}%
+\contentsline {subsection}{\numberline {9.11.2}Center}{272}{subsection.9.11.2}%
+\contentsline {section}{\numberline {9.12}Serialize and Deserialize Binary Tree}{273}{section.9.12}%
+\contentsline {subsection}{\numberline {9.12.1}Preorder with Null Markers}{273}{subsection.9.12.1}%
+\contentsline {subsection}{\numberline {9.12.2}Exercises on LCA, Diameter, and Serialization}{274}{subsection.9.12.2}%
+\contentsline {section}{\numberline {9.13}Common Bugs and Pitfalls}{274}{section.9.13}%
+\contentsline {section}{\numberline {9.14}Summary}{275}{section.9.14}%
+\contentsline {section}{\numberline {9.15}Interview FAQs}{275}{section.9.15}%
+\contentsline {section}{\numberline {9.16}Trees-to-Lists and Lists-to-Trees}{279}{section.9.16}%
+\contentsline {subsection}{\numberline {9.16.1}Flatten a Binary Tree to a Linked List}{279}{subsection.9.16.1}%
+\contentsline {subsection}{\numberline {9.16.2}BST to Sorted Doubly Linked List}{280}{subsection.9.16.2}%
+\contentsline {subsection}{\numberline {9.16.3}Sorted Array to Balanced BST}{280}{subsection.9.16.3}%
+\contentsline {section}{\numberline {9.17}Leaf-to-Root Tree Operations}{281}{section.9.17}%
+\contentsline {subsection}{\numberline {9.17.1}Tree Height via Post-Order}{281}{subsection.9.17.1}%
+\contentsline {subsection}{\numberline {9.17.2}Propagate Values Upward}{281}{subsection.9.17.2}%
+\contentsline {subsection}{\numberline {9.17.3}Connection to Skew Heaps and Splay Trees}{282}{subsection.9.17.3}%
+\contentsline {section}{\numberline {9.18}Exercises}{282}{section.9.18}%
+\contentsline {subsection}{\numberline {9.18.1}Drill}{282}{subsection.9.18.1}%
+\contentsline {subsection}{\numberline {9.18.2}Application}{282}{subsection.9.18.2}%
+\contentsline {subsection}{\numberline {9.18.3}Research}{283}{subsection.9.18.3}%
+\contentsline {section}{\numberline {9.19}References and Further Reading}{283}{section.9.19}%
+\contentsline {chapter}{\numberline {10}Priority Queues}{285}{chapter.10}%
+\contentsline {section}{\numberline {10.1}Introduction}{285}{section.10.1}%
+\contentsline {section}{\numberline {10.2}The Priority Queue ADT}{285}{section.10.2}%
+\contentsline {subsection}{\numberline {10.2.1}Operations}{285}{subsection.10.2.1}%
+\contentsline {subsection}{\numberline {10.2.2}Applications}{285}{subsection.10.2.2}%
+\contentsline {section}{\numberline {10.3}Heaps}{285}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}Array Storage}{286}{subsection.10.3.1}%
+\contentsline {subsection}{\numberline {10.3.2}Max-Heap Implementation}{286}{subsection.10.3.2}%
+\contentsline {subsection}{\numberline {10.3.3}Push Walkthrough}{287}{subsection.10.3.3}%
+\contentsline {subsection}{\numberline {10.3.4}Pop Walkthrough}{287}{subsection.10.3.4}%
+\contentsline {section}{\numberline {10.4}Heap Initialization (Heapify)}{288}{section.10.4}%
+\contentsline {section}{\numberline {10.5}Heap Sort}{288}{section.10.5}%
+\contentsline {section}{\numberline {10.6}Min-Heaps}{289}{section.10.6}%
+\contentsline {section}{\numberline {10.7}Leftist Trees (Mergeable Heaps)}{289}{section.10.7}%
+\contentsline {section}{\numberline {10.8}Fibonacci Heap}{290}{section.10.8}%
+\contentsline {subsection}{\numberline {10.8.1}Structure}{290}{subsection.10.8.1}%
+\contentsline {subsection}{\numberline {10.8.2}Core Operations}{291}{subsection.10.8.2}%
+\contentsline {subsection}{\numberline {10.8.3}Amortized Analysis}{294}{subsection.10.8.3}%
+\contentsline {subsection}{\numberline {10.8.4}Dijkstra's with Fibonacci Heap}{294}{subsection.10.8.4}%
+\contentsline {section}{\numberline {10.9}Pairing Heap}{295}{section.10.9}%
+\contentsline {subsection}{\numberline {10.9.1}Structure}{295}{subsection.10.9.1}%
+\contentsline {subsection}{\numberline {10.9.2}Implementation}{295}{subsection.10.9.2}%
+\contentsline {section}{\numberline {10.10}Binomial Heap}{297}{section.10.10}%
+\contentsline {subsection}{\numberline {10.10.1}Binomial Trees}{297}{subsection.10.10.1}%
+\contentsline {subsection}{\numberline {10.10.2}Heap Structure}{298}{subsection.10.10.2}%
+\contentsline {subsection}{\numberline {10.10.3}Implementation}{298}{subsection.10.10.3}%
+\contentsline {subsection}{\numberline {10.10.4}Complexity}{301}{subsection.10.10.4}%
+\contentsline {subsection}{\numberline {10.10.5}Binary Heap vs.\ Binomial Heap}{302}{subsection.10.10.5}%
+\contentsline {section}{\numberline {10.11}D-ary Heap}{302}{section.10.11}%
+\contentsline {subsection}{\numberline {10.11.1}Structure}{302}{subsection.10.11.1}%
+\contentsline {subsection}{\numberline {10.11.2}Implementation}{302}{subsection.10.11.2}%
+\contentsline {subsection}{\numberline {10.11.3}Complexity}{304}{subsection.10.11.3}%
+\contentsline {subsection}{\numberline {10.11.4}When to Use}{304}{subsection.10.11.4}%
+\contentsline {section}{\numberline {10.12}Min-Max Heap}{304}{section.10.12}%
+\contentsline {subsection}{\numberline {10.12.1}Structure}{304}{subsection.10.12.1}%
+\contentsline {subsection}{\numberline {10.12.2}Implementation}{305}{subsection.10.12.2}%
+\contentsline {subsection}{\numberline {10.12.3}Complexity}{309}{subsection.10.12.3}%
+\contentsline {section}{\numberline {10.13}Weak Heap}{309}{section.10.13}%
+\contentsline {subsection}{\numberline {10.13.1}Structure}{309}{subsection.10.13.1}%
+\contentsline {subsection}{\numberline {10.13.2}Implementation}{310}{subsection.10.13.2}%
+\contentsline {subsection}{\numberline {10.13.3}Complexity}{312}{subsection.10.13.3}%
+\contentsline {section}{\numberline {10.14}Skew Heap}{312}{section.10.14}%
+\contentsline {subsection}{\numberline {10.14.1}Structure}{312}{subsection.10.14.1}%
+\contentsline {subsection}{\numberline {10.14.2}Implementation}{313}{subsection.10.14.2}%
+\contentsline {subsection}{\numberline {10.14.3}Amortized Analysis}{315}{subsection.10.14.3}%
+\contentsline {subsection}{\numberline {10.14.4}Skew Heap vs.\ Leftist Tree}{315}{subsection.10.14.4}%
+\contentsline {section}{\numberline {10.15}Bottom-Up Heap Construction}{316}{section.10.15}%
+\contentsline {subsection}{\numberline {10.15.1}Why O(n)? Most Work Is at the Bottom}{316}{subsection.10.15.1}%
+\contentsline {subsection}{\numberline {10.15.2}Potential Analysis}{316}{subsection.10.15.2}%
+\contentsline {subsection}{\numberline {10.15.3}Implementation}{316}{subsection.10.15.3}%
+\contentsline {subsection}{\numberline {10.15.4}Worked Trace (15 Elements)}{317}{subsection.10.15.4}%
+\contentsline {subsection}{\numberline {10.15.5}Complexity Summary}{318}{subsection.10.15.5}%
+\contentsline {section}{\numberline {10.16}Heap Select (kth Smallest)}{319}{section.10.16}%
+\contentsline {subsection}{\numberline {10.16.1}Min-Heap Approach: kth Smallest}{319}{subsection.10.16.1}%
+\contentsline {subsection}{\numberline {10.16.2}Max-Heap Approach: kth Largest}{319}{subsection.10.16.2}%
+\contentsline {subsection}{\numberline {10.16.3}Comparison with Quickselect}{320}{subsection.10.16.3}%
+\contentsline {section}{\numberline {10.17}Application: Event-Driven Simulation}{320}{section.10.17}%
+\contentsline {section}{\numberline {10.18}Application: Median Maintenance}{321}{section.10.18}%
+\contentsline {section}{\numberline {10.19}STL Connection: std::priority\_queue}{322}{section.10.19}%
+\contentsline {section}{\numberline {10.20}Common Bugs and Pitfalls}{323}{section.10.20}%
+\contentsline {section}{\numberline {10.21}Summary}{323}{section.10.21}%
+\contentsline {section}{\numberline {10.22}Interview FAQs}{323}{section.10.22}%
+\contentsline {section}{\numberline {10.23}Exercises}{326}{section.10.23}%
+\contentsline {subsection}{\numberline {10.23.1}Drill}{326}{subsection.10.23.1}%
+\contentsline {subsection}{\numberline {10.23.2}Application}{327}{subsection.10.23.2}%
+\contentsline {subsection}{\numberline {10.23.3}Research}{328}{subsection.10.23.3}%
+\contentsline {section}{\numberline {10.24}Optimal Heap Complexity}{328}{section.10.24}%
+\contentsline {subsection}{\numberline {10.24.1}Lower Bounds}{328}{subsection.10.24.1}%
+\contentsline {subsection}{\numberline {10.24.2}Strict Fibonacci Heaps}{328}{subsection.10.24.2}%
+\contentsline {section}{\numberline {10.25}BST-as-Heap: Tree-Oriented Heaps}{329}{section.10.25}%
+\contentsline {subsection}{\numberline {10.25.1}Treap as Priority Queue}{329}{subsection.10.25.1}%
+\contentsline {subsection}{\numberline {10.25.2}Interval Heap}{329}{subsection.10.25.2}%
+\contentsline {subsection}{\numberline {10.25.3}Leaf-to-Root Operations}{330}{subsection.10.25.3}%
+\contentsline {section}{\numberline {10.26}Heaps and the Pointer Machine}{330}{section.10.26}%
+\contentsline {section}{\numberline {10.27}References and Further Reading}{330}{section.10.27}%
+\contentsline {chapter}{\numberline {11}Binary Search Trees and Balanced Search Trees}{332}{chapter.11}%
+\contentsline {section}{\numberline {11.1}Introduction}{332}{section.11.1}%
+\contentsline {section}{\numberline {11.2}Binary Search Trees}{332}{section.11.2}%
+\contentsline {subsection}{\numberline {11.2.1}BST Implementation}{332}{subsection.11.2.1}%
+\contentsline {subsection}{\numberline {11.2.2}Complexity}{334}{subsection.11.2.2}%
+\contentsline {section}{\numberline {11.3}AVL Trees}{334}{section.11.3}%
+\contentsline {subsection}{\numberline {11.3.1}Rotations}{335}{subsection.11.3.1}%
+\contentsline {subsection}{\numberline {11.3.2}AVL Implementation}{335}{subsection.11.3.2}%
+\contentsline {subsection}{\numberline {11.3.3}Complexity}{338}{subsection.11.3.3}%
+\contentsline {section}{\numberline {11.4}Red-Black Trees}{338}{section.11.4}%
+\contentsline {subsection}{\numberline {11.4.1}RB Tree Implementation}{338}{subsection.11.4.1}%
+\contentsline {section}{\numberline {11.5}B-Trees}{341}{section.11.5}%
+\contentsline {section}{\numberline {11.6}B+ Trees}{342}{section.11.6}%
+\contentsline {subsection}{\numberline {11.6.1}B+ Tree vs B-tree}{342}{subsection.11.6.1}%
+\contentsline {subsection}{\numberline {11.6.2}Structure}{342}{subsection.11.6.2}%
+\contentsline {subsection}{\numberline {11.6.3}B+ Tree Implementation}{342}{subsection.11.6.3}%
+\contentsline {subsection}{\numberline {11.6.4}Complexity}{345}{subsection.11.6.4}%
+\contentsline {section}{\numberline {11.7}Scapegoat Trees}{345}{section.11.7}%
+\contentsline {subsection}{\numberline {11.7.1}Weight Balance Invariant}{345}{subsection.11.7.1}%
+\contentsline {subsection}{\numberline {11.7.2}Scapegoat Tree Implementation}{346}{subsection.11.7.2}%
+\contentsline {subsection}{\numberline {11.7.3}Complexity}{348}{subsection.11.7.3}%
+\contentsline {section}{\numberline {11.8}Treaps (Randomized BST)}{348}{section.11.8}%
+\contentsline {section}{\numberline {11.9}Splay Trees}{349}{section.11.9}%
+\contentsline {subsection}{\numberline {11.9.1}The Splay Operation}{349}{subsection.11.9.1}%
+\contentsline {subsection}{\numberline {11.9.2}Splay Tree Implementation}{350}{subsection.11.9.2}%
+\contentsline {subsection}{\numberline {11.9.3}Amortized Analysis}{353}{subsection.11.9.3}%
+\contentsline {subsection}{\numberline {11.9.4}Complexity}{353}{subsection.11.9.4}%
+\contentsline {section}{\numberline {11.10}Van Emde Boas Trees}{353}{section.11.10}%
+\contentsline {subsection}{\numberline {11.10.1}The Recursive Idea}{354}{subsection.11.10.1}%
+\contentsline {subsection}{\numberline {11.10.2}VEB Tree Implementation}{354}{subsection.11.10.2}%
+\contentsline {subsection}{\numberline {11.10.3}Complexity}{356}{subsection.11.10.3}%
+\contentsline {section}{\numberline {11.11}k-d Trees}{356}{section.11.11}%
+\contentsline {subsection}{\numberline {11.11.1}Structure}{357}{subsection.11.11.1}%
+\contentsline {subsection}{\numberline {11.11.2}k-d Tree Implementation}{357}{subsection.11.11.2}%
+\contentsline {subsection}{\numberline {11.11.3}Complexity}{360}{subsection.11.11.3}%
+\contentsline {section}{\numberline {11.12}Quadtrees}{360}{section.11.12}%
+\contentsline {subsection}{\numberline {11.12.1}Structure}{360}{subsection.11.12.1}%
+\contentsline {subsection}{\numberline {11.12.2}Quadtree Implementation}{360}{subsection.11.12.2}%
+\contentsline {subsection}{\numberline {11.12.3}Complexity}{363}{subsection.11.12.3}%
+\contentsline {subsection}{\numberline {11.12.4}Variants}{363}{subsection.11.12.4}%
+\contentsline {section}{\numberline {11.13}R-trees}{363}{section.11.13}%
+\contentsline {subsection}{\numberline {11.13.1}Structure}{363}{subsection.11.13.1}%
+\contentsline {subsection}{\numberline {11.13.2}R-tree Implementation}{364}{subsection.11.13.2}%
+\contentsline {subsection}{\numberline {11.13.3}Complexity}{366}{subsection.11.13.3}%
+\contentsline {section}{\numberline {11.14}Log-Structured Merge-Trees}{367}{section.11.14}%
+\contentsline {subsection}{\numberline {11.14.1}Structure}{367}{subsection.11.14.1}%
+\contentsline {subsection}{\numberline {11.14.2}LSM-tree Implementation}{367}{subsection.11.14.2}%
+\contentsline {subsection}{\numberline {11.14.3}Complexity}{369}{subsection.11.14.3}%
+\contentsline {section}{\numberline {11.15}Range Trees}{369}{section.11.15}%
+\contentsline {subsection}{\numberline {11.15.1}Structure}{369}{subsection.11.15.1}%
+\contentsline {subsection}{\numberline {11.15.2}Range Tree Implementation}{370}{subsection.11.15.2}%
+\contentsline {subsection}{\numberline {11.15.3}Complexity}{373}{subsection.11.15.3}%
+\contentsline {section}{\numberline {11.16}B*-tree}{373}{section.11.16}%
+\contentsline {subsection}{\numberline {11.16.1}Motivation}{373}{subsection.11.16.1}%
+\contentsline {subsection}{\numberline {11.16.2}C++ Implementation}{374}{subsection.11.16.2}%
+\contentsline {subsection}{\numberline {11.16.3}Complexity}{378}{subsection.11.16.3}%
+\contentsline {subsection}{\numberline {11.16.4}When to use a B*-tree}{378}{subsection.11.16.4}%
+\contentsline {section}{\numberline {11.17}Octree}{378}{section.11.17}%
+\contentsline {subsection}{\numberline {11.17.1}Structure}{378}{subsection.11.17.1}%
+\contentsline {subsection}{\numberline {11.17.2}C++ Implementation}{379}{subsection.11.17.2}%
+\contentsline {subsection}{\numberline {11.17.3}Complexity}{383}{subsection.11.17.3}%
+\contentsline {subsection}{\numberline {11.17.4}Comparison with the quadtree}{384}{subsection.11.17.4}%
+\contentsline {subsection}{\numberline {11.17.5}When to use an octree}{384}{subsection.11.17.5}%
+\contentsline {section}{\numberline {11.18}BSP Tree (Binary Space Partitioning)}{384}{section.11.18}%
+\contentsline {subsection}{\numberline {11.18.1}Motivation}{384}{subsection.11.18.1}%
+\contentsline {subsection}{\numberline {11.18.2}Structure}{384}{subsection.11.18.2}%
+\contentsline {subsection}{\numberline {11.18.3}C++ Implementation}{385}{subsection.11.18.3}%
+\contentsline {subsection}{\numberline {11.18.4}Complexity}{389}{subsection.11.18.4}%
+\contentsline {subsection}{\numberline {11.18.5}When to use a BSP tree}{389}{subsection.11.18.5}%
+\contentsline {section}{\numberline {11.19}Weight-Balanced Trees}{390}{section.11.19}%
+\contentsline {subsection}{\numberline {11.19.1}Definition and Balance Condition}{390}{subsection.11.19.1}%
+\contentsline {subsection}{\numberline {11.19.2}Maintenance by Rebalancing}{391}{subsection.11.19.2}%
+\contentsline {subsection}{\numberline {11.19.3}Join and Split}{391}{subsection.11.19.3}%
+\contentsline {subsection}{\numberline {11.19.4}Order Statistics}{392}{subsection.11.19.4}%
+\contentsline {subsection}{\numberline {11.19.5}Comparison with AVL and Red-Black Trees}{392}{subsection.11.19.5}%
+\contentsline {subsection}{\numberline {11.19.6}Practical Considerations}{392}{subsection.11.19.6}%
+\contentsline {section}{\numberline {11.20}(a,b)-Trees and B-Trees}{393}{section.11.20}%
+\contentsline {subsection}{\numberline {11.20.1}Definition}{393}{subsection.11.20.1}%
+\contentsline {subsection}{\numberline {11.20.2}B-Trees for Disk-Based Storage}{393}{subsection.11.20.2}%
+\contentsline {subsection}{\numberline {11.20.3}B+ Trees}{394}{subsection.11.20.3}%
+\contentsline {subsection}{\numberline {11.20.4}Bulk Loading}{395}{subsection.11.20.4}%
+\contentsline {section}{\numberline {11.21}Top-Down Red-Black Tree}{395}{section.11.21}%
+\contentsline {subsection}{\numberline {11.21.1}Motivation}{395}{subsection.11.21.1}%
+\contentsline {subsection}{\numberline {11.21.2}Insertion}{395}{subsection.11.21.2}%
+\contentsline {subsection}{\numberline {11.21.3}Deletion}{397}{subsection.11.21.3}%
+\contentsline {section}{\numberline {11.22}Finger Trees}{397}{section.11.22}%
+\contentsline {subsection}{\numberline {11.22.1}Structure}{397}{subsection.11.22.1}%
+\contentsline {subsection}{\numberline {11.22.2}Measure Monoid}{398}{subsection.11.22.2}%
+\contentsline {subsection}{\numberline {11.22.3}Performance}{399}{subsection.11.22.3}%
+\contentsline {subsection}{\numberline {11.22.4}Applications}{399}{subsection.11.22.4}%
+\contentsline {section}{\numberline {11.23}Partial Rebuilding}{399}{section.11.23}%
+\contentsline {subsection}{\numberline {11.23.1}Concept}{399}{subsection.11.23.1}%
+\contentsline {subsection}{\numberline {11.23.2}When to Rebuild}{400}{subsection.11.23.2}%
+\contentsline {section}{\numberline {11.24}Join and Split Operations}{400}{section.11.24}%
+\contentsline {subsection}{\numberline {11.24.1}Join}{400}{subsection.11.24.1}%
+\contentsline {subsection}{\numberline {11.24.2}Split}{401}{subsection.11.24.2}%
+\contentsline {subsection}{\numberline {11.24.3}Applications of Join and Split}{401}{subsection.11.24.3}%
+\contentsline {section}{\numberline {11.25}Handling Nonunique Keys}{401}{section.11.25}%
+\contentsline {subsection}{\numberline {11.25.1}Counting Duplicates}{402}{subsection.11.25.1}%
+\contentsline {subsection}{\numberline {11.25.2}Multiway Split}{402}{subsection.11.25.2}%
+\contentsline {subsection}{\numberline {11.25.3}Range Counting}{402}{subsection.11.25.3}%
+\contentsline {section}{\numberline {11.26}Optimal Binary Search Trees}{402}{section.11.26}%
+\contentsline {subsection}{\numberline {11.26.1}Problem Formulation}{403}{subsection.11.26.1}%
+\contentsline {subsection}{\numberline {11.26.2}Dynamic Programming Solution}{403}{subsection.11.26.2}%
+\contentsline {subsection}{\numberline {11.26.3}Knuth's Optimization}{404}{subsection.11.26.3}%
+\contentsline {subsection}{\numberline {11.26.4}Practical Relevance}{404}{subsection.11.26.4}%
+\contentsline {section}{\numberline {11.27}Comparison}{404}{section.11.27}%
+\contentsline {section}{\numberline {11.28}STL Associative Containers: set, map, multiset, multimap}{404}{section.11.28}%
+\contentsline {subsection}{\numberline {11.28.1}std::set}{404}{subsection.11.28.1}%
+\contentsline {subsection}{\numberline {11.28.2}std::multiset}{405}{subsection.11.28.2}%
+\contentsline {subsection}{\numberline {11.28.3}std::map}{406}{subsection.11.28.3}%
+\contentsline {subsection}{\numberline {11.28.4}std::multimap}{407}{subsection.11.28.4}%
+\contentsline {subsection}{\numberline {11.28.5}Internal Structure}{408}{subsection.11.28.5}%
+\contentsline {subsection}{\numberline {11.28.6}Common Interview Patterns}{409}{subsection.11.28.6}%
+\contentsline {subsection}{\numberline {11.28.7}Choosing Between Containers}{410}{subsection.11.28.7}%
+\contentsline {subsection}{\numberline {11.28.8}STL Connection: std::unordered\_map}{410}{subsection.11.28.8}%
+\contentsline {subsection}{\numberline {11.28.9}Common Bugs and Pitfalls}{410}{subsection.11.28.9}%
+\contentsline {subsection}{\numberline {11.28.10}Interview FAQs}{411}{subsection.11.28.10}%
+\contentsline {section}{\numberline {11.29}STL Unordered Containers: unordered\_set, unordered\_map}{412}{section.11.29}%
+\contentsline {subsection}{\numberline {11.29.1}std::unordered\_set}{412}{subsection.11.29.1}%
+\contentsline {subsection}{\numberline {11.29.2}std::unordered\_multiset}{413}{subsection.11.29.2}%
+\contentsline {subsection}{\numberline {11.29.3}std::unordered\_map}{413}{subsection.11.29.3}%
+\contentsline {subsection}{\numberline {11.29.4}std::unordered\_multimap}{414}{subsection.11.29.4}%
+\contentsline {subsection}{\numberline {11.29.5}Hash Functions and Custom Keys}{414}{subsection.11.29.5}%
+\contentsline {subsection}{\numberline {11.29.6}Rehashing and Load Factor}{415}{subsection.11.29.6}%
+\contentsline {subsection}{\numberline {11.29.7}Common Interview Patterns}{416}{subsection.11.29.7}%
+\contentsline {subsection}{\numberline {11.29.8}Choosing Between All Eight Containers}{416}{subsection.11.29.8}%
+\contentsline {section}{\numberline {11.30}Bimap: Bidirectional Map}{417}{section.11.30}%
+\contentsline {subsection}{\numberline {11.30.1}Motivation}{417}{subsection.11.30.1}%
+\contentsline {subsection}{\numberline {11.30.2}Implementation}{417}{subsection.11.30.2}%
+\contentsline {subsection}{\numberline {11.30.3}Using Boost.Bimap}{419}{subsection.11.30.3}%
+\contentsline {subsection}{\numberline {11.30.4}Bimap Variants}{419}{subsection.11.30.4}%
+\contentsline {subsection}{\numberline {11.30.5}Use Cases}{419}{subsection.11.30.5}%
+\contentsline {subsection}{\numberline {11.30.6}Complexity}{420}{subsection.11.30.6}%
+\contentsline {subsection}{\numberline {11.30.7}Interview FAQs}{420}{subsection.11.30.7}%
+\contentsline {section}{\numberline {11.31}The Dynamic Optimality Conjecture}{421}{section.11.31}%
+\contentsline {subsection}{\numberline {11.31.1}BSTs as Points in 2D}{421}{subsection.11.31.1}%
+\contentsline {subsection}{\numberline {11.31.2}The Greedy Algorithm}{421}{subsection.11.31.2}%
+\contentsline {subsection}{\numberline {11.31.3}Wilber's Lower Bound}{421}{subsection.11.31.3}%
+\contentsline {subsection}{\numberline {11.31.4}Signed Greedy}{422}{subsection.11.31.4}%
+\contentsline {subsection}{\numberline {11.31.5}Tango Trees}{422}{subsection.11.31.5}%
+\contentsline {subsection}{\numberline {11.31.6}Key-Independent Optimality}{422}{subsection.11.31.6}%
+\contentsline {subsection}{\numberline {11.31.7}Splay Trees and Dynamic Optimality}{422}{subsection.11.31.7}%
+\contentsline {section}{\numberline {11.32}Fusion Trees}{423}{section.11.32}%
+\contentsline {subsection}{\numberline {11.32.1}The Idea: Wide B-Trees}{423}{subsection.11.32.1}%
+\contentsline {subsection}{\numberline {11.32.2}Sketching: Compression by Multiplication}{423}{subsection.11.32.2}%
+\contentsline {subsection}{\numberline {11.32.3}Parallel Comparison via Multiplication}{423}{subsection.11.32.3}%
+\contentsline {subsection}{\numberline {11.32.4}Finding the Most Significant Set Bit}{423}{subsection.11.32.4}%
+\contentsline {subsection}{\numberline {11.32.5}Result and Lower Bounds}{424}{subsection.11.32.5}%
+\contentsline {subsection}{\numberline {11.32.6}Practical Considerations}{424}{subsection.11.32.6}%
+\contentsline {section}{\numberline {11.33}Common Bugs and Pitfalls}{425}{section.11.33}%
+\contentsline {section}{\numberline {11.34}Summary}{425}{section.11.34}%
+\contentsline {section}{\numberline {11.35}Interview FAQs}{425}{section.11.35}%
+\contentsline {section}{\numberline {11.36}Exercises}{428}{section.11.36}%
+\contentsline {subsection}{\numberline {11.36.1}Drill}{428}{subsection.11.36.1}%
+\contentsline {subsection}{\numberline {11.36.2}Application}{428}{subsection.11.36.2}%
+\contentsline {subsection}{\numberline {11.36.3}Research}{430}{subsection.11.36.3}%
+\contentsline {section}{\numberline {11.37}References and Further Reading}{430}{section.11.37}%
+\contentsline {chapter}{\numberline {12}Graphs and Graph Algorithms}{432}{chapter.12}%
+\contentsline {section}{\numberline {12.1}Introduction}{432}{section.12.1}%
+\contentsline {section}{\numberline {12.2}The Graph ADT}{432}{section.12.2}%
+\contentsline {subsection}{\numberline {12.2.1}Terminology}{432}{subsection.12.2.1}%
+\contentsline {subsection}{\numberline {12.2.2}Graph Representations}{433}{subsection.12.2.2}%
+\contentsline {section}{\numberline {12.3}Graph Classes}{433}{section.12.3}%
+\contentsline {subsection}{\numberline {12.3.1}Adjacency Matrix}{433}{subsection.12.3.1}%
+\contentsline {subsection}{\numberline {12.3.2}Adjacency List}{434}{subsection.12.3.2}%
+\contentsline {section}{\numberline {12.4}Graph Traversal}{434}{section.12.4}%
+\contentsline {subsection}{\numberline {12.4.1}Depth-First Search (DFS)}{434}{subsection.12.4.1}%
+\contentsline {subsection}{\numberline {12.4.2}Breadth-First Search (BFS)}{435}{subsection.12.4.2}%
+\contentsline {subsection}{\numberline {12.4.3}Connected Components}{436}{subsection.12.4.3}%
+\contentsline {section}{\numberline {12.5}Topological Sort}{436}{section.12.5}%
+\contentsline {section}{\numberline {12.6}Minimum Spanning Tree}{437}{section.12.6}%
+\contentsline {subsection}{\numberline {12.6.1}Kruskal's Algorithm}{437}{subsection.12.6.1}%
+\contentsline {subsection}{\numberline {12.6.2}Prim's Algorithm}{438}{subsection.12.6.2}%
+\contentsline {section}{\numberline {12.7}Shortest Paths}{439}{section.12.7}%
+\contentsline {subsection}{\numberline {12.7.1}Dijkstra's Algorithm}{439}{subsection.12.7.1}%
+\contentsline {subsection}{\numberline {12.7.2}Bellman-Ford Algorithm}{439}{subsection.12.7.2}%
+\contentsline {subsection}{\numberline {12.7.3}Floyd-Warshall (All Pairs)}{440}{subsection.12.7.3}%
+\contentsline {section}{\numberline {12.8}Strongly Connected Components}{440}{section.12.8}%
+\contentsline {subsection}{\numberline {12.8.1}Kosaraju's Algorithm}{440}{subsection.12.8.1}%
+\contentsline {section}{\numberline {12.9}Application: Social Network Analysis}{441}{section.12.9}%
+\contentsline {section}{\numberline {12.10}Articulation Points and Bridges}{442}{section.12.10}%
+\contentsline {subsection}{\numberline {12.10.1}DFS Tree}{442}{subsection.12.10.1}%
+\contentsline {subsection}{\numberline {12.10.2}Implementation}{443}{subsection.12.10.2}%
+\contentsline {subsection}{\numberline {12.10.3}Applications}{444}{subsection.12.10.3}%
+\contentsline {section}{\numberline {12.11}Eulerian Path and Circuit}{444}{section.12.11}%
+\contentsline {subsection}{\numberline {12.11.1}Hierholzer's Algorithm}{444}{subsection.12.11.1}%
+\contentsline {subsection}{\numberline {12.11.2}Eulerian Path Conditions}{445}{subsection.12.11.2}%
+\contentsline {subsection}{\numberline {12.11.3}Applications}{445}{subsection.12.11.3}%
+\contentsline {section}{\numberline {12.12}A* Search}{445}{section.12.12}%
+\contentsline {subsection}{\numberline {12.12.1}The Idea}{445}{subsection.12.12.1}%
+\contentsline {subsection}{\numberline {12.12.2}Implementation}{446}{subsection.12.12.2}%
+\contentsline {subsection}{\numberline {12.12.3}Common Heuristics}{447}{subsection.12.12.3}%
+\contentsline {subsection}{\numberline {12.12.4}Applications}{447}{subsection.12.12.4}%
+\contentsline {section}{\numberline {12.13}Graph Coloring}{447}{section.12.13}%
+\contentsline {subsection}{\numberline {12.13.1}Greedy Coloring}{447}{subsection.12.13.1}%
+\contentsline {subsection}{\numberline {12.13.2}Welsh-Powell Ordering}{448}{subsection.12.13.2}%
+\contentsline {subsection}{\numberline {12.13.3}Applications}{448}{subsection.12.13.3}%
+\contentsline {section}{\numberline {12.14}Hypergraph}{448}{section.12.14}%
+\contentsline {subsection}{\numberline {12.14.1}Structure}{449}{subsection.12.14.1}%
+\contentsline {subsection}{\numberline {12.14.2}C++ Implementation}{449}{subsection.12.14.2}%
+\contentsline {subsection}{\numberline {12.14.3}Applications}{451}{subsection.12.14.3}%
+\contentsline {subsection}{\numberline {12.14.4}Complexity}{451}{subsection.12.14.4}%
+\contentsline {section}{\numberline {12.15}Binary Decision Diagrams}{451}{section.12.15}%
+\contentsline {subsection}{\numberline {12.15.1}Structure}{451}{subsection.12.15.1}%
+\contentsline {subsection}{\numberline {12.15.2}C++ Implementation}{452}{subsection.12.15.2}%
+\contentsline {subsection}{\numberline {12.15.3}Applications}{454}{subsection.12.15.3}%
+\contentsline {subsection}{\numberline {12.15.4}Complexity}{454}{subsection.12.15.4}%
+\contentsline {section}{\numberline {12.16}Winged Edge}{454}{section.12.16}%
+\contentsline {subsection}{\numberline {12.16.1}Structure}{455}{subsection.12.16.1}%
+\contentsline {subsection}{\numberline {12.16.2}C++ Implementation}{455}{subsection.12.16.2}%
+\contentsline {subsection}{\numberline {12.16.3}Comparison with Other Representations}{457}{subsection.12.16.3}%
+\contentsline {subsection}{\numberline {12.16.4}Complexity}{458}{subsection.12.16.4}%
+\contentsline {section}{\numberline {12.17}Biconnected Components}{458}{section.12.17}%
+\contentsline {subsection}{\numberline {12.17.1}Key Observations}{458}{subsection.12.17.1}%
+\contentsline {subsection}{\numberline {12.17.2}Algorithm}{458}{subsection.12.17.2}%
+\contentsline {subsection}{\numberline {12.17.3}Worked Trace}{459}{subsection.12.17.3}%
+\contentsline {subsection}{\numberline {12.17.4}C++ Implementation}{459}{subsection.12.17.4}%
+\contentsline {subsection}{\numberline {12.17.5}Applications}{461}{subsection.12.17.5}%
+\contentsline {section}{\numberline {12.18}Strongly Connected Components -- Kosaraju (Worked Trace)}{461}{section.12.18}%
+\contentsline {subsection}{\numberline {12.18.1}The Graph}{461}{subsection.12.18.1}%
+\contentsline {subsection}{\numberline {12.18.2}Pass 1: DFS Finish Order}{461}{subsection.12.18.2}%
+\contentsline {subsection}{\numberline {12.18.3}Pass 2: DFS on Transposed Graph}{462}{subsection.12.18.3}%
+\contentsline {subsection}{\numberline {12.18.4}Why It Works}{463}{subsection.12.18.4}%
+\contentsline {subsection}{\numberline {12.18.5}Complexity}{463}{subsection.12.18.5}%
+\contentsline {section}{\numberline {12.19}Bridges in a Graph (Worked Trace)}{463}{section.12.19}%
+\contentsline {subsection}{\numberline {12.19.1}The Graph}{463}{subsection.12.19.1}%
+\contentsline {subsection}{\numberline {12.19.2}DFS Trace}{463}{subsection.12.19.2}%
+\contentsline {subsection}{\numberline {12.19.3}Corrected Trace}{464}{subsection.12.19.3}%
+\contentsline {subsection}{\numberline {12.19.4}When Is an Edge a Bridge?}{465}{subsection.12.19.4}%
+\contentsline {section}{\numberline {12.20}Link-Cut Trees}{465}{section.12.20}%
+\contentsline {subsection}{\numberline {12.20.1}Preferred-Path Decomposition}{465}{subsection.12.20.1}%
+\contentsline {subsection}{\numberline {12.20.2}Operations}{465}{subsection.12.20.2}%
+\contentsline {subsection}{\numberline {12.20.3}Complexity}{466}{subsection.12.20.3}%
+\contentsline {subsection}{\numberline {12.20.4}Applications}{466}{subsection.12.20.4}%
+\contentsline {subsection}{\numberline {12.20.5}C++ Implementation Sketch}{466}{subsection.12.20.5}%
+\contentsline {section}{\numberline {12.21}Heavy-Light Decomposition}{468}{section.12.21}%
+\contentsline {subsection}{\numberline {12.21.1}Heavy and Light Edges}{468}{subsection.12.21.1}%
+\contentsline {subsection}{\numberline {12.21.2}Chain Construction}{468}{subsection.12.21.2}%
+\contentsline {subsection}{\numberline {12.21.3}Path Operations}{468}{subsection.12.21.3}%
+\contentsline {subsection}{\numberline {12.21.4}Complexity}{469}{subsection.12.21.4}%
+\contentsline {subsection}{\numberline {12.21.5}Applications}{469}{subsection.12.21.5}%
+\contentsline {subsection}{\numberline {12.21.6}C++ Implementation Sketch}{469}{subsection.12.21.6}%
+\contentsline {section}{\numberline {12.22}Euler Tour Trees}{470}{section.12.22}%
+\contentsline {subsection}{\numberline {12.22.1}Euler Tour Representation}{471}{subsection.12.22.1}%
+\contentsline {subsection}{\numberline {12.22.2}Subtree Queries with Fenwick Tree}{471}{subsection.12.22.2}%
+\contentsline {subsection}{\numberline {12.22.3}Dynamic Euler Tour Trees}{472}{subsection.12.22.3}%
+\contentsline {subsection}{\numberline {12.22.4}Worked Example}{472}{subsection.12.22.4}%
+\contentsline {subsection}{\numberline {12.22.5}Complexity}{473}{subsection.12.22.5}%
+\contentsline {subsection}{\numberline {12.22.6}Applications}{473}{subsection.12.22.6}%
+\contentsline {section}{\numberline {12.23}Fully Dynamic Connectivity}{473}{section.12.23}%
+\contentsline {subsection}{\numberline {12.23.1}Trees: the Easy Case}{473}{subsection.12.23.1}%
+\contentsline {subsection}{\numberline {12.23.2}General Graphs: the $O(\log ^2 n)$ Approach}{474}{subsection.12.23.2}%
+\contentsline {subsection}{\numberline {12.23.3}Level Structure Details}{475}{subsection.12.23.3}%
+\contentsline {subsection}{\numberline {12.23.4}Lower Bound}{476}{subsection.12.23.4}%
+\contentsline {subsection}{\numberline {12.23.5}Comparison Table}{476}{subsection.12.23.5}%
+\contentsline {subsection}{\numberline {12.23.6}Applications}{476}{subsection.12.23.6}%
+\contentsline {section}{\numberline {12.24}Exercises}{476}{section.12.24}%
+\contentsline {section}{\numberline {12.25}Common Bugs and Pitfalls}{477}{section.12.25}%
+\contentsline {section}{\numberline {12.26}Complexity Summary}{477}{section.12.26}%
+\contentsline {section}{\numberline {12.27}Interview FAQs}{478}{section.12.27}%
+\contentsline {section}{\numberline {12.28}Exercises}{481}{section.12.28}%
+\contentsline {subsection}{\numberline {12.28.1}Drill}{481}{subsection.12.28.1}%
+\contentsline {subsection}{\numberline {12.28.2}Application}{481}{subsection.12.28.2}%
+\contentsline {subsection}{\numberline {12.28.3}Research}{482}{subsection.12.28.3}%
+\contentsline {section}{\numberline {12.29}References and Further Reading}{483}{section.12.29}%
+\contentsline {chapter}{\numberline {13}String Algorithms and Tries}{484}{chapter.13}%
+\contentsline {section}{\numberline {13.1}Introduction}{484}{section.13.1}%
+\contentsline {section}{\numberline {13.2}Tries}{484}{section.13.2}%
+\contentsline {subsection}{\numberline {13.2.1}Standard Trie}{484}{subsection.13.2.1}%
+\contentsline {subsection}{\numberline {13.2.2}Trie Implementation}{484}{subsection.13.2.2}%
+\contentsline {subsection}{\numberline {13.2.3}Compressed Trie (Radix Tree)}{486}{subsection.13.2.3}%
+\contentsline {subsection}{\numberline {13.2.4}Ternary Search Trie (TST)}{486}{subsection.13.2.4}%
+\contentsline {subsection}{\numberline {13.2.5}Application: Autocomplete}{487}{subsection.13.2.5}%
+\contentsline {section}{\numberline {13.3}String Matching}{488}{section.13.3}%
+\contentsline {subsection}{\numberline {13.3.1}Naive Matching}{488}{subsection.13.3.1}%
+\contentsline {subsection}{\numberline {13.3.2}Knuth-Morris-Pratt (KMP)}{488}{subsection.13.3.2}%
+\contentsline {subsection}{\numberline {13.3.3}Rabin-Karp Algorithm}{489}{subsection.13.3.3}%
+\contentsline {subsection}{\numberline {13.3.4}Boyer-Moore Algorithm}{490}{subsection.13.3.4}%
+\contentsline {section}{\numberline {13.4}Suffix Arrays and LCP Arrays}{490}{section.13.4}%
+\contentsline {subsection}{\numberline {13.4.1}Suffix Array Construction}{490}{subsection.13.4.1}%
+\contentsline {subsection}{\numberline {13.4.2}The DC3/Skew Algorithm}{491}{subsection.13.4.2}%
+\contentsline {subsection}{\numberline {13.4.3}LCP Array}{492}{subsection.13.4.3}%
+\contentsline {section}{\numberline {13.5}Application: Longest Repeated Substring}{493}{section.13.5}%
+\contentsline {section}{\numberline {13.6}Application: Genome Pattern Search}{493}{section.13.6}%
+\contentsline {section}{\numberline {13.7}Suffix Trees}{494}{section.13.7}%
+\contentsline {subsection}{\numberline {13.7.1}Structure}{494}{subsection.13.7.1}%
+\contentsline {subsection}{\numberline {13.7.2}Ukkonen's Algorithm}{494}{subsection.13.7.2}%
+\contentsline {subsection}{\numberline {13.7.3}Complexity}{497}{subsection.13.7.3}%
+\contentsline {subsection}{\numberline {13.7.4}Applications}{497}{subsection.13.7.4}%
+\contentsline {subsection}{\numberline {13.7.5}Suffix Tree vs Suffix Array}{498}{subsection.13.7.5}%
+\contentsline {section}{\numberline {13.8}Radix Tree (Compressed Trie / Patricia Trie)}{498}{section.13.8}%
+\contentsline {subsection}{\numberline {13.8.1}Structure}{498}{subsection.13.8.1}%
+\contentsline {subsection}{\numberline {13.8.2}C++ Implementation}{499}{subsection.13.8.2}%
+\contentsline {subsection}{\numberline {13.8.3}Complexity}{501}{subsection.13.8.3}%
+\contentsline {subsection}{\numberline {13.8.4}Comparison with Standard Trie and TST}{501}{subsection.13.8.4}%
+\contentsline {subsection}{\numberline {13.8.5}Applications}{502}{subsection.13.8.5}%
+\contentsline {paragraph}{IP Routing.}{502}{paragraph*.17}%
+\contentsline {paragraph}{Filesystem Paths.}{502}{paragraph*.18}%
+\contentsline {paragraph}{String Dictionaries.}{502}{paragraph*.19}%
+\contentsline {section}{\numberline {13.9}Ternary Search Tree}{502}{section.13.9}%
+\contentsline {subsection}{\numberline {13.9.1}Structure}{502}{subsection.13.9.1}%
+\contentsline {subsection}{\numberline {13.9.2}Implementation}{503}{subsection.13.9.2}%
+\contentsline {subsection}{\numberline {13.9.3}Complexity}{505}{subsection.13.9.3}%
+\contentsline {subsection}{\numberline {13.9.4}Comparison with Standard Trie and Hash Table}{505}{subsection.13.9.4}%
+\contentsline {subsection}{\numberline {13.9.5}Application: Simple Spell Checker}{505}{subsection.13.9.5}%
+\contentsline {section}{\numberline {13.10}Aho-Corasick Algorithm}{506}{section.13.10}%
+\contentsline {subsection}{\numberline {13.10.1}Trie with Failure Links}{506}{subsection.13.10.1}%
+\contentsline {subsection}{\numberline {13.10.2}Worked Trace}{508}{subsection.13.10.2}%
+\contentsline {section}{\numberline {13.11}Z-Algorithm}{509}{section.13.11}%
+\contentsline {subsection}{\numberline {13.11.1}Computing the Z-Array}{509}{subsection.13.11.1}%
+\contentsline {subsection}{\numberline {13.11.2}Worked Trace}{509}{subsection.13.11.2}%
+\contentsline {section}{\numberline {13.12}Longest Common Substring via Suffix Arrays}{510}{section.13.12}%
+\contentsline {subsection}{\numberline {13.12.1}Algorithm}{510}{subsection.13.12.1}%
+\contentsline {section}{\numberline {13.13}Exercises}{511}{section.13.13}%
+\contentsline {section}{\numberline {13.14}Common Bugs and Pitfalls}{511}{section.13.14}%
+\contentsline {section}{\numberline {13.15}Summary}{512}{section.13.15}%
+\contentsline {section}{\numberline {13.16}Interview FAQs}{512}{section.13.16}%
+\contentsline {section}{\numberline {13.17}Document Retrieval}{514}{section.13.17}%
+\contentsline {subsection}{\numberline {13.17.1}The Inverted Index}{514}{subsection.13.17.1}%
+\contentsline {subsection}{\numberline {13.17.2}Suffix Arrays with Document Arrays}{515}{subsection.13.17.2}%
+\contentsline {subsection}{\numberline {13.17.3}Top-k Retrieval: WAND and Block-Max WAND}{515}{subsection.13.17.3}%
+\contentsline {subsection}{\numberline {13.17.4}BM25 Scoring}{515}{subsection.13.17.4}%
+\contentsline {subsection}{\numberline {13.17.5}Industrial Applications}{516}{subsection.13.17.5}%
+\contentsline {subsection}{\numberline {13.17.6}Comparison}{516}{subsection.13.17.6}%
+\contentsline {section}{\numberline {13.18}Exercises}{517}{section.13.18}%
+\contentsline {subsection}{\numberline {13.18.1}Drill}{517}{subsection.13.18.1}%
+\contentsline {subsection}{\numberline {13.18.2}Application}{517}{subsection.13.18.2}%
+\contentsline {subsection}{\numberline {13.18.3}Research}{518}{subsection.13.18.3}%
+\contentsline {section}{\numberline {13.19}References and Further Reading}{518}{section.13.19}%
+\contentsline {chapter}{\numberline {14}Segment Trees, Fenwick Trees, Sparse Tables, and Union-Find}{520}{chapter.14}%
+\contentsline {section}{\numberline {14.1}Introduction}{520}{section.14.1}%
+\contentsline {section}{\numberline {14.2}Sparse Table}{520}{section.14.2}%
+\contentsline {subsection}{\numberline {14.2.1}Structure}{520}{subsection.14.2.1}%
+\contentsline {subsection}{\numberline {14.2.2}Build}{521}{subsection.14.2.2}%
+\contentsline {subsection}{\numberline {14.2.3}Complexity}{521}{subsection.14.2.3}%
+\contentsline {subsection}{\numberline {14.2.4}Application: Range Minimum Query}{521}{subsection.14.2.4}%
+\contentsline {subsection}{\numberline {14.2.5}When to Use}{522}{subsection.14.2.5}%
+\contentsline {section}{\numberline {14.3}Segment Tree}{522}{section.14.3}%
+\contentsline {subsection}{\numberline {14.3.1}Structure}{522}{subsection.14.3.1}%
+\contentsline {subsection}{\numberline {14.3.2}Implementation}{523}{subsection.14.3.2}%
+\contentsline {subsection}{\numberline {14.3.3}Query Walkthrough}{524}{subsection.14.3.3}%
+\contentsline {subsection}{\numberline {14.3.4}Lazy Propagation}{524}{subsection.14.3.4}%
+\contentsline {subsection}{\numberline {14.3.5}Application: Range Minimum Query}{525}{subsection.14.3.5}%
+\contentsline {section}{\numberline {14.4}Fenwick Tree (Binary Indexed Tree)}{525}{section.14.4}%
+\contentsline {subsection}{\numberline {14.4.1}The Idea}{525}{subsection.14.4.1}%
+\contentsline {subsection}{\numberline {14.4.2}Implementation}{525}{subsection.14.4.2}%
+\contentsline {subsection}{\numberline {14.4.3}Application: Inversion Count}{527}{subsection.14.4.3}%
+\contentsline {section}{\numberline {14.5}Union-Find (Disjoint Set Union)}{527}{section.14.5}%
+\contentsline {subsection}{\numberline {14.5.1}Optimal Implementation}{527}{subsection.14.5.1}%
+\contentsline {subsection}{\numberline {14.5.2}Complexity}{528}{subsection.14.5.2}%
+\contentsline {subsection}{\numberline {14.5.3}Application: Kruskal's MST}{528}{subsection.14.5.3}%
+\contentsline {subsection}{\numberline {14.5.4}Application: Percolation}{528}{subsection.14.5.4}%
+\contentsline {section}{\numberline {14.6}Interval Tree}{529}{section.14.6}%
+\contentsline {subsection}{\numberline {14.6.1}Applications}{529}{subsection.14.6.1}%
+\contentsline {subsection}{\numberline {14.6.2}Structure}{530}{subsection.14.6.2}%
+\contentsline {subsection}{\numberline {14.6.3}Implementation}{530}{subsection.14.6.3}%
+\contentsline {subsection}{\numberline {14.6.4}How the Search Algorithm Works}{532}{subsection.14.6.4}%
+\contentsline {subsection}{\numberline {14.6.5}Complexity}{532}{subsection.14.6.5}%
+\contentsline {subsection}{\numberline {14.6.6}Application: Meeting Room Scheduler}{532}{subsection.14.6.6}%
+\contentsline {subsection}{\numberline {14.6.7}Interval Tree vs. Brute Force}{533}{subsection.14.6.7}%
+\contentsline {section}{\numberline {14.7}Comparison}{533}{section.14.7}%
+\contentsline {section}{\numberline {14.8}Common Bugs and Pitfalls}{534}{section.14.8}%
+\contentsline {section}{\numberline {14.9}Summary}{534}{section.14.9}%
+\contentsline {section}{\numberline {14.10}Interview FAQs}{534}{section.14.10}%
+\contentsline {section}{\numberline {14.11}Persistent Segment Tree}{537}{section.14.11}%
+\contentsline {subsection}{\numberline {14.11.1}Structure}{537}{subsection.14.11.1}%
+\contentsline {subsection}{\numberline {14.11.2}Implementation}{537}{subsection.14.11.2}%
+\contentsline {subsection}{\numberline {14.11.3}Query on Historical Versions}{538}{subsection.14.11.3}%
+\contentsline {subsection}{\numberline {14.11.4}Complexity}{539}{subsection.14.11.4}%
+\contentsline {subsection}{\numberline {14.11.5}Application: Range Count Queries}{539}{subsection.14.11.5}%
+\contentsline {section}{\numberline {14.12}Square Root Decomposition}{539}{section.14.12}%
+\contentsline {subsection}{\numberline {14.12.1}The Idea}{540}{subsection.14.12.1}%
+\contentsline {subsection}{\numberline {14.12.2}Implementation: Range Sum and Range Min}{540}{subsection.14.12.2}%
+\contentsline {subsection}{\numberline {14.12.3}Complexity}{542}{subsection.14.12.3}%
+\contentsline {subsection}{\numberline {14.12.4}When to Use}{542}{subsection.14.12.4}%
+\contentsline {section}{\numberline {14.13}Sparse Table for GCD/LCM}{542}{section.14.13}%
+\contentsline {subsection}{\numberline {14.13.1}GCD Queries}{542}{subsection.14.13.1}%
+\contentsline {subsection}{\numberline {14.13.2}Why GCD Works with Overlapping Intervals}{543}{subsection.14.13.2}%
+\contentsline {subsection}{\numberline {14.13.3}LCM Queries}{544}{subsection.14.13.3}%
+\contentsline {subsection}{\numberline {14.13.4}Complexity}{544}{subsection.14.13.4}%
+\contentsline {section}{\numberline {14.14}Segment Tree Beats}{544}{section.14.14}%
+\contentsline {subsection}{\numberline {14.14.1}Core Idea}{544}{subsection.14.14.1}%
+\contentsline {subsection}{\numberline {14.14.2}Implementation}{545}{subsection.14.14.2}%
+\contentsline {subsection}{\numberline {14.14.3}Complexity and Use Cases}{547}{subsection.14.14.3}%
+\contentsline {section}{\numberline {14.15}2D Fenwick Tree}{547}{section.14.15}%
+\contentsline {subsection}{\numberline {14.15.1}Structure}{547}{subsection.14.15.1}%
+\contentsline {subsection}{\numberline {14.15.2}Implementation}{547}{subsection.14.15.2}%
+\contentsline {subsection}{\numberline {14.15.3}Complexity and Use Cases}{548}{subsection.14.15.3}%
+\contentsline {section}{\numberline {14.16}Orthogonal Range Trees}{548}{section.14.16}%
+\contentsline {subsection}{\numberline {14.16.1}Structure}{548}{subsection.14.16.1}%
+\contentsline {subsection}{\numberline {14.16.2}Query Decomposition}{549}{subsection.14.16.2}%
+\contentsline {subsection}{\numberline {14.16.3}Fractional Cascading}{550}{subsection.14.16.3}%
+\contentsline {subsection}{\numberline {14.16.4}Kd-Trees}{550}{subsection.14.16.4}%
+\contentsline {subsection}{\numberline {14.16.5}Applications}{551}{subsection.14.16.5}%
+\contentsline {subsection}{\numberline {14.16.6}Comparison}{551}{subsection.14.16.6}%
+\contentsline {section}{\numberline {14.17}Higher-Dimensional Segment Trees}{551}{section.14.17}%
+\contentsline {subsection}{\numberline {14.17.1}Structure}{552}{subsection.14.17.1}%
+\contentsline {subsection}{\numberline {14.17.2}Point Update}{552}{subsection.14.17.2}%
+\contentsline {subsection}{\numberline {14.17.3}Complexity}{553}{subsection.14.17.3}%
+\contentsline {subsection}{\numberline {14.17.4}Lazy Propagation in 2D}{554}{subsection.14.17.4}%
+\contentsline {subsection}{\numberline {14.17.5}Coordinate Compression}{554}{subsection.14.17.5}%
+\contentsline {subsection}{\numberline {14.17.6}Applications}{554}{subsection.14.17.6}%
+\contentsline {section}{\numberline {14.18}3D Orthogonal Range Search}{554}{section.14.18}%
+\contentsline {subsection}{\numberline {14.18.1}Structure}{554}{subsection.14.18.1}%
+\contentsline {subsection}{\numberline {14.18.2}Complexity}{554}{subsection.14.18.2}%
+\contentsline {subsection}{\numberline {14.18.3}Counting Queries}{555}{subsection.14.18.3}%
+\contentsline {section}{\numberline {14.19}Semigroup Model}{555}{section.14.19}%
+\contentsline {subsection}{\numberline {14.19.1}Group vs.\ Semigroup}{555}{subsection.14.19.1}%
+\contentsline {subsection}{\numberline {14.19.2}Why Fenwick Fails for min}{555}{subsection.14.19.2}%
+\contentsline {subsection}{\numberline {14.19.3}Segment Tree for Semigroup Queries}{555}{subsection.14.19.3}%
+\contentsline {subsection}{\numberline {14.19.4}When to Use Which}{557}{subsection.14.19.4}%
+\contentsline {section}{\numberline {14.20}Persistent Union-Find}{557}{section.14.20}%
+\contentsline {subsection}{\numberline {14.20.1}Why Persistence Is Hard}{557}{subsection.14.20.1}%
+\contentsline {subsection}{\numberline {14.20.2}Fat Nodes}{557}{subsection.14.20.2}%
+\contentsline {subsection}{\numberline {14.20.3}Path Copying}{558}{subsection.14.20.3}%
+\contentsline {subsection}{\numberline {14.20.4}Complexity}{559}{subsection.14.20.4}%
+\contentsline {section}{\numberline {14.21}List Splitting}{559}{section.14.21}%
+\contentsline {subsection}{\numberline {14.21.1}Applications}{559}{subsection.14.21.1}%
+\contentsline {subsection}{\numberline {14.21.2}Splitting with Treaps}{559}{subsection.14.21.2}%
+\contentsline {section}{\numberline {14.22}Maintenance of Linear Order}{561}{section.14.22}%
+\contentsline {subsection}{\numberline {14.22.1}Order-Statistic Trees}{561}{subsection.14.22.1}%
+\contentsline {subsection}{\numberline {14.22.2}Applications}{561}{subsection.14.22.2}%
+\contentsline {section}{\numberline {14.23}Union of Intervals}{561}{section.14.23}%
+\contentsline {subsection}{\numberline {14.23.1}Sweep-Line Algorithm}{561}{subsection.14.23.1}%
+\contentsline {subsection}{\numberline {14.23.2}Dynamic Interval Union}{562}{subsection.14.23.2}%
+\contentsline {section}{\numberline {14.24}Interval-Restricted Maximum Sum}{562}{section.14.24}%
+\contentsline {subsection}{\numberline {14.24.1}Segment Tree Augmentation}{563}{subsection.14.24.1}%
+\contentsline {subsection}{\numberline {14.24.2}Comparison}{565}{subsection.14.24.2}%
+\contentsline {section}{\numberline {14.25}Level Ancestor Problem}{565}{section.14.25}%
+\contentsline {subsection}{\numberline {14.25.1}Jump Pointers}{565}{subsection.14.25.1}%
+\contentsline {subsection}{\numberline {14.25.2}Optimal $O(1)$ Query}{566}{subsection.14.25.2}%
+\contentsline {subsection}{\numberline {14.25.3}Applications}{566}{subsection.14.25.3}%
+\contentsline {section}{\numberline {14.26}The Predecessor Problem and Lower Bounds}{566}{section.14.26}%
+\contentsline {subsection}{\numberline {14.26.1}Information-Theoretic Lower Bound}{566}{subsection.14.26.1}%
+\contentsline {subsection}{\numberline {14.26.2}Cell Probe Lower Bound}{566}{subsection.14.26.2}%
+\contentsline {subsection}{\numberline {14.26.3}Upper Bounds}{566}{subsection.14.26.3}%
+\contentsline {subsection}{\numberline {14.26.4}The Open Gap}{567}{subsection.14.26.4}%
+\contentsline {section}{\numberline {14.27}Kinetic Data Structures}{567}{section.14.27}%
+\contentsline {subsection}{\numberline {14.27.1}Certificates and Failure Times}{567}{subsection.14.27.1}%
+\contentsline {subsection}{\numberline {14.27.2}Kinetic Tournament}{567}{subsection.14.27.2}%
+\contentsline {subsection}{\numberline {14.27.3}Industrial Applications}{568}{subsection.14.27.3}%
+\contentsline {subsection}{\numberline {14.27.4}Comparison}{569}{subsection.14.27.4}%
+\contentsline {section}{\numberline {14.28}Planar Point Location}{569}{section.14.28}%
+\contentsline {subsection}{\numberline {14.28.1}The Problem}{569}{subsection.14.28.1}%
+\contentsline {subsection}{\numberline {14.28.2}Trapezoidal Maps}{569}{subsection.14.28.2}%
+\contentsline {subsection}{\numberline {14.28.3}Kirkpatrick's Hierarchy}{569}{subsection.14.28.3}%
+\contentsline {subsection}{\numberline {14.28.4}Persistent Search Trees}{570}{subsection.14.28.4}%
+\contentsline {subsection}{\numberline {14.28.5}Industrial Applications}{570}{subsection.14.28.5}%
+\contentsline {section}{\numberline {14.29}Exercises}{571}{section.14.29}%
+\contentsline {subsection}{\numberline {14.29.1}Drill}{571}{subsection.14.29.1}%
+\contentsline {subsection}{\numberline {14.29.2}Application}{571}{subsection.14.29.2}%
+\contentsline {subsection}{\numberline {14.29.3}Research}{572}{subsection.14.29.3}%
+\contentsline {section}{\numberline {14.30}References and Further Reading}{574}{section.14.30}%
+\contentsline {part}{III\hspace {1em}Algorithm-Design Methods}{575}{part.3}%
+\contentsline {chapter}{\numberline {15}The Greedy Method}{576}{chapter.15}%
+\contentsline {section}{\numberline {15.1}Introduction}{576}{section.15.1}%
+\contentsline {section}{\numberline {15.2}The General Method}{576}{section.15.2}%
+\contentsline {subsection}{\numberline {15.2.1}Greedy Algorithm Template}{576}{subsection.15.2.1}%
+\contentsline {subsection}{\numberline {15.2.2}When Greedy Works}{576}{subsection.15.2.2}%
+\contentsline {subsection}{\numberline {15.2.3}The Exchange Argument}{577}{subsection.15.2.3}%
+\contentsline {section}{\numberline {15.3}Container Loading}{577}{section.15.3}%
+\contentsline {section}{\numberline {15.4}The Fractional Knapsack Problem}{578}{section.15.4}%
+\contentsline {section}{\numberline {15.5}Task Scheduling}{579}{section.15.5}%
+\contentsline {section}{\numberline {15.6}Single-Source Shortest Paths (Dijkstra)}{580}{section.15.6}%
+\contentsline {subsection}{\numberline {15.6.1}The Algorithm}{580}{subsection.15.6.1}%
+\contentsline {subsection}{\numberline {15.6.2}Worked Trace}{580}{subsection.15.6.2}%
+\contentsline {section}{\numberline {15.7}Minimum Spanning Tree}{581}{section.15.7}%
+\contentsline {subsection}{\numberline {15.7.1}Kruskal's Algorithm}{581}{subsection.15.7.1}%
+\contentsline {subsection}{\numberline {15.7.2}Prim's Algorithm}{582}{subsection.15.7.2}%
+\contentsline {subsection}{\numberline {15.7.3}The Cut Property}{583}{subsection.15.7.3}%
+\contentsline {section}{\numberline {15.8}Huffman Coding}{583}{section.15.8}%
+\contentsline {section}{\numberline {15.9}Greedy Does Not Always Work}{584}{section.15.9}%
+\contentsline {section}{\numberline {15.10}Common Bugs and Pitfalls}{585}{section.15.10}%
+\contentsline {section}{\numberline {15.11}Summary}{585}{section.15.11}%
+\contentsline {section}{\numberline {15.12}Interview FAQs}{586}{section.15.12}%
+\contentsline {section}{\numberline {15.13}Activity Selection Problem}{588}{section.15.13}%
+\contentsline {subsection}{\numberline {15.13.1}Worked Example}{588}{subsection.15.13.1}%
+\contentsline {subsection}{\numberline {15.13.2}C++ Implementation}{589}{subsection.15.13.2}%
+\contentsline {section}{\numberline {15.14}Job Sequencing with Deadlines}{590}{section.15.14}%
+\contentsline {subsection}{\numberline {15.14.1}Worked Trace}{590}{subsection.15.14.1}%
+\contentsline {subsection}{\numberline {15.14.2}Union-Find Optimization}{590}{subsection.15.14.2}%
+\contentsline {section}{\numberline {15.15}Optimal Merge Pattern}{591}{section.15.15}%
+\contentsline {subsection}{\numberline {15.15.1}Why Greedy Works}{592}{subsection.15.15.1}%
+\contentsline {subsection}{\numberline {15.15.2}Worked Trace}{592}{subsection.15.15.2}%
+\contentsline {subsection}{\numberline {15.15.3}C++ Implementation}{592}{subsection.15.15.3}%
+\contentsline {section}{\numberline {15.16}Egyptian Fraction}{593}{section.15.16}%
+\contentsline {subsection}{\numberline {15.16.1}Worked Examples}{593}{subsection.15.16.1}%
+\contentsline {subsection}{\numberline {15.16.2}C++ Implementation}{594}{subsection.15.16.2}%
+\contentsline {subsection}{\numberline {15.16.3}Task Scheduling to Minimize Lateness}{595}{subsection.15.16.3}%
+\contentsline {section}{\numberline {15.17}Exercises}{596}{section.15.17}%
+\contentsline {subsection}{\numberline {15.17.1}Drill}{596}{subsection.15.17.1}%
+\contentsline {subsection}{\numberline {15.17.2}Application}{597}{subsection.15.17.2}%
+\contentsline {subsection}{\numberline {15.17.3}Research}{598}{subsection.15.17.3}%
+\contentsline {subsection}{\numberline {15.17.4}Additional Exercises}{598}{subsection.15.17.4}%
+\contentsline {section}{\numberline {15.18}References and Further Reading}{600}{section.15.18}%
+\contentsline {chapter}{\numberline {16}Divide and Conquer}{601}{chapter.16}%
+\contentsline {section}{\numberline {16.1}Introduction}{601}{section.16.1}%
+\contentsline {section}{\numberline {16.2}The General Method}{601}{section.16.2}%
+\contentsline {section}{\numberline {16.3}Defective Chessboard}{601}{section.16.3}%
+\contentsline {section}{\numberline {16.4}Binary Search}{603}{section.16.4}%
+\contentsline {section}{\numberline {16.5}Finding Min and Max}{604}{section.16.5}%
+\contentsline {section}{\numberline {16.6}Sorting Algorithms}{605}{section.16.6}%
+\contentsline {subsection}{\numberline {16.6.1}Merge Sort}{605}{subsection.16.6.1}%
+\contentsline {subsection}{\numberline {16.6.2}Natural Merge Sort}{605}{subsection.16.6.2}%
+\contentsline {subsection}{\numberline {16.6.3}Quick Sort}{606}{subsection.16.6.3}%
+\contentsline {subsection}{\numberline {16.6.4}Comparison}{607}{subsection.16.6.4}%
+\contentsline {section}{\numberline {16.7}Radix Sort}{607}{section.16.7}%
+\contentsline {subsection}{\numberline {16.7.1}LSD Radix Sort}{607}{subsection.16.7.1}%
+\contentsline {subsection}{\numberline {16.7.2}MSD Radix Sort}{608}{subsection.16.7.2}%
+\contentsline {subsection}{\numberline {16.7.3}Radix Sort for Strings}{609}{subsection.16.7.3}%
+\contentsline {subsection}{\numberline {16.7.4}Complexity}{609}{subsection.16.7.4}%
+\contentsline {subsection}{\numberline {16.7.5}Industrial Applications}{609}{subsection.16.7.5}%
+\contentsline {section}{\numberline {16.8}Selection (Finding the k-th Smallest)}{610}{section.16.8}%
+\contentsline {section}{\numberline {16.9}Closest Pair of Points}{611}{section.16.9}%
+\contentsline {section}{\numberline {16.10}Strassen's Matrix Multiplication}{612}{section.16.10}%
+\contentsline {section}{\numberline {16.11}Common Bugs and Pitfalls}{613}{section.16.11}%
+\contentsline {section}{\numberline {16.12}Summary}{613}{section.16.12}%
+\contentsline {section}{\numberline {16.13}Interview FAQs}{614}{section.16.13}%
+\contentsline {section}{\numberline {16.14}Closest Pair of Points: Detailed Treatment}{616}{section.16.14}%
+\contentsline {subsection}{\numberline {16.14.1}Brute Force: O(n$^{2}$)}{616}{subsection.16.14.1}%
+\contentsline {subsection}{\numberline {16.14.2}Divide and Conquer: O(n log n)}{616}{subsection.16.14.2}%
+\contentsline {section}{\numberline {16.15}Maximum Subarray}{619}{section.16.15}%
+\contentsline {subsection}{\numberline {16.15.1}Divide and Conquer Approach}{619}{subsection.16.15.1}%
+\contentsline {subsection}{\numberline {16.15.2}Kadane's Algorithm: O(n)}{620}{subsection.16.15.2}%
+\contentsline {section}{\numberline {16.16}Counting Inversions}{621}{section.16.16}%
+\contentsline {subsection}{\numberline {16.16.1}Brute Force: O(n$^{2}$)}{621}{subsection.16.16.1}%
+\contentsline {subsection}{\numberline {16.16.2}Merge Sort Variant: O(n log n)}{621}{subsection.16.16.2}%
+\contentsline {section}{\numberline {16.17}Strassen's Algorithm: Recursive Trace}{623}{section.16.17}%
+\contentsline {section}{\numberline {16.18}Median of Two Sorted Arrays}{624}{section.16.18}%
+\contentsline {section}{\numberline {16.19}Karatsuba Multiplication}{625}{section.16.19}%
+\contentsline {section}{\numberline {16.20}Exercises}{628}{section.16.20}%
+\contentsline {subsection}{\numberline {16.20.1}Drill}{628}{subsection.16.20.1}%
+\contentsline {subsection}{\numberline {16.20.2}Application}{628}{subsection.16.20.2}%
+\contentsline {subsection}{\numberline {16.20.3}Research}{629}{subsection.16.20.3}%
+\contentsline {subsection}{\numberline {16.20.4}Additional Problems}{629}{subsection.16.20.4}%
+\contentsline {section}{\numberline {16.21}References and Further Reading}{630}{section.16.21}%
+\contentsline {chapter}{\numberline {17}Dynamic Programming}{632}{chapter.17}%
+\contentsline {section}{\numberline {17.1}Introduction}{632}{section.17.1}%
+\contentsline {section}{\numberline {17.2}The General Method}{632}{section.17.2}%
+\contentsline {subsection}{\numberline {17.2.1}Key Concepts}{632}{subsection.17.2.1}%
+\contentsline {subsection}{\numberline {17.2.2}Top-Down vs. Bottom-Up}{632}{subsection.17.2.2}%
+\contentsline {subsection}{\numberline {17.2.3}DP Design Steps}{633}{subsection.17.2.3}%
+\contentsline {section}{\numberline {17.3}The 0/1 Knapsack Problem}{633}{section.17.3}%
+\contentsline {subsection}{\numberline {17.3.1}Recursive Formulation}{633}{subsection.17.3.1}%
+\contentsline {subsection}{\numberline {17.3.2}Bottom-Up Implementation}{634}{subsection.17.3.2}%
+\contentsline {subsection}{\numberline {17.3.3}Space-Optimized Version}{634}{subsection.17.3.3}%
+\contentsline {subsection}{\numberline {17.3.4}Reconstructing the Solution}{634}{subsection.17.3.4}%
+\contentsline {section}{\numberline {17.4}Matrix Chain Multiplication}{635}{section.17.4}%
+\contentsline {subsection}{\numberline {17.4.1}Recurrence}{635}{subsection.17.4.1}%
+\contentsline {subsection}{\numberline {17.4.2}Implementation}{635}{subsection.17.4.2}%
+\contentsline {section}{\numberline {17.5}All-Pairs Shortest Paths (Floyd-Warshall)}{636}{section.17.5}%
+\contentsline {section}{\numberline {17.6}Longest Common Subsequence (LCS)}{638}{section.17.6}%
+\contentsline {subsection}{\numberline {17.6.1}Recurrence}{638}{subsection.17.6.1}%
+\contentsline {subsection}{\numberline {17.6.2}Implementation}{638}{subsection.17.6.2}%
+\contentsline {section}{\numberline {17.7}Edit Distance (Levenshtein Distance)}{639}{section.17.7}%
+\contentsline {subsection}{\numberline {17.7.1}Recurrence}{639}{subsection.17.7.1}%
+\contentsline {subsection}{\numberline {17.7.2}Implementation}{639}{subsection.17.7.2}%
+\contentsline {section}{\numberline {17.8}Coin Change (Unbounded)}{640}{section.17.8}%
+\contentsline {subsection}{\numberline {17.8.1}Recurrence}{640}{subsection.17.8.1}%
+\contentsline {section}{\numberline {17.9}DP vs. Greedy vs. Divide and Conquer}{641}{section.17.9}%
+\contentsline {section}{\numberline {17.10}Common Bugs and Pitfalls}{642}{section.17.10}%
+\contentsline {section}{\numberline {17.11}Summary}{642}{section.17.11}%
+\contentsline {section}{\numberline {17.12}Interview FAQs}{643}{section.17.12}%
+\contentsline {section}{\numberline {17.13}Longest Common Subsequence (LCS) --- Detailed Treatment}{645}{section.17.13}%
+\contentsline {subsection}{\numberline {17.13.1}DP Formulation}{645}{subsection.17.13.1}%
+\contentsline {subsection}{\numberline {17.13.2}Table Construction: X = "ABCBDAB", Y = "BDCAB"}{645}{subsection.17.13.2}%
+\contentsline {subsection}{\numberline {17.13.3}Backtracking to Find the Actual Subsequence}{646}{subsection.17.13.3}%
+\contentsline {subsection}{\numberline {17.13.4}C++ Implementation}{646}{subsection.17.13.4}%
+\contentsline {section}{\numberline {17.14}Edit Distance (Levenshtein Distance) --- Detailed Treatment}{647}{section.17.14}%
+\contentsline {subsection}{\numberline {17.14.1}DP Formulation}{647}{subsection.17.14.1}%
+\contentsline {subsection}{\numberline {17.14.2}Table Construction: A = "kitten", B = "sitting"}{647}{subsection.17.14.2}%
+\contentsline {subsection}{\numberline {17.14.3}C++ Implementation}{648}{subsection.17.14.3}%
+\contentsline {subsection}{\numberline {17.14.4}Backtracking to Find the Operations}{649}{subsection.17.14.4}%
+\contentsline {section}{\numberline {17.15}Matrix Chain Multiplication --- Detailed Treatment}{649}{section.17.15}%
+\contentsline {subsection}{\numberline {17.15.1}DP Formulation}{650}{subsection.17.15.1}%
+\contentsline {subsection}{\numberline {17.15.2}Worked Trace: 4 Matrices}{650}{subsection.17.15.2}%
+\contentsline {subsection}{\numberline {17.15.3}C++ Implementation}{651}{subsection.17.15.3}%
+\contentsline {subsection}{\numberline {17.15.4}Printing the Optimal Parenthesization}{651}{subsection.17.15.4}%
+\contentsline {section}{\numberline {17.16}Subset Sum Problem}{652}{section.17.16}%
+\contentsline {subsection}{\numberline {17.16.1}DP Formulation}{652}{subsection.17.16.1}%
+\contentsline {subsection}{\numberline {17.16.2}Worked Trace: nums = [3, 7, 1, 8, 4], T = 11}{652}{subsection.17.16.2}%
+\contentsline {subsection}{\numberline {17.16.3}C++ Implementation}{653}{subsection.17.16.3}%
+\contentsline {subsection}{\numberline {17.16.4}Space-Optimized Version}{653}{subsection.17.16.4}%
+\contentsline {section}{\numberline {17.17}House Robber}{654}{section.17.17}%
+\contentsline {subsection}{\numberline {17.17.1}Recurrence}{654}{subsection.17.17.1}%
+\contentsline {subsection}{\numberline {17.17.2}Tabulation}{654}{subsection.17.17.2}%
+\contentsline {subsection}{\numberline {17.17.3}Space-Optimized Version}{655}{subsection.17.17.3}%
+\contentsline {section}{\numberline {17.18}Longest Increasing Subsequence (LIS)}{655}{section.17.18}%
+\contentsline {subsection}{\numberline {17.18.1}O(n$^{2}$) DP}{655}{subsection.17.18.1}%
+\contentsline {subsection}{\numberline {17.18.2}O(n log n) Patience Sorting}{656}{subsection.17.18.2}%
+\contentsline {subsection}{\numberline {17.18.3}Worked Trace: Patience Sorting}{657}{subsection.17.18.3}%
+\contentsline {subsection}{\numberline {17.18.4}Recovering the Actual Subsequence}{657}{subsection.17.18.4}%
+\contentsline {section}{\numberline {17.19}Exercises}{658}{section.17.19}%
+\contentsline {subsection}{\numberline {17.19.1}Drill}{658}{subsection.17.19.1}%
+\contentsline {subsection}{\numberline {17.19.2}Application}{659}{subsection.17.19.2}%
+\contentsline {subsection}{\numberline {17.19.3}Research}{660}{subsection.17.19.3}%
+\contentsline {section}{\numberline {17.20}References and Further Reading}{661}{section.17.20}%
+\contentsline {chapter}{\numberline {18}Backtracking and Branch and Bound}{662}{chapter.18}%
+\contentsline {section}{\numberline {18.1}Introduction}{662}{section.18.1}%
+\contentsline {section}{\numberline {18.2}Backtracking}{662}{section.18.2}%
+\contentsline {subsection}{\numberline {18.2.1}The General Method}{662}{subsection.18.2.1}%
+\contentsline {subsection}{\numberline {18.2.2}The n-Queens Problem}{663}{subsection.18.2.2}%
+\contentsline {subsection}{\numberline {18.2.3}Subset Sum}{664}{subsection.18.2.3}%
+\contentsline {subsection}{\numberline {18.2.4}Subset Generation (All Subsets)}{665}{subsection.18.2.4}%
+\contentsline {subsection}{\numberline {18.2.5}Permutation Generation}{665}{subsection.18.2.5}%
+\contentsline {section}{\numberline {18.3}Branch and Bound}{666}{section.18.3}%
+\contentsline {subsection}{\numberline {18.3.1}The General Method}{666}{subsection.18.3.1}%
+\contentsline {subsection}{\numberline {18.3.2}Traveling Salesman Problem (TSP)}{666}{subsection.18.3.2}%
+\contentsline {subsection}{\numberline {18.3.3}15-Puzzle}{667}{subsection.18.3.3}%
+\contentsline {subsection}{\numberline {18.3.4}Backtracking vs. Branch and Bound}{669}{subsection.18.3.4}%
+\contentsline {section}{\numberline {18.4}Application: Sudoku Solver}{670}{section.18.4}%
+\contentsline {section}{\numberline {18.5}Common Bugs and Pitfalls}{671}{section.18.5}%
+\contentsline {section}{\numberline {18.6}Summary}{671}{section.18.6}%
+\contentsline {section}{\numberline {18.7}Interview FAQs}{671}{section.18.7}%
+\contentsline {section}{\numberline {18.8}N-Queens Problem: A Deep Dive}{673}{section.18.8}%
+\contentsline {subsection}{\numberline {18.8.1}State Space Tree for 4-Queens}{674}{subsection.18.8.1}%
+\contentsline {subsection}{\numberline {18.8.2}Worked Trace: Backtracking for 4-Queens}{674}{subsection.18.8.2}%
+\contentsline {subsection}{\numberline {18.8.3}Optimized C++ Implementation with Bitmasks}{675}{subsection.18.8.3}%
+\contentsline {subsection}{\numberline {18.8.4}Complexity Analysis}{677}{subsection.18.8.4}%
+\contentsline {section}{\numberline {18.9}Sudoku Solver: Backtracking with Constraint Checking}{678}{section.18.9}%
+\contentsline {subsection}{\numberline {18.9.1}Algorithm Overview}{678}{subsection.18.9.1}%
+\contentsline {subsection}{\numberline {18.9.2}Worked Partial Trace}{678}{subsection.18.9.2}%
+\contentsline {subsection}{\numberline {18.9.3}C++ Implementation}{679}{subsection.18.9.3}%
+\contentsline {subsection}{\numberline {18.9.4}Optimizations}{680}{subsection.18.9.4}%
+\contentsline {section}{\numberline {18.10}Subset Sum: Backtracking vs. Dynamic Programming}{682}{section.18.10}%
+\contentsline {subsection}{\numberline {18.10.1}Backtracking Approach (Revisited)}{682}{subsection.18.10.1}%
+\contentsline {subsection}{\numberline {18.10.2}Dynamic Programming Approach (from Chapter 17)}{683}{subsection.18.10.2}%
+\contentsline {subsection}{\numberline {18.10.3}Comparison}{684}{subsection.18.10.3}%
+\contentsline {section}{\numberline {18.11}Graph Coloring: Backtracking Approach}{684}{section.18.11}%
+\contentsline {subsection}{\numberline {18.11.1}Algorithm}{684}{subsection.18.11.1}%
+\contentsline {subsection}{\numberline {18.11.2}Worked Trace: Graph with 4 Vertices and 3 Colors}{685}{subsection.18.11.2}%
+\contentsline {subsection}{\numberline {18.11.3}Finding the Chromatic Number}{686}{subsection.18.11.3}%
+\contentsline {subsection}{\numberline {18.11.4}Applications}{687}{subsection.18.11.4}%
+\contentsline {section}{\numberline {18.12}Exercises}{687}{section.18.12}%
+\contentsline {subsection}{\numberline {18.12.1}Drill}{687}{subsection.18.12.1}%
+\contentsline {subsection}{\numberline {18.12.2}Application}{687}{subsection.18.12.2}%
+\contentsline {subsection}{\numberline {18.12.3}Research}{688}{subsection.18.12.3}%
+\contentsline {subsection}{\numberline {18.12.4}Additional Exercises}{689}{subsection.18.12.4}%
+\contentsline {section}{\numberline {18.13}References and Further Reading}{690}{section.18.13}%
+\contentsline {part}{IV\hspace {1em}Specialized and Applied Topics}{691}{part.4}%
+\contentsline {chapter}{\numberline {19}Probabilistic Data Structures}{692}{chapter.19}%
+\contentsline {section}{\numberline {19.1}Introduction}{692}{section.19.1}%
+\contentsline {section}{\numberline {19.2}Bloom Filters}{692}{section.19.2}%
+\contentsline {subsection}{\numberline {19.2.1}Operations}{692}{subsection.19.2.1}%
+\contentsline {section}{\numberline {19.3}Cuckoo Filters}{693}{section.19.3}%
+\contentsline {subsection}{\numberline {19.3.1}Core Idea}{693}{subsection.19.3.1}%
+\contentsline {subsection}{\numberline {19.3.2}Cuckoo Filter Implementation}{694}{subsection.19.3.2}%
+\contentsline {subsection}{\numberline {19.3.3}Cuckoo Filter vs Bloom Filter}{696}{subsection.19.3.3}%
+\contentsline {section}{\numberline {19.4}Count-Min Sketch}{697}{section.19.4}%
+\contentsline {section}{\numberline {19.5}Heavy Hitters (Misra-Gries)}{698}{section.19.5}%
+\contentsline {subsection}{\numberline {19.5.1}The Idea}{698}{subsection.19.5.1}%
+\contentsline {subsection}{\numberline {19.5.2}Implementation}{698}{subsection.19.5.2}%
+\contentsline {subsection}{\numberline {19.5.3}Complexity}{699}{subsection.19.5.3}%
+\contentsline {subsection}{\numberline {19.5.4}Applications}{699}{subsection.19.5.4}%
+\contentsline {section}{\numberline {19.6}HyperLogLog}{699}{section.19.6}%
+\contentsline {section}{\numberline {19.7}Quantile Estimation}{700}{section.19.7}%
+\contentsline {subsection}{\numberline {19.7.1}Greenwald-Khanna Sketch}{701}{subsection.19.7.1}%
+\contentsline {subsection}{\numberline {19.7.2}Complexity}{702}{subsection.19.7.2}%
+\contentsline {subsection}{\numberline {19.7.3}Applications}{702}{subsection.19.7.3}%
+\contentsline {section}{\numberline {19.8}Reservoir Sampling}{702}{section.19.8}%
+\contentsline {section}{\numberline {19.9}Sliding Window Model}{703}{section.19.9}%
+\contentsline {subsection}{\numberline {19.9.1}Exponential Histogram}{703}{subsection.19.9.1}%
+\contentsline {subsection}{\numberline {19.9.2}Applications}{704}{subsection.19.9.2}%
+\contentsline {section}{\numberline {19.10}Consistent Hashing}{705}{section.19.10}%
+\contentsline {section}{\numberline {19.11}Locality-Sensitive Hashing}{706}{section.19.11}%
+\contentsline {section}{\numberline {19.12}Merkle Tree (Hash Tree)}{706}{section.19.12}%
+\contentsline {subsection}{\numberline {19.12.1}Structure}{707}{subsection.19.12.1}%
+\contentsline {subsection}{\numberline {19.12.2}Operations}{707}{subsection.19.12.2}%
+\contentsline {subsection}{\numberline {19.12.3}Complexity}{709}{subsection.19.12.3}%
+\contentsline {subsection}{\numberline {19.12.4}Applications}{709}{subsection.19.12.4}%
+\contentsline {section}{\numberline {19.13}Quotient Filter}{709}{section.19.13}%
+\contentsline {subsection}{\numberline {19.13.1}Structure}{709}{subsection.19.13.1}%
+\contentsline {subsection}{\numberline {19.13.2}Operations}{709}{subsection.19.13.2}%
+\contentsline {subsection}{\numberline {19.13.3}Complexity}{713}{subsection.19.13.3}%
+\contentsline {subsection}{\numberline {19.13.4}Comparison with Bloom Filter}{713}{subsection.19.13.4}%
+\contentsline {section}{\numberline {19.14}MinHash}{713}{section.19.14}%
+\contentsline {subsection}{\numberline {19.14.1}Structure}{713}{subsection.19.14.1}%
+\contentsline {subsection}{\numberline {19.14.2}Operations}{714}{subsection.19.14.2}%
+\contentsline {subsection}{\numberline {19.14.3}Complexity}{715}{subsection.19.14.3}%
+\contentsline {subsection}{\numberline {19.14.4}Applications}{715}{subsection.19.14.4}%
+\contentsline {section}{\numberline {19.15}HyperLogLog}{715}{section.19.15}%
+\contentsline {subsection}{\numberline {19.15.1}Core Idea}{715}{subsection.19.15.1}%
+\contentsline {subsection}{\numberline {19.15.2}Standard Error}{716}{subsection.19.15.2}%
+\contentsline {subsection}{\numberline {19.15.3}Complexity}{717}{subsection.19.15.3}%
+\contentsline {subsection}{\numberline {19.15.4}Applications}{717}{subsection.19.15.4}%
+\contentsline {section}{\numberline {19.16}Reservoir Sampling}{718}{section.19.16}%
+\contentsline {subsection}{\numberline {19.16.1}Algorithm R}{718}{subsection.19.16.1}%
+\contentsline {subsection}{\numberline {19.16.2}Correctness Argument}{718}{subsection.19.16.2}%
+\contentsline {subsection}{\numberline {19.16.3}Complexity}{720}{subsection.19.16.3}%
+\contentsline {subsection}{\numberline {19.16.4}Applications}{720}{subsection.19.16.4}%
+\contentsline {section}{\numberline {19.17}Count-Distinct (Linear Counting)}{720}{section.19.17}%
+\contentsline {subsection}{\numberline {19.17.1}Estimate Formula}{720}{subsection.19.17.1}%
+\contentsline {subsection}{\numberline {19.17.2}When to Use}{721}{subsection.19.17.2}%
+\contentsline {section}{\numberline {19.18}Exercises}{721}{section.19.18}%
+\contentsline {subsection}{\numberline {19.18.1}Top-K Approximation}{722}{subsection.19.18.1}%
+\contentsline {section}{\numberline {19.19}Common Bugs and Pitfalls}{724}{section.19.19}%
+\contentsline {section}{\numberline {19.20}Summary}{724}{section.19.20}%
+\contentsline {section}{\numberline {19.21}Exercises}{724}{section.19.21}%
+\contentsline {subsection}{\numberline {19.21.1}Drill}{724}{subsection.19.21.1}%
+\contentsline {subsection}{\numberline {19.21.2}Application}{725}{subsection.19.21.2}%
+\contentsline {subsection}{\numberline {19.21.3}Research}{726}{subsection.19.21.3}%
+\contentsline {section}{\numberline {19.22}References and Further Reading}{726}{section.19.22}%
+\contentsline {chapter}{\numberline {20}Maximum Flow and Matching}{728}{chapter.20}%
+\contentsline {section}{\numberline {20.1}Introduction}{728}{section.20.1}%
+\contentsline {section}{\numberline {20.2}The Maximum Flow Problem}{728}{section.20.2}%
+\contentsline {section}{\numberline {20.3}Dinic's Algorithm}{728}{section.20.3}%
+\contentsline {section}{\numberline {20.4}Edmonds-Karp Algorithm}{730}{section.20.4}%
+\contentsline {section}{\numberline {20.5}Push-Relabel Algorithm}{731}{section.20.5}%
+\contentsline {section}{\numberline {20.6}Minimum Cut}{732}{section.20.6}%
+\contentsline {section}{\numberline {20.7}Bipartite Matching}{733}{section.20.7}%
+\contentsline {section}{\numberline {20.8}Min-Cost Max-Flow}{734}{section.20.8}%
+\contentsline {section}{\numberline {20.9}Application: Project Selection}{736}{section.20.9}%
+\contentsline {section}{\numberline {20.10}Common Bugs and Pitfalls}{737}{section.20.10}%
+\contentsline {section}{\numberline {20.11}Summary}{737}{section.20.11}%
+\contentsline {section}{\numberline {20.12}Interview FAQs}{738}{section.20.12}%
+\contentsline {section}{\numberline {20.13}Edmonds-Karp in Depth}{740}{section.20.13}%
+\contentsline {section}{\numberline {20.14}Maximum Bipartite Matching (Full Treatment)}{743}{section.20.14}%
+\contentsline {section}{\numberline {20.15}Minimum Cost Maximum Flow: Full Treatment}{744}{section.20.15}%
+\contentsline {section}{\numberline {20.16}Applications Deep Dive}{746}{section.20.16}%
+\contentsline {subsection}{\numberline {20.16.1}Airline Scheduling: Crew Assignment}{746}{subsection.20.16.1}%
+\contentsline {subsection}{\numberline {20.16.2}Image Segmentation: Graph Cuts}{747}{subsection.20.16.2}%
+\contentsline {subsection}{\numberline {20.16.3}Baseball Elimination: Proving a Team Cannot Win}{748}{subsection.20.16.3}%
+\contentsline {section}{\numberline {20.17}Exercises}{750}{section.20.17}%
+\contentsline {subsection}{\numberline {20.17.1}Drill}{750}{subsection.20.17.1}%
+\contentsline {subsection}{\numberline {20.17.2}Application}{751}{subsection.20.17.2}%
+\contentsline {subsection}{\numberline {20.17.3}Research}{752}{subsection.20.17.3}%
+\contentsline {section}{\numberline {20.18}References and Further Reading}{752}{section.20.18}%
+\contentsline {chapter}{\numberline {21}Persistent Data Structures}{753}{chapter.21}%
+\contentsline {section}{\numberline {21.1}Introduction and Motivation}{753}{section.21.1}%
+\contentsline {section}{\numberline {21.2}Persistence Models}{753}{section.21.2}%
+\contentsline {section}{\numberline {21.3}Techniques}{754}{section.21.3}%
+\contentsline {subsection}{\numberline {21.3.1}Fat Nodes}{754}{subsection.21.3.1}%
+\contentsline {subsection}{\numberline {21.3.2}Path Copying (Node Copying)}{755}{subsection.21.3.2}%
+\contentsline {subsection}{\numberline {21.3.3}Structural Sharing}{755}{subsection.21.3.3}%
+\contentsline {subsection}{\numberline {21.3.4}Comparing the Techniques}{756}{subsection.21.3.4}%
+\contentsline {section}{\numberline {21.4}Persistent Arrays}{756}{section.21.4}%
+\contentsline {section}{\numberline {21.5}Persistent Linked List}{758}{section.21.5}%
+\contentsline {section}{\numberline {21.6}Persistent Balanced BST}{759}{section.21.6}%
+\contentsline {subsection}{\numberline {21.6.1}Persistent AVL Tree}{759}{subsection.21.6.1}%
+\contentsline {subsection}{\numberline {21.6.2}Merge for Confluent Persistence}{762}{subsection.21.6.2}%
+\contentsline {section}{\numberline {21.7}Persistent Segment Tree}{762}{section.21.7}%
+\contentsline {section}{\numberline {21.8}Applications}{764}{section.21.8}%
+\contentsline {subsection}{\numberline {21.8.1}Undo/Redo in a Text Editor}{764}{subsection.21.8.1}%
+\contentsline {subsection}{\numberline {21.8.2}Git-like Snapshotting}{764}{subsection.21.8.2}%
+\contentsline {subsection}{\numberline {21.8.3}Multi-Version Concurrency Control (MVCC)}{764}{subsection.21.8.3}%
+\contentsline {subsection}{\numberline {21.8.4}Immutable State in Functional Programming}{764}{subsection.21.8.4}%
+\contentsline {section}{\numberline {21.9}Complexity Summary}{765}{section.21.9}%
+\contentsline {section}{\numberline {21.10}Common Bugs and Pitfalls}{765}{section.21.10}%
+\contentsline {section}{\numberline {21.11}Exercises}{765}{section.21.11}%
+\contentsline {section}{\numberline {21.12}Full Persistence vs Partial Persistence}{766}{section.21.12}%
+\contentsline {subsection}{\numberline {21.12.1}Partial Persistence}{766}{subsection.21.12.1}%
+\contentsline {subsection}{\numberline {21.12.2}Full Persistence}{766}{subsection.21.12.2}%
+\contentsline {subsection}{\numberline {21.12.3}Fat Nodes vs Path Copying}{767}{subsection.21.12.3}%
+\contentsline {subsection}{\numberline {21.12.4}Confluent Persistence}{767}{subsection.21.12.4}%
+\contentsline {section}{\numberline {21.13}Functional Data Structures}{767}{section.21.13}%
+\contentsline {subsection}{\numberline {21.13.1}Lazy Evaluation and Lazy Lists}{767}{subsection.21.13.1}%
+\contentsline {subsection}{\numberline {21.13.2}Lazy Segment Trees}{767}{subsection.21.13.2}%
+\contentsline {subsection}{\numberline {21.13.3}Amortised Analysis: Banker's Method}{767}{subsection.21.13.3}%
+\contentsline {subsection}{\numberline {21.13.4}Comparison with Imperative Counterparts}{768}{subsection.21.13.4}%
+\contentsline {section}{\numberline {21.14}The Differential File}{768}{section.21.14}%
+\contentsline {subsection}{\numberline {21.14.1}Shadow Paging}{768}{subsection.21.14.1}%
+\contentsline {subsection}{\numberline {21.14.2}Differential File}{768}{subsection.21.14.2}%
+\contentsline {subsection}{\numberline {21.14.3}Write-Ahead Logging}{768}{subsection.21.14.3}%
+\contentsline {subsection}{\numberline {21.14.4}Multi-Version Concurrency Control}{768}{subsection.21.14.4}%
+\contentsline {section}{\numberline {21.15}Retroactive Data Structures}{769}{section.21.15}%
+\contentsline {subsection}{\numberline {21.15.1}Partial Retroactivity}{769}{subsection.21.15.1}%
+\contentsline {subsection}{\numberline {21.15.2}Full Retroactivity}{769}{subsection.21.15.2}%
+\contentsline {subsection}{\numberline {21.15.3}Applications}{769}{subsection.21.15.3}%
+\contentsline {section}{\numberline {21.16}Nonoblivious Retroactivity}{769}{section.21.16}%
+\contentsline {subsection}{\numberline {21.16.1}Problem Formulation}{769}{subsection.21.16.1}%
+\contentsline {subsection}{\numberline {21.16.2}Priority Queue Example}{770}{subsection.21.16.2}%
+\contentsline {subsection}{\numberline {21.16.3}Applications}{770}{subsection.21.16.3}%
+\contentsline {section}{\numberline {21.17}Data Structure Decomposition}{770}{section.21.17}%
+\contentsline {subsection}{\numberline {21.17.1}Persistent Union-Find via Decomposition}{770}{subsection.21.17.1}%
+\contentsline {subsection}{\numberline {21.17.2}Persistent Graph via Adjacency Lists}{770}{subsection.21.17.2}%
+\contentsline {subsection}{\numberline {21.17.3}Compositional Design Principles}{770}{subsection.21.17.3}%
+\contentsline {section}{\numberline {21.18}References and Further Reading}{771}{section.21.18}%
+\contentsline {chapter}{\numberline {22}Succinct Data Structures}{772}{chapter.22}%
+\contentsline {section}{\numberline {22.1}Introduction}{772}{section.22.1}%
+\contentsline {section}{\numberline {22.2}Rank and Select on Bitvectors}{772}{section.22.2}%
+\contentsline {section}{\numberline {22.3}Wavelet Tree}{774}{section.22.3}%
+\contentsline {subsection}{\numberline {22.3.1}Structure}{774}{subsection.22.3.1}%
+\contentsline {subsection}{\numberline {22.3.2}Operations}{775}{subsection.22.3.2}%
+\contentsline {section}{\numberline {22.4}Burrows-Wheeler Transform and FM-Index}{778}{section.22.4}%
+\contentsline {subsection}{\numberline {22.4.1}Burrows-Wheeler Transform}{778}{subsection.22.4.1}%
+\contentsline {subsection}{\numberline {22.4.2}FM-Index}{779}{subsection.22.4.2}%
+\contentsline {section}{\numberline {22.5}Succinct Trees}{781}{section.22.5}%
+\contentsline {subsection}{\numberline {22.5.1}Balanced Parentheses}{781}{subsection.22.5.1}%
+\contentsline {subsection}{\numberline {22.5.2}LOUDS}{782}{subsection.22.5.2}%
+\contentsline {section}{\numberline {22.6}Compressed Suffix Arrays}{784}{section.22.6}%
+\contentsline {section}{\numberline {22.7}Applications and Industry Use}{785}{section.22.7}%
+\contentsline {section}{\numberline {22.8}Common Bugs and Pitfalls}{785}{section.22.8}%
+\contentsline {section}{\numberline {22.9}Complexity Summary}{786}{section.22.9}%
+\contentsline {section}{\numberline {22.10}Exercises}{786}{section.22.10}%
+\contentsline {section}{\numberline {22.11}References and Further Reading}{787}{section.22.11}%
+\contentsline {chapter}{\numberline {23}Data Structures at Scale: How Industry Builds on Classical Foundations}{788}{chapter.23}%
+\contentsline {section}{\numberline {23.1}Introduction}{788}{section.23.1}%
+\contentsline {section}{\numberline {23.2}Log-Structured Merge Trees --- The Engine Behind Modern Databases}{788}{section.23.2}%
+\contentsline {subsection}{\numberline {23.2.1}Motivation}{788}{subsection.23.2.1}%
+\contentsline {subsection}{\numberline {23.2.2}Architecture}{788}{subsection.23.2.2}%
+\contentsline {subsection}{\numberline {23.2.3}Write Path}{789}{subsection.23.2.3}%
+\contentsline {subsection}{\numberline {23.2.4}Read Path}{791}{subsection.23.2.4}%
+\contentsline {subsection}{\numberline {23.2.5}Compaction Strategies}{791}{subsection.23.2.5}%
+\contentsline {subsection}{\numberline {23.2.6}Real-World Implementations}{791}{subsection.23.2.6}%
+\contentsline {subsection}{\numberline {23.2.7}LSM vs.\ B-tree: A Comparison}{791}{subsection.23.2.7}%
+\contentsline {section}{\numberline {23.3}Consistent Hashing --- Distributing Data Without Central Control}{791}{section.23.3}%
+\contentsline {subsection}{\numberline {23.3.1}The Problem}{791}{subsection.23.3.1}%
+\contentsline {subsection}{\numberline {23.3.2}The Ring}{791}{subsection.23.3.2}%
+\contentsline {subsection}{\numberline {23.3.3}Virtual Nodes}{793}{subsection.23.3.3}%
+\contentsline {subsection}{\numberline {23.3.4}Production Use}{793}{subsection.23.3.4}%
+\contentsline {section}{\numberline {23.4}Column-Family Storage --- Wide Columns at Scale}{793}{section.23.4}%
+\contentsline {subsection}{\numberline {23.4.1}Data Model}{793}{subsection.23.4.1}%
+\contentsline {subsection}{\numberline {23.4.2}Bigtable and Its Descendants}{793}{subsection.23.4.2}%
+\contentsline {subsection}{\numberline {23.4.3}Why Column Families Win for Analytics}{795}{subsection.23.4.3}%
+\contentsline {section}{\numberline {23.5}Bloom Filters in Production}{795}{section.23.5}%
+\contentsline {subsection}{\numberline {23.5.1}Recap}{795}{subsection.23.5.1}%
+\contentsline {subsection}{\numberline {23.5.2}At Scale}{795}{subsection.23.5.2}%
+\contentsline {subsection}{\numberline {23.5.3}Alternatives}{795}{subsection.23.5.3}%
+\contentsline {section}{\numberline {23.6}Copy-on-Write and Versioned Storage}{795}{section.23.6}%
+\contentsline {subsection}{\numberline {23.6.1}Persistent Data Structures via CoW}{795}{subsection.23.6.1}%
+\contentsline {subsection}{\numberline {23.6.2}Production Systems}{797}{subsection.23.6.2}%
+\contentsline {section}{\numberline {23.7}Priority Queues and Scheduling at Scale}{797}{section.23.7}%
+\contentsline {subsection}{\numberline {23.7.1}Kafka and Message Priorities}{797}{subsection.23.7.1}%
+\contentsline {subsection}{\numberline {23.7.2}Redis Sorted Sets}{797}{subsection.23.7.2}%
+\contentsline {section}{\numberline {23.8}Graph Data Structures in Social Networks}{799}{section.23.8}%
+\contentsline {subsection}{\numberline {23.8.1}The Social Graph}{799}{subsection.23.8.1}%
+\contentsline {subsection}{\numberline {23.8.2}Property Graph Model}{799}{subsection.23.8.2}%
+\contentsline {subsection}{\numberline {23.8.3}Graph Partitioning}{800}{subsection.23.8.3}%
+\contentsline {section}{\numberline {23.9}Hardware-Aware Data Structure Design}{801}{section.23.9}%
+\contentsline {subsection}{\numberline {23.9.1}Cache Line Awareness}{801}{subsection.23.9.1}%
+\contentsline {subsection}{\numberline {23.9.2}NUMA-Aware Allocation}{801}{subsection.23.9.2}%
+\contentsline {subsection}{\numberline {23.9.3}SOA vs AOS}{802}{subsection.23.9.3}%
+\contentsline {section}{\numberline {23.10}Comparison Table and Design Decisions}{802}{section.23.10}%
+\contentsline {section}{\numberline {23.11}Exercises}{802}{section.23.11}%
+\contentsline {subsection}{\numberline {23.11.1}Drill}{802}{subsection.23.11.1}%
+\contentsline {subsection}{\numberline {23.11.2}Application}{803}{subsection.23.11.2}%
+\contentsline {subsection}{\numberline {23.11.3}Research}{803}{subsection.23.11.3}%
+\contentsline {section}{\numberline {23.12}References and Further Reading}{803}{section.23.12}%
+\contentsline {chapter}{\numberline {24}Industrial Perspectives}{805}{chapter.24}%
+\contentsline {section}{\numberline {24.1}Complete Relevance Table}{807}{section.24.1}%
+\contentsline {section}{\numberline {24.2}Tier 3 -- High Relevance: The Industrial Workhorses}{808}{section.24.2}%
+\contentsline {subsection}{\numberline {24.2.1}Hash Tables}{808}{subsection.24.2.1}%
+\contentsline {subsection}{\numberline {24.2.2}B-Trees and B+-Trees}{808}{subsection.24.2.2}%
+\contentsline {subsection}{\numberline {24.2.3}Red-Black Trees}{809}{subsection.24.2.3}%
+\contentsline {subsection}{\numberline {24.2.4}Segment Trees and Fenwick Trees}{809}{subsection.24.2.4}%
+\contentsline {subsection}{\numberline {24.2.5}Graph Algorithms}{809}{subsection.24.2.5}%
+\contentsline {subsection}{\numberline {24.2.6}Tries}{810}{subsection.24.2.6}%
+\contentsline {subsection}{\numberline {24.2.7}Bloom Filters}{810}{subsection.24.2.7}%
+\contentsline {subsection}{\numberline {24.2.8}Consistent Hashing}{810}{subsection.24.2.8}%
+\contentsline {subsection}{\numberline {24.2.9}Priority Queues (Heaps)}{811}{subsection.24.2.9}%
+\contentsline {subsection}{\numberline {24.2.10}Sorting Algorithms}{811}{subsection.24.2.10}%
+\contentsline {subsection}{\numberline {24.2.11}LCS and Edit Distance}{812}{subsection.24.2.11}%
+\contentsline {subsection}{\numberline {24.2.12}External Sorting}{812}{subsection.24.2.12}%
+\contentsline {section}{\numberline {24.3}Tier 2 -- Medium Relevance: Domain Specialists}{812}{section.24.3}%
+\contentsline {subsection}{\numberline {24.3.1}Skip Lists}{812}{subsection.24.3.1}%
+\contentsline {subsection}{\numberline {24.3.2}Suffix Arrays}{813}{subsection.24.3.2}%
+\contentsline {subsection}{\numberline {24.3.3}Network Flow}{813}{subsection.24.3.3}%
+\contentsline {subsection}{\numberline {24.3.4}HyperLogLog}{813}{subsection.24.3.4}%
+\contentsline {subsection}{\numberline {24.3.5}Persistent Data Structures}{814}{subsection.24.3.5}%
+\contentsline {subsection}{\numberline {24.3.6}Succinct Data Structures}{814}{subsection.24.3.6}%
+\contentsline {subsection}{\numberline {24.3.7}LSM Trees}{814}{subsection.24.3.7}%
+\contentsline {subsection}{\numberline {24.3.8}Interval Trees}{815}{subsection.24.3.8}%
+\contentsline {subsection}{\numberline {24.3.9}Aho-Corasick}{815}{subsection.24.3.9}%
+\contentsline {subsection}{\numberline {24.3.10}MinHash and LSH}{815}{subsection.24.3.10}%
+\contentsline {subsection}{\numberline {24.3.11}Bipartite Matching}{815}{subsection.24.3.11}%
+\contentsline {subsection}{\numberline {24.3.12}Sparse Matrices}{816}{subsection.24.3.12}%
+\contentsline {section}{\numberline {24.4}Tier 1 -- Low Relevance: Educational and Theoretical}{816}{section.24.4}%
+\contentsline {subsection}{\numberline {24.4.1}Splay Trees}{816}{subsection.24.4.1}%
+\contentsline {subsection}{\numberline {24.4.2}Van Emde Boas Trees}{816}{subsection.24.4.2}%
+\contentsline {subsection}{\numberline {24.4.3}Fusion Trees}{816}{subsection.24.4.3}%
+\contentsline {subsection}{\numberline {24.4.4}BSP Trees}{817}{subsection.24.4.4}%
+\contentsline {subsection}{\numberline {24.4.5}Selection Sort and Bubble Sort}{817}{subsection.24.4.5}%
+\contentsline {subsection}{\numberline {24.4.6}Retroactive Data Structures}{817}{subsection.24.4.6}%
+\contentsline {subsection}{\numberline {24.4.7}Dynamic Graph Algorithms}{817}{subsection.24.4.7}%
+\contentsline {section}{\numberline {24.5}Decision Matrix: What to Learn for Industry}{818}{section.24.5}%
+\contentsline {section}{\numberline {24.6}Summary}{818}{section.24.6}%
+\contentsline {section}{\numberline {24.7}Exercises}{818}{section.24.7}%
+\contentsline {section}{\numberline {24.8}References and Further Reading}{819}{section.24.8}%
+\contentsline {chapter}{\numberline {A}C++ STL Quick Reference}{820}{appendix.A}%
+\contentsline {section}{\numberline {A.1}A.1 Containers}{820}{section.A.1}%
+\contentsline {section}{\numberline {A.2}A.2 Algorithms (in \texttt {<algorithm>})}{821}{section.A.2}%
+\contentsline {section}{\numberline {A.3}A.3 Chrono (\texttt {<chrono>})}{821}{section.A.3}%
+\contentsline {section}{\numberline {A.4}A.4 Smart Pointers (\texttt {<memory>})}{821}{section.A.4}%
+\contentsline {section}{\numberline {A.5}A.5 Random (\texttt {<random>})}{821}{section.A.5}%
+\contentsline {section}{\numberline {A.6}A.6 Utilities}{822}{section.A.6}%
+\contentsline {chapter}{\numberline {B}Complexity Classes}{823}{appendix.B}%
+\contentsline {section}{\numberline {B.1}B.1 Common Time Complexities}{823}{section.B.1}%
+\contentsline {section}{\numberline {B.2}B.2 NP-Completeness}{823}{section.B.2}%
+\contentsline {section}{\numberline {B.3}B.3 Master Theorem (Refresher)}{824}{section.B.3}%
+\contentsline {chapter}{\numberline {C}Mathematical Review}{825}{appendix.C}%
+\contentsline {section}{\numberline {C.1}C.1 Summations}{825}{section.C.1}%
+\contentsline {section}{\numberline {C.2}C.2 Logarithms}{825}{section.C.2}%
+\contentsline {section}{\numberline {C.3}C.3 Combinatorics}{825}{section.C.3}%
+\contentsline {section}{\numberline {C.4}C.4 Important Inequalities}{825}{section.C.4}%
+\contentsline {section}{\numberline {C.5}C.5 Useful Constants}{826}{section.C.5}%
+\contentsline {section}{\numberline {C.6}D.1 External Memory Model}{826}{section.C.6}%
+\contentsline {subsection}{\numberline {C.6.1}Model Parameters}{826}{subsection.C.6.1}%
+\contentsline {subsection}{\numberline {C.6.2}Sorting in External Memory}{826}{subsection.C.6.2}%
+\contentsline {subsection}{\numberline {C.6.3}B-Trees as External Memory Structures}{827}{subsection.C.6.3}%
+\contentsline {subsection}{\numberline {C.6.4}Buffer Trees}{827}{subsection.C.6.4}%
+\contentsline {section}{\numberline {C.7}D.2 Cache-Oblivious Algorithms}{827}{section.C.7}%
+\contentsline {subsection}{\numberline {C.7.1}The Cache Model}{827}{subsection.C.7.1}%
+\contentsline {subsection}{\numberline {C.7.2}Cache-Oblivious B-Tree}{827}{subsection.C.7.2}%
+\contentsline {subsection}{\numberline {C.7.3}Cache-Oblivious Priority Queue}{828}{subsection.C.7.3}%
+\contentsline {subsection}{\numberline {C.7.4}Cache-Oblivious Matrix Multiplication}{828}{subsection.C.7.4}%
+\contentsline {subsection}{\numberline {C.7.5}Why Cache-Oblivious Works}{828}{subsection.C.7.5}%
+\contentsline {section}{\numberline {C.8}D.25 Lazy Funnelsort and Distribution Sweeping}{828}{section.C.8}%
+\contentsline {subsection}{\numberline {C.8.1}Lazy Funnelsort}{828}{subsection.C.8.1}%
+\contentsline {subsection}{\numberline {C.8.2}Distribution Sweeping}{829}{subsection.C.8.2}%
+\contentsline {subsection}{\numberline {C.8.3}Online Cache-Oblivious 2D Range Searching}{829}{subsection.C.8.3}%
+\contentsline {section}{\numberline {C.9}D.3 Ordered File Maintenance}{829}{section.C.9}%
+\contentsline {subsection}{\numberline {C.9.1}The Problem}{829}{subsection.C.9.1}%
+\contentsline {subsection}{\numberline {C.9.2}The Algorithm}{829}{subsection.C.9.2}%
+\contentsline {subsection}{\numberline {C.9.3}Connection to Cache-Oblivious B-Trees}{830}{subsection.C.9.3}%
+\contentsline {subsection}{\numberline {C.9.4}Connection to List Labeling}{830}{subsection.C.9.4}%
+\contentsline {subsection}{\numberline {C.9.5}C++ Implementation Sketch}{830}{subsection.C.9.5}%
+\contentsline {subsection}{\numberline {C.9.6}Industrial Impact}{831}{subsection.C.9.6}%
+\contentsline {section}{\numberline {C.10}D.3 Pointer Machine Complexity}{831}{section.C.10}%
+\contentsline {subsection}{\numberline {C.10.1}Separation from RAM}{832}{subsection.C.10.1}%
+\contentsline {subsection}{\numberline {C.10.2}Optimal Pointer-Machine Structures}{832}{subsection.C.10.2}%
+\contentsline {section}{\numberline {C.11}References and Further Reading}{832}{section.C.11}%

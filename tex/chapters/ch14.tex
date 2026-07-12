@@ -1,0 +1,2533 @@
+\chapter{Segment Trees, Fenwick Trees, Sparse Tables, and Union-Find}\label{ch14:segment-trees-fenwick-trees-and-union-find}
+
+Range queries — asking for the sum, minimum, maximum, or other aggregate over a contiguous subarray — are among the most common non-trivial problems in algorithm design. This chapter presents three data structures that answer such queries efficiently.
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Sparse Table}
+
+A \textbf{sparse table}\index{sparse table} preprocesses a static array to answer \textbf{idempotent} range queries (min, max, gcd) in O(1) time per query, with O(n log n) preprocessing and memory. The key insight is that any range [l, r] can be covered by two overlapping intervals of length $2^k$ where $k = \lfloor \log_2(r - l + 1) \rfloor$.
+
+\subsection{Structure}
+
+Given array $A[0..n-1]$, build a table $ST[0..n-1][0..\lfloor \log_2 n \rfloor]$ where:
+\begin{itemize}
+\item $ST[i][0] = A[i]$ (base case: intervals of length 1)
+\item $ST[i][j] = \min(ST[i][j-1], ST[i + 2^{j-1}][j-1])$ (combine two halves)
+\end{itemize}
+
+\begin{lstlisting}[language=Java]
+Array: [1, 3, 5, 7, 9, 11, 2, 4]
+
+Sparse table (min):
+         j=0   j=1   j=2   j=3
+i=0:      1     1     1     1
+i=1:      3     3     3     -
+i=2:      5     5     2     -
+i=3:      7     7     2     -
+i=4:      9     2     -     -
+i=5:     11     2     -     -
+i=6:      2     -     -     -
+i=7:      4     -     -     -
+
+Query min(2, 6): k = floor(log2(5)) = 2
+  min(ST[2][2], ST[5][2]) = min(2, 2) = 2
+\end{lstlisting}
+
+\subsection{Build}
+
+\begin{lstlisting}[language=C++]
+class sparse_table {
+public:
+    explicit sparse_table(std::span<const int> data)
+        : n_(data.size()), log_(std::bit_width(n_) - 1) {
+        st_.assign(n_, std::vector<int>(log_ + 1));
+        for (size_t i = 0; i < n_; ++i)
+            st_[i][0] = data[i];
+
+        for (size_t j = 1; j <= log_; ++j) {
+            for (size_t i = 0; i + (1ULL << j) <= n_; ++i) {
+                st_[i][j] = std::min(st_[i][j-1],
+                                      st_[i + (1ULL << (j-1))][j-1]);
+            }
+        }
+    }
+
+    // Query min over [l, r] (0-indexed, inclusive)
+    int query_min(size_t l, size_t r) const {
+        size_t k = std::bit_width(r - l + 1) - 1;
+        return std::min(st_[l][k], st_[r - (1ULL << k) + 1][k]);
+    }
+
+private:
+    size_t n_, log_;
+    std::vector<std::vector<int>> st_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item \textbf{Build:} O(n log n) time and space
+\item \textbf{Query:} O(1) per query (two table lookups + one min)
+\item \textbf{No updates:} the array must be static after preprocessing
+\end{itemize}
+
+The O(1) query works because $\min$ is \textbf{idempotent}: $\min(x, x) = x$. The two intervals [l, l + $2^k$ - 1] and [r - $2^k$ + 1, r] overlap, but that's fine for idempotent operations.
+
+\subsection{Application: Range Minimum Query}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> arr = {1, 3, 5, 7, 9, 11, 2, 4};
+sparse_table st(arr);
+
+st.query_min(0, 7);  // 1
+st.query_min(2, 6);  // 2
+st.query_min(4, 5);  // 9
+\end{lstlisting}
+
+\subsection{When to Use}
+
+\begin{itemize}
+\item \textbf{Static arrays} with many range min/max/gcd queries
+\item \textbf{LCA preprocessing} via Euler tour + RMQ (reduce LCA to range minimum query\index{range minimum query})
+\item \textbf{Sliding window minimums} (though a deque is simpler for this specific use)
+\end{itemize}
+
+\textbf{Limitations:} no updates, only works for idempotent operations (min, max, gcd — not sum).
+
+\section{Segment Tree}
+
+A \textbf{segment tree}\index{segment tree} is a binary tree that stores information about intervals of an array. It supports:
+\begin{itemize}
+\item \textbf{Range query} (e.g., sum, min, max over [l, r)): O(log n)
+\item \textbf{Point update} (change a single element): O(log n)
+\item \textbf{Range update} (with lazy propagation): O(log n)
+\end{itemize}
+
+\subsection{Structure}
+
+Given an array of size n, the segment tree has 2n nodes (or 4n for simplicity). The leaves store the original array elements. Each internal node stores the aggregate of its two children (e.g., sum, min, max).
+
+\begin{lstlisting}[language=Java]
+Array: [1, 3, 5, 7, 9, 11]
+
+Segment tree (sum):
+            [36]
+         /        \
+       [9]         [27]
+      /   \       /    \
+    [4]    [5]  [16]   [11]
+   /  \    / \   / \    / \
+  [1] [3] [5][7][9][11]
+
+Leaves (original array): 1  3  5  7  9  11
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Combine = std::plus<T>>
+class segment_tree {
+public:
+    segment_tree(std::span<const T> data, Combine combine = {})
+        : n_(data.size()), tree_(4 * n_), combine_(combine) {
+        build(data, 1, 0, n_ - 1);
+    }
+
+    // Query over range [l, r] inclusive
+    T query(size_t l, size_t r) {
+        return query(1, 0, n_ - 1, l, r);
+    }
+
+    // Point update: set position pos to value
+    void update(size_t pos, const T& value) {
+        update(1, 0, n_ - 1, pos, value);
+    }
+
+private:
+    void build(std::span<const T> data, size_t node, size_t l, size_t r) {
+        if (l == r) {
+            tree_[node] = data[l];
+            return;
+        }
+        size_t mid = l + (r - l) / 2;
+        build(data, 2 * node, l, mid);
+        build(data, 2 * node + 1, mid + 1, r);
+        tree_[node] = combine_(tree_[2 * node], tree_[2 * node + 1]);
+    }
+
+    T query(size_t node, size_t l, size_t r, size_t ql, size_t qr) {
+        if (ql > r || qr < l) return T{};  // no overlap (identity for combine)
+        if (ql <= l && r <= qr) return tree_[node];  // total overlap
+        size_t mid = l + (r - l) / 2;
+        auto left = query(2 * node, l, mid, ql, qr);
+        auto right = query(2 * node + 1, mid + 1, r, ql, qr);
+        return combine_(left, right);
+    }
+
+    void update(size_t node, size_t l, size_t r, size_t pos, const T& value) {
+        if (l == r) {
+            tree_[node] = value;
+            return;
+        }
+        size_t mid = l + (r - l) / 2;
+        if (pos <= mid) update(2 * node, l, mid, pos, value);
+        else update(2 * node + 1, mid + 1, r, pos, value);
+        tree_[node] = combine_(tree_[2 * node], tree_[2 * node + 1]);
+    }
+
+    size_t n_;
+    std::vector<T> tree_;
+    Combine combine_;
+};
+\end{lstlisting}
+
+\subsection{Query Walkthrough}
+
+Query sum over [1, 5] for array [1, 3, 5, 7, 9, 11] (0-indexed):
+
+\begin{lstlisting}[language=Java]
+root covers [0, 5], query = [1, 5]:
+  left child [0, 2] overlaps  ->  recurse
+    [0, 0]: no overlap
+    [1, 2]: total overlap  ->  return 8
+  right child [3, 5] overlaps  ->  recurse
+    [3, 5]: total overlap  ->  return 27
+  combine(8, 27) = 35
+
+Check: 3 + 5 + 7 + 9 + 11 = 35 (OK)
+\end{lstlisting}
+
+\subsection{Lazy Propagation}
+
+For \textbf{range updates} (e.g., add a value to every element in [l, r]), we use lazy propagation — defer the update to children until necessary.
+
+\begin{lstlisting}[language=C++]
+void range_update(size_t node, size_t l, size_t r, size_t ql, size_t qr, const T& delta) {
+    push(node, l, r);  // propagate any pending updates
+    if (ql > r || qr < l) return;
+    if (ql <= l && r <= qr) {
+        lazy_[node] += delta;  // mark for propagation
+        tree_[node] += delta * (r - l + 1);  // apply to current node
+        push(node, l, r);  // propagate immediately
+        return;
+    }
+    size_t mid = l + (r - l) / 2;
+    range_update(2 * node, l, mid, ql, qr, delta);
+    range_update(2 * node + 1, mid + 1, r, ql, qr, delta);
+    tree_[node] = combine_(tree_[2 * node], tree_[2 * node + 1]);
+}
+\end{lstlisting}
+
+\subsection{Application: Range Minimum Query}
+
+\begin{lstlisting}[language=C++]
+auto min_combine = [](int a, int b) { return std::min(a, b); };
+segment_tree<int, decltype(min_combine)> st(data, min_combine);
+
+// Query minimum in range [2, 5]
+int min_val = st.query(2, 5);
+\end{lstlisting}
+
+\section{Fenwick Tree (Binary Indexed Tree)}
+
+A \textbf{Fenwick tree}\index{Fenwick tree}\index{Fenwick tree!binary indexed tree} (BIT) is a simpler alternative to segment trees for prefix queries and point updates. It uses less memory (n vs 4n) and is faster in practice.
+
+\textbf{Operations:}
+\begin{itemize}
+\item \textbf{Prefix query} (sum over [0, i)): O(log n)
+\item \textbf{Point update} (add delta at index i): O(log n)
+\item \textbf{Range query} (sum over [l, r)): O(log n) via prefix(r) - prefix(l)
+\end{itemize}
+
+\subsection{The Idea}
+
+The Fenwick tree stores partial sums in an array where index i stores the sum of a range of length (i \& -i) — the lowest set bit of i.
+
+\begin{lstlisting}[language=Java]
+Array (1-indexed): [1, 3, 5, 7, 9, 11]
+
+Fenwick tree (BIT):
+BIT[1] = arr[1] = 1
+BIT[2] = arr[1] + arr[2] = 4
+BIT[3] = arr[3] = 5
+BIT[4] = arr[1] + arr[2] + arr[3] + arr[4] = 16
+BIT[5] = arr[5] = 9
+BIT[6] = arr[5] + arr[6] = 20
+
+To get prefix sum up to index 5:
+  BIT[5] = 9
+  i -= (i & -i)  ->  i = 4
+  BIT[4] = 16
+  i -= (i & -i)  ->  i = 0
+  Total = 9 + 16 = 25
+  Check: 1+3+5+7+9 = 25 (OK)
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class fenwick_tree {
+public:
+    explicit fenwick_tree(size_t n) : bit_(n + 1, T{}) {}
+
+    void add(size_t idx, T delta) {
+        ++idx;  // 1-indexed internally
+        while (idx < bit_.size()) {
+            bit_[idx] += delta;
+            idx += idx & -idx;
+        }
+    }
+
+    T prefix_sum(size_t idx) const {
+        // Sum over [0, idx)
+        T result{};
+        while (idx > 0) {
+            result += bit_[idx];
+            idx -= idx & -idx;
+        }
+        return result;
+    }
+
+    T range_sum(size_t l, size_t r) const {
+        // Sum over [l, r)
+        return prefix_sum(r) - prefix_sum(l);
+    }
+
+    // Find smallest index such that prefix_sum >= target
+    size_t lower_bound(T target) const {
+        size_t idx = 0;
+        size_t bit_mask = 1;
+        while (bit_mask < bit_.size()) bit_mask <<= 1;
+        bit_mask >>= 1;
+
+        while (bit_mask > 0) {
+            size_t next = idx + bit_mask;
+            if (next < bit_.size() && bit_[next] < target) {
+                target -= bit_[next];
+                idx = next;
+            }
+            bit_mask >>= 1;
+        }
+        return idx;  // 0-indexed
+    }
+
+private:
+    std::vector<T> bit_;
+};
+\end{lstlisting}
+
+\subsection{Application: Inversion Count}
+
+Count pairs (i, j) with i < j and arr[i] > arr[j]:
+
+\begin{lstlisting}[language=C++]
+size_t inversion_count(std::span<const int> arr) {
+    // Coordinate compress
+    auto sorted = std::vector<int>(arr.begin(), arr.end());
+    std::sort(sorted.begin(), sorted.end());
+    sorted.erase(std::unique(sorted.begin(), sorted.end()), sorted.end());
+
+    fenwick_tree<int> bit(sorted.size());
+    size_t inversions = 0;
+
+    for (int x : arr) {
+        size_t pos = std::lower_bound(sorted.begin(), sorted.end(), x) - sorted.begin();
+        // Count elements greater than x that we've already seen
+        inversions += bit.range_sum(pos + 1, sorted.size());
+        bit.add(pos, 1);
+    }
+    return inversions;
+}
+\end{lstlisting}
+
+\section{Union-Find (Disjoint Set Union)}\label{sec:union-find}
+
+We introduced Union-Find in Chapter 9. Here we give a fuller treatment.
+
+\subsection{Optimal Implementation}
+
+\begin{lstlisting}[language=C++]
+class union_find {
+public:
+    union_find(size_t n) : parent_(n), size_(n, 1) {
+        std::iota(parent_.begin(), parent_.end(), 0);
+    }
+
+    size_t find(size_t x) {
+        // Path compression
+        while (parent_[x] != x) {
+            parent_[x] = parent_[parent_[x]];  // halving
+            x = parent_[x];
+        }
+        return x;
+    }
+
+    void union_sets(size_t x, size_t y) {
+        size_t rx = find(x);
+        size_t ry = find(y);
+        if (rx == ry) return;
+
+        // Union by size
+        if (size_[rx] < size_[ry]) std::swap(rx, ry);
+        parent_[ry] = rx;
+        size_[rx] += size_[ry];
+    }
+
+    bool same_set(size_t x, size_t y) {
+        return find(x) == find(y);
+    }
+
+    size_t set_size(size_t x) {
+        return size_[find(x)];
+    }
+
+    size_t count_sets() const {
+        size_t count = 0;
+        for (size_t i = 0; i < parent_.size(); ++i) {
+            if (parent_[i] == i) ++count;
+        }
+        return count;
+    }
+
+private:
+    std::vector<size_t> parent_;
+    std::vector<size_t> size_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+With both path compression and union by size/rank: m operations on n elements take O(m$\cdot $$\alpha $(n)) time, where $\alpha $(n) is the inverse Ackermann function. For any practical n, $\alpha $(n) $\le $ 5.
+
+\subsection{Application: Kruskal's MST}
+
+(See Chapter 12 for the full algorithm. Union-Find is the cycle-detection mechanism.)
+
+\subsection{Application: Percolation}
+
+Model whether a fluid can flow through a porous material:
+
+\begin{lstlisting}[language=C++]
+class percolation {
+public:
+    percolation(size_t n) : n_(n), uf_(n * n + 2), open_(n * n, false) {
+        top_ = n * n;       // virtual top node
+        bottom_ = n * n + 1; // virtual bottom node
+    }
+
+    void open(size_t row, size_t col) {
+        size_t idx = row * n_ + col;
+        if (open_[idx]) return;
+        open_[idx] = true;
+
+        if (row == 0) uf_.union_sets(idx, top_);
+        if (row == n_ - 1) uf_.union_sets(idx, bottom_);
+
+        // Connect to open neighbors
+        if (row > 0 && open_[idx - n_]) uf_.union_sets(idx, idx - n_);
+        if (row < n_ - 1 && open_[idx + n_]) uf_.union_sets(idx, idx + n_);
+        if (col > 0 && open_[idx - 1]) uf_.union_sets(idx, idx - 1);
+        if (col < n_ - 1 && open_[idx + 1]) uf_.union_sets(idx, idx + 1);
+    }
+
+    bool is_open(size_t row, size_t col) const {
+        return open_[row * n_ + col];
+    }
+
+    bool percolates() const {
+        return uf_.same_set(top_, bottom_);
+    }
+
+private:
+    size_t n_;
+    union_find uf_;
+    std::vector<bool> open_;
+    size_t top_, bottom_;
+};
+\end{lstlisting}
+
+\section{Interval Tree}
+
+An \textbf{interval tree} stores a set of intervals and efficiently finds all intervals that overlap with a given query interval. Two intervals [a, b] and [c, d] overlap if and only if $a \le d$ and $c \le b$.
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Scheduling:} find all meetings that overlap a given time slot
+\item \textbf{Genomic data:} locate genes within a range on a chromosome
+\item \textbf{Computer graphics:} detect collisions between rectangular regions
+\item \textbf{Database range queries:} find all records whose key range overlaps a query range
+\item \textbf{Network intrusion detection:} match incoming packets against flagged IP ranges
+\end{itemize}
+
+\subsection{Structure}
+
+The interval tree is a \textbf{BST augmented with an additional field}. Each node stores:
+\begin{itemize}
+\item An interval [low, high]
+\item max\_high: the maximum high endpoint among all intervals in the subtree
+\item Left and right children
+\end{itemize}
+
+Intervals are ordered by their low endpoint in BST order. The max\_high field is the key augmentation that prunes the search.
+
+\begin{lstlisting}[language=Java]
+Interval Tree with intervals:
+[15,20], [10,30], [17,19], [12,15], [5,20], [30,40]
+
+BST ordered by low endpoint:
+
+              [10,30] max=40
+             /        \
+        [5,20] max=20  [17,19] max=40
+       /              /         \
+ (empty)       [12,15] max=15  [15,20] max=20
+                                        \
+                                    [30,40] max=40
+
+Key: Each node shows [low,high] max=maximum_high_in_subtree
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+struct interval {
+    int low;
+    int high;
+};
+
+struct it_node {
+    interval ival;
+    int max_high;
+    it_node* left  = nullptr;
+    it_node* right = nullptr;
+
+    explicit it_node(interval i)
+        : ival(i), max_high(i.high) {}
+};
+
+class interval_tree {
+public:
+    ~interval_tree() { destroy(root_); }
+
+    void insert(interval i) { root_ = insert(root_, i); }
+
+    std::vector<interval> search(interval q) const {
+        std::vector<interval> result;
+        search(root_, q, result);
+        return result;
+    }
+
+private:
+    it_node* root_ = nullptr;
+
+    it_node* insert(it_node* n, interval i) {
+        if (!n) return new it_node(i);
+        if (i.low < n->ival.low)
+            n->left = insert(n->left, i);
+        else
+            n->right = insert(n->right, i);
+        n->max_high = std::max(n->max_high, i.high);
+        return n;
+    }
+
+    void search(it_node* n, const interval& q,
+                std::vector<interval>& result) const {
+        if (!n) return;
+
+        // Prune left: if q.low > max_high, nothing overlaps
+        if (q.low <= n->max_high) {
+            search(n->left, q, result);
+        }
+
+        // Check current node for overlap
+        if (n->ival.low <= q.high && q.low <= n->ival.high) {
+            result.push_back(n->ival);
+        }
+
+        // Prune right: if q.high <= node.low, nothing overlaps
+        if (q.high > n->ival.low) {
+            search(n->right, q, result);
+        }
+    }
+
+    void destroy(it_node* n) {
+        if (!n) return;
+        destroy(n->left);
+        destroy(n->right);
+        delete n;
+    }
+};
+\end{lstlisting}
+
+\subsection{How the Search Algorithm Works}
+
+The search uses three pruning rules:
+
+\begin{enumerate}
+\item \textbf{Left subtree pruning:} If \texttt{q.low > node.max\_high}, no interval in the left subtree can overlap the query.
+\item \textbf{Current node check:} If \texttt{node.low <= q.high} AND \texttt{q.low <= node.high}, the current interval overlaps.
+\item \textbf{Right subtree pruning:} If \texttt{q.high <= node.low}, no interval in the right subtree can overlap.
+\end{enumerate}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Extra Space \\
+\midrule
+Insert & $O(\log n)$ & $O(1)$ per node \\
+Search & $O(\log n + k)$ & $O(k)$ for result \\
+Build from sorted & $O(n \log n)$ & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Here $n$ is the number of intervals and $k$ is the number of overlapping intervals returned. The search is \emph{output-sensitive}: it runs in time proportional to the number of results plus the height of the tree.
+
+\subsection{Application: Meeting Room Scheduler}
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+
+int main() {
+    interval_tree scheduler;
+
+    // Insert meetings: [start, end] in hours
+    scheduler.insert({9,  10});
+    scheduler.insert({10, 12});
+    scheduler.insert({11, 13});
+    scheduler.insert({14, 16});
+    scheduler.insert({15, 17});
+    scheduler.insert({19, 20});
+
+    // Query: find all meetings overlapping [11, 15]
+    auto conflicts = scheduler.search({11, 15});
+
+    for (const auto& m : conflicts) {
+        std::cout << "Overlaps: ["
+                  << m.low << ", " << m.high << "]\n";
+    }
+    // Output:
+    //   Overlaps: [10, 12]
+    //   Overlaps: [14, 16]
+    //   Overlaps: [11, 13]
+    //   Overlaps: [15, 17]
+}
+\end{lstlisting}
+
+\subsection{Interval Tree vs. Brute Force}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Method & Per Query & Update \\
+\midrule
+Brute force (scan all) & $O(n)$ & $O(1)$ insert to list \\
+Interval tree & $O(\log n + k)$ & $O(\log n)$ insert \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For $n = 1{,}000{,}000$ intervals with $k = 5$ overlaps, brute force examines all 1 million intervals while the interval tree examines roughly 20 nodes plus the 5 results.
+
+\textbf{When to use brute force instead:} if $n$ is small (under $\sim$100), if updates are extremely frequent and queries rare, or if you need a simple implementation.
+
+\section{Comparison}
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+Structure & Build & Query & Update & Range Update & Memory \\
+Sparse Table & O(n log n) & O(1) min/max & No & No & O(n log n) \\
+Segment Tree & O(n) & O(log n) & O(log n) & O(log n) lazy & O(4n) \\
+Fenwick Tree & O(n log n)* & O(log n) & O(log n) & No & O(n) \\
+Union-Find & O(n) & O($\alpha $(n)) & O($\alpha $(n)) & N/A & O(n) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+*Fenwick can be built in O(n) by computing prefix sums first.
+
+\textbf{When to use which:}
+\begin{itemize}
+\item \textbf{Sparse table:} static arrays, many min/max/gcd queries, O(1) query needed
+\item \textbf{Fenwick tree:} prefix sums, point updates, no range updates — simplest and fastest
+\item \textbf{Segment tree:} range updates, non-invertible operations (min, max, gcd), complex queries
+\item \textbf{Union-Find:} disjoint set connectivity, graph connectivity, incremental connectivity
+\end{itemize}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Segment tree array size = 2n (not 4n) & Buffer overflow on non-power-of-2 arrays or range queries & Allocate 4n for safety, or check exact size formula \\
+Forgetting lazy propagation in range updates & Child nodes not updated, queries return stale data & Always push lazy values before descending \\
+Fenwick tree 1-indexing confusion & Off-by-one on queries, wrong prefix sums & Remember: Fenwick is 1-indexed; query index i includes element i \\
+Using Fenwick tree for range minimum & Fenwick only supports invertible operations (sum, xor) & Use segment tree for min/max/gcd \\
+Sparse table with non-idempotent operations (sum) & Overlapping intervals double-count, wrong results & Sparse table only works for min, max, gcd — use segment tree for sum \\
+Sparse table on data that changes & Stale answers after updates & Use segment tree or Fenwick tree for dynamic data \\
+Union-Find without path compression & O(n) find, tree becomes linear on tall chains & Always compress path during find \\
+Union without union by rank & Tree depth grows O(n) in worst case & Merge smaller tree under larger \\
+Reversing union order on disjoint sets & Large tree attached to small, height increases & Check rank/size before merging \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Sparse tables} give O(1) range min/max queries on static arrays with O(n log n) preprocessing.
+\item \textbf{Segment trees} provide O(log n) range queries and updates with O(n) memory.
+\item \textbf{Fenwick trees} are simpler and faster for prefix sums with point updates.
+\item \textbf{Union-Find} tracks disjoint sets with amortized near-constant operations.
+\item \textbf{Segment tree with lazy propagation} supports efficient range updates.
+\item \textbf{Union-Find with path compression and union by rank} achieves O($\alpha $(n)) amortized complexity.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{When should you use a segment tree over a Fenwick tree, and vice versa?}
+
+Segment tree: range min/max, complex queries (e.g., count of elements $> k$ in range), lazy propagation with non-invertible operations (range assign, range add that can't be reversed). Fenwick tree: prefix sums, prefix XOR, point update + prefix query --- simpler code, $n$ space vs $4n$, smaller constants. The decision framework: if your query is a prefix operation and the operation is invertible (sum, XOR, product), use Fenwick. If you need arbitrary range queries, non-invertible lazy updates, or complex merge operations, use segment tree. In competitive programming, Fenwick tree is the default for 80\% of range query problems.
+
+\textit{Key insight:} The choice is not ``which is more powerful'' but ``which matches your operation.'' A Fenwick tree is a specialized tool that excels at its niche; a segment tree is the general-purpose fallback.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is a Fenwick tree (Binary Indexed Tree) and how does it compare to a segment tree?}
+
+A Fenwick tree supports point update and prefix sum query in O(log n) using a clever index manipulation (lowest set bit). It's simpler to implement, uses exactly $n$ space (vs $4n$ for segment trees), and has smaller constants. However, it only supports operations that are invertible (sum, XOR — not min/max). For min/max range queries, use a segment tree. For prefix sums with point updates, Fenwick tree is preferred.
+
+\begin{lstlisting}[language=C++]
+class fenwick {
+    std::vector<int> tree_;
+public:
+    fenwick(int n) : tree_(n + 1, 0) {}
+    void add(int i, int delta) {
+        for (++i; i < tree_.size(); i += i & (-i))
+            tree_[i] += delta;
+    }
+    int sum(int i) {
+        int s = 0;
+        for (++i; i > 0; i -= i & (-i))
+            s += tree_[i];
+        return s;
+    }
+    int range_sum(int l, int r) { return sum(r) - sum(l - 1); }
+};
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you count inversions in an array?}
+
+An inversion is a pair $(i, j)$ where $i < j$ and $A[i] > A[j]$. 
+
+Approach 1: Modified merge sort. During the merge step, when an element from the right half is smaller than an element from the left half, it forms inversions with all remaining elements in the left half. Count these. Time O(n log n), space O(n).
+
+Approach 2: Fenwick tree. Process elements from left to right. For each element $A[i]$, query how many elements $> A[i]$ have been seen: \texttt{total\_seen - prefix\_sum(A[i])}. Time O(n log n), space O(n) (with coordinate compression).
+
+\textit{Applications:} Measuring sortedness, recommendation systems, bubble sort analysis.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What's the difference between lazy propagation and a difference array, and when do you use each?}
+
+Lazy propagation defers range updates to segment tree nodes --- $O(\log n)$ per update and query, works for any monoid. A difference array (or BIT with range update) stores differences between adjacent elements --- $O(1)$ per update, $O(n)$ per prefix query, works only for additive operations. Use difference arrays when: you do many range additions but only need prefix sums at the end. Use lazy propagation when: you interleave range updates and range queries online. The deeper insight: lazy propagation is a form of \textit{deferred computation} --- you postpone work until it's needed, avoiding unnecessary updates to leaves that are never queried.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does Union-Find achieve near-constant time?}
+
+Two optimizations working together: (1) \textbf{Path compression}: during \texttt{find(x)}, make every node on the path point directly to the root. (2) \textbf{Union by rank/size}: always attach the smaller tree under the larger. After $m$ operations on $n$ elements, the amortized cost per operation is O($\alpha$(n)) where $\alpha$ is the inverse Ackermann function ($\alpha(n) \leq 4$ for any practical $n$). The proof is one of the most elegant in amortized analysis.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between a segment tree and a sparse table?}
+
+Segment tree: supports updates in O(log n) and queries in O(log n). Sparse table: O(1) query for idempotent operations (min, max, gcd) but O(n log n) build and no updates. Use segment tree when you have updates. Use sparse table for static arrays with many queries (e.g., range minimum queries on a fixed array). Sparse table uses O(n log n) space; segment tree uses O(n).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the k-th smallest element in a dynamic array with updates?}
+
+Use a Fenwick tree with coordinate compression. Compress all possible values to ranks 1..n. Maintain a Fenwick tree where \texttt{add(rank, 1)} inserts and \texttt{add(rank, -1)} deletes. To find the k-th smallest, binary search on the Fenwick tree prefix sums: find the smallest index where \texttt{sum(index) $\geq$ k}. Time O(log$^{2}$n) per query, O(log n) per update.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you solve the ``range update + range query'' problem efficiently?}
+
+Use a segment tree with lazy propagation, or use two Fenwick trees. The two-Fenwick-tree trick: to add $v$ to all elements in [l, r], do \texttt{BIT1.add(l, v)}, \texttt{BIT1.add(r+1, -v)}, \texttt{BIT2.add(l, v*(l-1))}, \texttt{BIT2.add(r+1, -v*r)}. Prefix sum at $i$ is \texttt{BIT1.sum(i)*i - BIT2.sum(i)}. Range sum [l,r] is prefix(r) - prefix(l-1). Time O(log n) per operation.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the practical difference between path compression and path halving in Union-Find?}
+
+Path compression: during \texttt{find(x)}, make every node on the path point directly to the root. Path halving: only update every other node (skip one level). Both give the same amortized complexity O($\alpha$(n)), but path halving uses less writes and is slightly faster in practice because it modifies fewer pointers. Path splitting (update every node to point to its grandparent) is another variant. In practice, the difference is negligible — any of the three with union by rank is near-optimal.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When would you use a segment tree over a Fenwick tree?}
+
+Use a segment tree when: (1) you need range minimum/maximum queries (Fenwick only supports invertible operations), (2) you need complex range queries (e.g., number of distinct values in a range), (3) you need lazy propagation for range updates with non-invertible operations (range assignment, range multiply). Use a Fenwick tree when: (1) you only need prefix sums (or range sums), (2) you want simpler code with smaller constants, (3) memory is tight.
+\end{enumerate}
+
+\section{Persistent Segment Tree}
+
+A standard segment tree supports updates, but each update destroys the previous version. A \textbf{persistent segment tree} preserves every historical version while sharing structure between versions. The idea is \textbf{path copying}: when updating a path from root to leaf, copy only the nodes along that path; all other nodes are shared with previous versions.
+
+\subsection{Structure}
+
+Each version of the tree is a root pointer. Versions share all unchanged subtrees. An update creates at most $O(\log n)$ new nodes along one root-to-leaf path.
+
+\begin{lstlisting}[language=Java]
+Version 0 (original):        Version 1 (update pos 3):
+        [28]                        [28]
+       /    \                      /    \
+     [9]     [19]               [9]     [21]  <-- new node
+    /   \   /   \              /   \   /    \
+  [4]  [5][9]  [10]         [4]  [5][9]    [10]
+                                    \           \
+                                  [7]         [10]
+                                    \           \
+                                  [7]         [10]
+
+Shared nodes: [9], [4], [5], [9], [10], [7], [10]
+New nodes in version 1: [21], and the path to pos 3
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+struct pst_node {
+    int sum = 0;
+    int left = -1;   // index in node pool
+    int right = -1;
+};
+
+class persistent_seg_tree {
+public:
+    explicit persistent_seg_tree(std::span<const int> data)
+        : n_(data.size()) {
+        versions_.push_back(build(data, 0, n_ - 1));
+    }
+
+    // Create new version by updating pos with val
+    int update(int version, size_t pos, int val) {
+        int new_root = update(versions_[version], 0, n_ - 1, pos, val);
+        versions_.push_back(new_root);
+        return versions_.size() - 1;  // return version index
+    }
+
+    // Query sum over [l, r] on a given version
+    int query(int version, size_t l, size_t r) {
+        return query(versions_[version], 0, n_ - 1, l, r);
+    }
+
+    int num_versions() const { return versions_.size(); }
+
+private:
+    std::vector<pst_node> pool_;
+    std::vector<int> versions_;  // root index for each version
+    size_t n_;
+
+    int new_node(int sum, int left, int right) {
+        pool_.push_back({sum, left, right});
+        return pool_.size() - 1;
+    }
+
+    int build(std::span<const int> data, size_t l, size_t r) {
+        if (l == r) return new_node(data[l], -1, -1);
+        size_t mid = l + (r - l) / 2;
+        int lc = build(data, l, mid);
+        int rc = build(data, mid + 1, r);
+        return new_node(pool_[lc].sum + pool_[rc].sum, lc, rc);
+    }
+
+    int update(int node, size_t l, size_t r, size_t pos, int val) {
+        if (l == r) return new_node(val, -1, -1);
+        size_t mid = l + (r - l) / 2;
+        int lc = pool_[node].left;
+        int rc = pool_[node].right;
+        if (pos <= mid) lc = update(lc, l, mid, pos, val);
+        else            rc = update(rc, mid + 1, r, pos, val);
+        return new_node(pool_[lc].sum + pool_[rc].sum, lc, rc);
+    }
+
+    int query(int node, size_t l, size_t r, size_t ql, size_t qr) {
+        if (node == -1 || ql > r || qr < l) return 0;
+        if (ql <= l && r <= qr) return pool_[node].sum;
+        size_t mid = l + (r - l) / 2;
+        return query(pool_[node].left, l, mid, ql, qr)
+             + query(pool_[node].right, mid + 1, r, ql, qr);
+    }
+};
+\end{lstlisting}
+
+\subsection{Query on Historical Versions}
+
+\begin{lstlisting}[language=C++]
+persistent_seg_tree pst(arr);
+
+// Version 0: original array
+pst.query(0, 2, 5);   // sum of arr[2..5]
+
+// Update position 3 to value 100
+int v1 = pst.update(0, 3, 100);
+
+// Query version 1: includes the update
+pst.query(v1, 2, 5);  // sum with new value at pos 3
+
+// Original version 0 is unchanged
+pst.query(0, 2, 5);   // original sum
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item \textbf{Build:} $O(n)$ time, $O(n)$ nodes
+\item \textbf{Update:} $O(\log n)$ new nodes per update, $O(\log n)$ time
+\item \textbf{Query:} $O(\log n)$ time
+\item \textbf{Space:} $O(n + Q \log n)$ for $Q$ total updates (each adds $\sim \log n$ nodes)
+\end{itemize}
+
+Without persistence, $Q$ updates on an array of size $n$ would require storing $Q$ full copies of the array: $O(Qn)$ space. Persistence reduces this to $O(n + Q \log n)$.
+
+\subsection{Application: Range Count Queries}
+
+A common application is counting how many elements in a subarray $A[l..r]$ are less than or equal to $x$. Build a persistent segment tree over coordinate-compressed values. Each version $i$ corresponds to the prefix $A[0..i]$.
+
+\begin{lstlisting}[language=C++]
+// After building persistent seg tree over prefix sums of
+// frequency arrays (one version per prefix):
+// Query: count of elements <= x in A[l..r]
+//   = query(version r+1, 0, x) - query(version l, 0, x)
+\end{lstlisting}
+
+This gives $O(\log n)$ per query. Combined with binary search, it solves the "k-th smallest in range" problem in $O(\log^2 n)$.
+
+\section{Square Root Decomposition}
+
+\textbf{Sqrt decomposition} (or block decomposition) is a general technique that divides an array into blocks of size $\sqrt{n}$ and precomputes a summary for each block. It sits between brute force $O(n)$ and heavy structures like segment trees $O(\log n)$.
+
+\subsection{The Idea}
+
+Divide array $A[0..n-1]$ into blocks of size $B = \lceil\sqrt{n}\rceil$. Precompute a summary for each block (sum, min, max, etc.). To answer a range query:
+\begin{enumerate}
+\item Handle boundary elements (partial blocks at the ends) by brute force
+\item Combine precomputed block summaries for the fully covered blocks in the middle
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+Array: [1, 3, 5, 7, 9, 11, 2, 4, 6, 8]
+n = 10, B = 4 (block size)
+
+Block 0: [1, 3, 5, 7]  -> sum = 16, min = 1
+Block 1: [9, 11, 2, 4] -> sum = 26, min = 2
+Block 2: [6, 8]         -> sum = 14, min = 6
+
+Query sum(2, 8):
+  Boundary left:  A[2] + A[3] = 5 + 7 = 12  (partial block 0)
+  Full blocks:    sum(block 1) = 26
+  Boundary right: A[8] = 6                    (partial block 2)
+  Total: 12 + 26 + 6 = 44
+  Check: 5+7+9+11+2+4+6 = 44 (OK)
+\end{lstlisting}
+
+\subsection{Implementation: Range Sum and Range Min}
+
+\begin{lstlisting}[language=C++]
+class sqrt_decomposition {
+public:
+    explicit sqrt_decomposition(std::span<const int> data)
+        : n_(data.size()),
+          block_size_(static_cast<size_t>(std::sqrt(n_) + 1)),
+          num_blocks_((n_ + block_size_ - 1) / block_size_) {
+        block_sum_.assign(num_blocks_, 0);
+        block_min_.assign(num_blocks_, INT_MAX);
+
+        for (size_t i = 0; i < n_; ++i) {
+            block_sum_[i / block_size_] += data[i];
+            block_min_[i / block_size_] = std::min(
+                block_min_[i / block_size_], data[i]);
+        }
+        data_.assign(data.begin(), data.end());
+    }
+
+    // Range sum query over [l, r] inclusive
+    int query_sum(size_t l, size_t r) const {
+        int result = 0;
+        size_t bl = l / block_size_;
+        size_t br = r / block_size_;
+
+        if (bl == br) {
+            for (size_t i = l; i <= r; ++i) result += data_[i];
+            return result;
+        }
+        // Left partial block
+        for (size_t i = l; i < (bl + 1) * block_size_; ++i)
+            result += data_[i];
+        // Full blocks
+        for (size_t b = bl + 1; b < br; ++b)
+            result += block_sum_[b];
+        // Right partial block
+        for (size_t i = br * block_size_; i <= r; ++i)
+            result += data_[i];
+        return result;
+    }
+
+    // Range min query over [l, r] inclusive
+    int query_min(size_t l, size_t r) const {
+        int result = INT_MAX;
+        size_t bl = l / block_size_;
+        size_t br = r / block_size_;
+
+        if (bl == br) {
+            for (size_t i = l; i <= r; ++i)
+                result = std::min(result, data_[i]);
+            return result;
+        }
+        for (size_t i = l; i < (bl + 1) * block_size_; ++i)
+            result = std::min(result, data_[i]);
+        for (size_t b = bl + 1; b < br; ++b)
+            result = std::min(result, block_min_[b]);
+        for (size_t i = br * block_size_; i <= r; ++i)
+            result = std::min(result, data_[i]);
+        return result;
+    }
+
+    // Point update
+    void update(size_t pos, int val) {
+        size_t b = pos / block_size_;
+        block_sum_[b] -= data_[pos];
+        block_sum_[b] += val;
+        data_[pos] = val;
+        // Recompute block min (O(B) worst case)
+        block_min_[b] = INT_MAX;
+        size_t start = b * block_size_;
+        size_t end = std::min(start + block_size_, n_);
+        for (size_t i = start; i < end; ++i)
+            block_min_[b] = std::min(block_min_[b], data_[i]);
+    }
+
+private:
+    size_t n_, block_size_, num_blocks_;
+    std::vector<int> data_;
+    std::vector<int> block_sum_;
+    std::vector<int> block_min_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Space \\
+\midrule
+Build & $O(n)$ & $O(n)$ \\
+Query (sum/min) & $O(\sqrt{n})$ & $O(1)$ \\
+Point update & $O(\sqrt{n})$ & $O(1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{When to Use}
+
+\begin{itemize}
+\item \textbf{Online queries on static or mildly dynamic arrays} where a segment tree feels like overkill
+\item \textbf{Problems that don't decompose nicely} into segment tree nodes (e.g., mex queries, mode queries)
+\item \textbf{Constant factor matters:} sqrt decomposition has very small constants compared to segment trees
+\item \textbf{Mo's algorithm} (offline range queries using sqrt decomposition) handles queries that segment trees cannot, like distinct-value counting
+\end{itemize}
+
+\textbf{Tradeoffs:} $O(\sqrt{n})$ is worse than $O(\log n)$ for large $n$, but the simplicity and cache-friendly access pattern make it competitive in practice for $n \le 10^{5}$.
+
+\section{Sparse Table for GCD/LCM}
+
+The sparse table's key requirement is that the operation must be \textbf{idempotent}: $f(x, x) = x$. GCD satisfies this: $\gcd(x, x) = x$. This means the same O(1) query technique from RMQ applies directly to range GCD queries.
+
+\subsection{GCD Queries}
+
+Replace $\min$ with $\gcd$ in the sparse table:
+
+\begin{lstlisting}[language=C++]
+class sparse_table_gcd {
+public:
+    explicit sparse_table_gcd(std::span<const int> data)
+        : n_(data.size()), log_(std::bit_width(n_) - 1) {
+        st_.assign(n_, std::vector<int>(log_ + 1));
+        for (size_t i = 0; i < n_; ++i)
+            st_[i][0] = data[i];
+
+        for (size_t j = 1; j <= log_; ++j) {
+            for (size_t i = 0; i + (1ULL << j) <= n_; ++i) {
+                st_[i][j] = std::gcd(st_[i][j-1],
+                                      st_[i + (1ULL << (j-1))][j-1]);
+            }
+        }
+    }
+
+    // Query gcd over [l, r] (0-indexed, inclusive)
+    int query_gcd(size_t l, size_t r) const {
+        size_t k = std::bit_width(r - l + 1) - 1;
+        return std::gcd(st_[l][k], st_[r - (1ULL << k) + 1][k]);
+    }
+
+private:
+    size_t n_, log_;
+    std::vector<std::vector<int>> st_;
+};
+\end{lstlisting}
+
+\subsection{Why GCD Works with Overlapping Intervals}
+
+For sum queries, overlapping intervals double-count. For GCD, overlap is harmless:
+
+\[
+\gcd(a, b, c) = \gcd(\gcd(a, b), c) = \gcd(a, \gcd(b, c))
+\]
+
+If we compute $\gcd(A[1..4], A[3..6])$, the overlap at positions 3 and 4 does not affect the result because $\gcd(x, x) = x$. This is the idempotent property.
+
+\begin{lstlisting}[language=Java]
+Array: [12, 18, 24, 36, 48, 60]
+
+Query gcd(1, 4): range = [18, 24, 36, 48]
+  k = floor(log2(4)) = 2
+  gcd(st[1][2], st[3][2])
+    st[1][2] = gcd(18, 24, 36, 48) = 6
+    st[3][2] = gcd(36, 48) = 12  (note: intervals overlap at 36, 48)
+  gcd(6, 12) = 6
+
+Check: gcd(18, 24, 36, 48) = 6 (OK)
+\end{lstlisting}
+
+\subsection{LCM Queries}
+
+Range LCM queries are trickier because $\text{lcm}(x, x) = x$ is idempotent, but intermediate values grow rapidly and overflow. In practice, maintain values modulo a large prime or use big integers:
+
+\begin{lstlisting}[language=C++]
+// For LCM, use __int128 or modular arithmetic
+// lcm(a, b) = a / gcd(a, b) * b
+// Apply mod at each step to prevent overflow
+int lcm_mod(int a, int b, int mod) {
+    return (long long)a / std::gcd(a, b) * b % mod;
+}
+\end{lstlisting}
+
+\subsection{Complexity}
+
+Same as RMQ sparse table: $O(n \log n)$ build, $O(1)$ query, $O(n \log n)$ memory. The only difference is replacing $\min$ with $\gcd$.
+
+\textbf{Key insight:} Any idempotent associative operation can use the sparse table technique. Min, max, GCD, LCM (with overflow handling) all qualify. Non-idempotent operations like sum or XOR cannot use the overlapping-interval trick.
+
+\section{Segment Tree Beats}
+
+Standard lazy propagation handles range add and range assign efficiently, but range minimum/maximum update (chmin/chmax) is harder. If we want to set $A[i] = \min(A[i], v)$ for all $i \in [l, r]$, a naive segment tree would need $O(n)$ per operation in the worst case. \textbf{Segment tree beats} solves this by maintaining extra information in each node to prune unnecessary recursion.
+
+\subsection{Core Idea}
+
+Each node stores:
+\begin{itemize}
+\item \texttt{mx}: the maximum value in the range
+\item \texttt{se}: the second maximum (strictly less than mx)
+\item \texttt{cmx}: count of elements equal to mx
+\item \texttt{sum}: sum of all values in the range
+\end{itemize}
+
+When applying \texttt{chmin(v)} to a node, if $v \geq mx$ nothing changes (prune immediately). If $v < mx$ but $v > se$, only the \texttt{cmx} elements equal to \texttt{mx} get reduced to $v$ --- we can update \texttt{sum} and \texttt{mx} in $O(1)$ without recursing further. Otherwise, we recurse into children.
+
+This gives an amortized $O(\log n)$ per operation. The key lemma is that each element's maximum value can only decrease, and it can decrease at most $O(\log C)$ times (where $C$ is the value range), yielding $O(n \log C \log n)$ total complexity over a sequence of operations.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+struct SegTreeBeats {
+    int n;
+    vector<long long> sum;
+    vector<int> mx, se, cmx;
+
+    void build(const vector<int>& a, int node, int lo, int hi) {
+        if (lo == hi) {
+            sum[node] = mx[node] = a[lo];
+            se[node] = -1; // -1 means no second max
+            cmx[node] = 1;
+            return;
+        }
+        int mid = (lo + hi) / 2;
+        build(a, 2*node, lo, mid);
+        build(a, 2*node+1, mid+1, hi);
+        pull(node);
+    }
+
+    void pull(int node) {
+        int l = 2*node, r = 2*node+1;
+        sum[node] = sum[l] + sum[r];
+
+        // Merge max and second max from children
+        if (mx[l] == mx[r]) {
+            mx[node] = mx[l];
+            cmx[node] = cmx[l] + cmx[r];
+            se[node] = max(se[l], se[r]);
+        } else if (mx[l] > mx[r]) {
+            mx[node] = mx[l];
+            cmx[node] = cmx[l];
+            se[node] = max(se[l], mx[r]);
+        } else {
+            mx[node] = mx[r];
+            cmx[node] = cmx[r];
+            se[node] = max(mx[l], se[r]);
+        }
+    }
+
+    // Apply chmin: reduce all elements equal to old_mx down to v
+    void apply_chmin(int node, int v) {
+        sum[node] -= (long long)(mx[node] - v) * cmx[node];
+        mx[node] = v;
+    }
+
+    void push(int node, int lo, int hi) {
+        if (lo == hi) return;
+        // Push chmin to children if needed
+        for (int child : {2*node, 2*node+1}) {
+            if (mx[child] > mx[node]) {
+                apply_chmin(child, mx[node]);
+            }
+        }
+    }
+
+    void range_chmin(int node, int lo, int hi,
+                     int ql, int qr, int v) {
+        if (ql > hi || qr < lo || mx[node] <= v)
+            return;
+        if (ql <= lo && hi <= qr && se[node] < v) {
+            apply_chmin(node, v);
+            return;
+        }
+        push(node, lo, hi);
+        int mid = (lo + hi) / 2;
+        range_chmin(2*node, lo, mid, ql, qr, v);
+        range_chmin(2*node+1, mid+1, hi, ql, qr, v);
+        pull(node);
+    }
+
+    long long range_sum(int node, int lo, int hi,
+                        int ql, int qr) {
+        if (ql > hi || qr < lo) return 0;
+        if (ql <= lo && hi <= qr) return sum[node];
+        push(node, lo, hi);
+        int mid = (lo + hi) / 2;
+        return range_sum(2*node, lo, mid, ql, qr)
+             + range_sum(2*node+1, mid+1, hi, ql, qr);
+    }
+
+    // Public interface
+    SegTreeBeats(const vector<int>& a) {
+        n = a.size();
+        int size = 4 * n;
+        sum.resize(size);
+        mx.resize(size);
+        se.resize(size);
+        cmx.resize(size);
+        build(a, 1, 0, n - 1);
+    }
+
+    void chmin(int l, int r, int v) {
+        range_chmin(1, 0, n - 1, l, r, v);
+    }
+
+    long long query(int l, int r) {
+        return range_sum(1, 0, n - 1, l, r);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity and Use Cases}
+
+\begin{itemize}
+\item \textbf{Build:} $O(n)$
+\item \textbf{Range chmin/chmax + range sum:} Amortized $O(\log n)$ per operation
+\item \textbf{Space:} $O(n)$
+\end{itemize}
+
+Segment tree beats is essential when problems combine range minimum/maximum updates with range sum, range minimum, or range maximum queries. The amortized bound relies on the observation that the number of ``interesting'' maximum values decreases geometrically. Extensions support simultaneous chmin, chmax, add, and assign in $O(\log n)$ amortized.
+
+\section{2D Fenwick Tree}
+
+The Fenwick tree (BIT) extends naturally to 2D grids. A \textbf{2D BIT} supports point update and rectangle sum query on an $n \times m$ grid, both in $O(\log n \cdot \log m)$ time.
+
+\subsection{Structure}
+
+A 2D BIT is a 2D array \texttt{tree[n+1][m+1]} where \texttt{tree[i][j]} stores the aggregate of a rectangular subregion. The update and query operations use nested 1D BIT logic: an update at $(x, y)$ propagates upward in $i$ and $j$ independently, and a rectangle query uses the inclusion-exclusion principle.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+struct Fenwick2D {
+    int n, m;
+    vector<vector<long long>> tree;
+
+    Fenwick2D(int n, int m) : n(n), m(m),
+        tree(n + 1, vector<long long>(m + 1, 0)) {}
+
+    // Add val at position (x, y) (1-indexed)
+    void update(int x, int y, long long val) {
+        for (int i = x; i <= n; i += i & (-i))
+            for (int j = y; j <= m; j += j & (-j))
+                tree[i][j] += val;
+    }
+
+    // Prefix sum of rectangle [1..x] x [1..y]
+    long long query(int x, int y) {
+        long long res = 0;
+        for (int i = x; i > 0; i -= i & (-i))
+            for (int j = y; j > 0; j -= j & (-j))
+                res += tree[i][j];
+        return res;
+    }
+
+    // Sum over rectangle [x1..x2] x [y1..y2]
+    long long query(int x1, int y1, int x2, int y2) {
+        return query(x2, y2) - query(x1 - 1, y2)
+             - query(x2, y1 - 1) + query(x1 - 1, y1 - 1);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity and Use Cases}
+
+\begin{itemize}
+\item \textbf{Build:} $O(nm)$ (or $O(1)$ if building from scratch with zeroed array)
+\item \textbf{Point update:} $O(\log n \cdot \log m)$
+\item \textbf{Rectangle sum query:} $O(\log n \cdot \log m)$
+\item \textbf{Space:} $O(nm)$
+\end{itemize}
+
+Use the 2D BIT whenever you need to maintain a grid with point updates and 2D prefix sum queries. Common applications include: counting points in a rectangle, 2D range frequency queries, and offline problems where coordinate compression reduces 2D coordinates to manageable ranges. For range add + range sum in 2D, use four 2D BITs with the difference-array technique (analogous to the 1D case).
+
+%% ============================================================
+%% ADVANCED RANGE STRUCTURES (Brass coverage)
+%% ============================================================
+
+\section{Orthogonal Range Trees}
+\label{sec:orthogonal-range}
+
+An \textbf{orthogonal range tree} answers queries of the form: ``report (or count) all points $(x, y)$ with $x_1 \le x \le x_2$ and $y_1 \le y \le y_2$.'' This is the fundamental 2D orthogonal range query.
+
+\subsection{Structure}
+
+A 2D range tree is built as a \textbf{BST on x-coordinates} (the primary tree). Each node in this primary tree owns an \textbf{association structure}: a BST on the y-coordinates of all points in that node's subtree (the secondary tree). This gives a two-level hierarchy.
+
+\begin{lstlisting}
+Primary tree (BST on x):
+                [50]
+               /    \
+           [25]      [75]
+          /   \     /   \
+       [10] [35] [60] [90]
+
+Each node's association structure (BST on y):
+  [50]: {y = 12, 28, 45, 63, 81}
+  [25]: {y = 8, 20, 33}
+  [10]: {y = 5, 18}
+\end{lstlisting}
+
+\subsection{Query Decomposition}
+
+A 2D range query $[x_1, x_2] \times [y_1, y_2]$ decomposes into $O(\log n)$ canonical nodes in the primary tree whose x-ranges partition $[x_1, x_2]$. For each canonical node, query its secondary tree for $[y_1, y_2]$.
+
+\begin{lstlisting}[language=C++]
+struct point { int x, y; };
+
+struct range_node {
+    int x_low, x_high;
+    std::vector<point> sorted_by_y;
+    range_node* left  = nullptr;
+    range_node* right = nullptr;
+};
+
+std::vector<point> range_query(range_node* node,
+        int x1, int x2, int y1, int y2) {
+    std::vector<point> result;
+    if (!node || node->x_low > x2 || node->x_high < x1)
+        return result;
+
+    if (x1 <= node->x_low && node->x_high <= x2) {
+        auto lo = std::lower_bound(node->sorted_by_y.begin(),
+                    node->sorted_by_y.end(), y1,
+                    [](const point& p, int val) {
+                        return p.y < val;
+                    });
+        auto hi = std::upper_bound(lo, node->sorted_by_y.end(),
+                    y2,
+                    [](int val, const point& p) {
+                        return val < p.y;
+                    });
+        result.insert(result.end(), lo, hi);
+        return result;
+    }
+
+    auto left_res  = range_query(node->left,  x1, x2, y1, y2);
+    auto right_res = range_query(node->right, x1, x2, y1, y2);
+    result.insert(result.end(),
+        left_res.begin(), left_res.end());
+    result.insert(result.end(),
+        right_res.begin(), right_res.end());
+    return result;
+}
+\end{lstlisting}
+
+Without further optimization, this visits $O(\log n)$ canonical nodes and $O(\log n + k_i)$ points in each secondary tree, giving $O(\log^2 n + k)$ total.
+
+\subsection{Fractional Cascading}
+
+\textbf{Fractional cascading} reduces the per-secondary-tree search from $O(\log n)$ to $O(1)$ by interleaving the sorted lists of sibling nodes. Each secondary tree's list references ``jump points'' into its parent's list, so after the first binary search ($O(\log n)$), every subsequent secondary-tree lookup is $O(1)$.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Variant & Build & Query \\
+\midrule
+Naive (no cascading) & $O(n \log n)$ & $O(\log^2 n + k)$ \\
+With fractional cascading & $O(n \log n)$ & $O(\log n + k)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Kd-Trees}
+
+A \textbf{kd-tree}\index{kd-tree} alternates split dimensions at each level (x, y, x, y, \ldots). It uses only $O(n)$ space (no secondary trees), but query time is $O(\sqrt{n} + k)$ in 2D. Kd-trees are simpler and cache-friendlier than range trees.
+
+\begin{lstlisting}[language=C++]
+struct kd_node {
+    point p;
+    kd_node* left  = nullptr;
+    kd_node* right = nullptr;
+};
+
+kd_node* build_kd(std::vector<point>& pts,
+        int depth, int lo, int hi) {
+    if (lo >= hi) return nullptr;
+    int axis = depth % 2;
+    int mid = lo + (hi - lo) / 2;
+    std::nth_element(pts.begin() + lo,
+        pts.begin() + mid, pts.begin() + hi,
+        [axis](const point& a, const point& b) {
+            return axis == 0 ? a.x < b.x : a.y < b.y;
+        });
+    auto* node = new kd_node{pts[mid]};
+    node->left  = build_kd(pts, depth + 1, lo, mid);
+    node->right = build_kd(pts, depth + 1, mid + 1, hi);
+    return node;
+}
+
+void kd_range(kd_node* node, const point& lo,
+        const point& hi,
+        std::vector<point>& result, int depth) {
+    if (!node) return;
+    bool in_range = node->p.x >= lo.x && node->p.x <= hi.x
+                 && node->p.y >= lo.y && node->p.y <= hi.y;
+    if (in_range) result.push_back(node->p);
+    int axis = depth % 2;
+    int coord = axis == 0 ? node->p.x : node->p.y;
+    int lo_bound = axis == 0 ? lo.x : lo.y;
+    int hi_bound = axis == 0 ? hi.x : hi.y;
+    if (lo_bound <= coord)
+        kd_range(node->left,  lo, hi, result, depth + 1);
+    if (hi_bound >= coord)
+        kd_range(node->right, lo, hi, result, depth + 1);
+}
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Computational geometry:} point-in-range, nearest neighbor, closest pair
+    \item \textbf{GIS:} spatial queries on map regions (bounding-box searches)
+    \item \textbf{Spatial databases:} indexing multidimensional records for range predicates
+    \item \textbf{VLSI design:} checking for design-rule violations in rectangular regions
+\end{itemize}
+
+\subsection{Comparison}
+\label{sec:range-tree-comparison}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Structure & Build & Query & Space \\
+\midrule
+2D Range Tree & $O(n \log n)$ & $O(\log^2 n + k)$ & $O(n \log n)$ \\
+Range Tree + Frac.\ Cascading & $O(n \log n)$ & $O(\log n + k)$ & $O(n \log n)$ \\
+Kd-tree & $O(n \log n)$ & $O(\sqrt{n} + k)$ & $O(n)$ \\
+Quad-tree & $O(n \log n)$ & $O(n)$ worst & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{When to use which:} range trees when $n$ is large and query count dominates; kd-trees for simplicity and moderate $n$; quad-trees when points are uniformly distributed and spatial hashing suffices.
+
+\section{Higher-Dimensional Segment Trees}
+\label{sec:2d-segment-tree}
+
+A 2D segment tree extends the 1D segment tree to grid data. It is the natural structure for \textbf{range sum (or min/max) over a 2D rectangle} with point updates.
+
+\subsection{Structure}
+
+A \textbf{2D segment tree} is a segment tree of segment trees. The outer tree is built on rows. Each outer node stores an inner segment tree built on the columns of its row-range. For an $n \times m$ grid, the outer tree has $O(n)$ nodes and each inner tree has $O(m)$ nodes, giving $O(nm)$ total space.
+
+\subsection{Point Update}
+
+Updating grid cell $(r, c)$ by $\delta$ propagates through $O(\log n)$ outer nodes. At each outer node, update its inner tree at column $c$ by $\delta$, which takes $O(\log m)$.
+
+\begin{lstlisting}[language=C++]
+class seg_tree_2d {
+public:
+    seg_tree_2d(int rows, int cols)
+        : n_(rows), m_(cols), outer_(4 * rows) {
+        for (int i = 0; i < 4 * rows; ++i)
+            outer_[i].assign(4 * cols, 0);
+    }
+
+    void update(int r, int c, int val) {
+        update_outer(1, 0, n_ - 1, r, c, val);
+    }
+
+    int query(int r1, int c1, int r2, int c2) {
+        return query_outer(1, 0, n_ - 1,
+            r1, c1, r2, c2);
+    }
+
+private:
+    int n_, m_;
+    std::vector<std::vector<int>> outer_;
+
+    void update_outer(int node, int lo, int hi,
+            int r, int c, int val) {
+        if (lo == hi) {
+            update_inner(outer_[node], 1, 0, m_-1,
+                c, val);
+            return;
+        }
+        int mid = (lo + hi) / 2;
+        if (r <= mid)
+            update_outer(2*node, lo, mid, r, c, val);
+        else
+            update_outer(2*node+1, mid+1, hi, r, c, val);
+        for (int i = 1; i < 4 * m_; ++i)
+            outer_[node][i] = outer_[2*node][i]
+                            + outer_[2*node+1][i];
+    }
+
+    void update_inner(std::vector<int>& tree, int node,
+            int lo, int hi, int c, int val) {
+        if (lo == hi) { tree[node] += val; return; }
+        int mid = (lo + hi) / 2;
+        if (c <= mid)
+            update_inner(tree, 2*node, lo, mid, c, val);
+        else
+            update_inner(tree, 2*node+1, mid+1, hi,
+                c, val);
+        tree[node] = tree[2*node] + tree[2*node+1];
+    }
+
+    int query_outer(int node, int lo, int hi,
+            int r1, int c1, int r2, int c2) {
+        if (r1 > hi || r2 < lo) return 0;
+        if (r1 <= lo && hi <= r2)
+            return query_inner(outer_[node], 1, 0,
+                m_-1, c1, c2);
+        int mid = (lo + hi) / 2;
+        return query_outer(2*node, lo, mid,
+                    r1, c1, r2, c2)
+             + query_outer(2*node+1, mid+1, hi,
+                    r1, c1, r2, c2);
+    }
+
+    int query_inner(const std::vector<int>& tree,
+            int node, int lo, int hi,
+            int c1, int c2) {
+        if (c1 > hi || c2 < lo) return 0;
+        if (c1 <= lo && hi <= c2) return tree[node];
+        int mid = (lo + hi) / 2;
+        return query_inner(tree, 2*node, lo, mid,
+                    c1, c2)
+             + query_inner(tree, 2*node+1, mid+1, hi,
+                    c1, c2);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Space \\
+\midrule
+Build & $O(nm)$ & $O(nm)$ \\
+Point update & $O(\log n \cdot \log m)$ & $O(1)$ \\
+Rectangle query & $O(\log n \cdot \log m)$ & $O(1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Lazy Propagation in 2D}
+
+2D lazy propagation supports \textbf{range add + range sum} on a rectangle. Each outer node carries a lazy tag that is propagated to its inner tree. The inner tree uses standard lazy propagation.
+
+\subsection{Coordinate Compression}
+
+When coordinates are sparse (e.g., points scattered across a $10^9 \times 10^9$ grid), apply \textbf{offline coordinate compression}: collect all x- and y-coordinates that appear in updates or queries, sort and unique them, and build the 2D segment tree over the compressed indices.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Image processing:} 2D range sum / integral images for fast rectangle queries
+    \item \textbf{Computational geometry:} counting points in a rectangle with updates
+    \item \textbf{Heatmaps and grids:} dynamic aggregation over spatial cells
+\end{itemize}
+
+%% ============================================================
+%% 3D ORTHOGONAL RANGE SEARCH (MIT 6.851 coverage)
+%% ============================================================
+
+\section{3D Orthogonal Range Search}
+\label{sec:3d-range}
+
+A \textbf{3D orthogonal range tree} answers queries of the form: ``report all points $(x, y, z)$ with $x_1 \le x \le x_2$, $y_1 \le y \le y_2$, and $z_1 \le z \le z_2$.'' The natural extension of 2D range trees to three dimensions uses a nested structure: the primary tree is a BST on $x$-coordinates, each node stores a secondary tree on $y$-coordinates, and each secondary tree node stores a tertiary tree on $z$-coordinates.
+
+\subsection{Structure}
+
+The 3D range tree has three levels:
+\begin{enumerate}
+    \item \textbf{Primary tree:} BST on $x$-coordinates of all points
+    \item \textbf{Secondary trees:} At each primary node, a BST on $y$-coordinates of points in that subtree
+    \item \textbf{Tertiary trees:} At each secondary node, a BST on $z$-coordinates of points in that subtree
+\end{enumerate}
+
+With fractional cascading across all three levels, the query time is $O(\log^3 n + k)$ for reporting $k$ points, using $O(n \log^2 n)$ space.
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Dimension & Query Time & Space & Construction \\
+\midrule
+1D & $O(\log n + k)$ & $O(n)$ & $O(n \log n)$ \\
+2D & $O(\log^2 n + k)$ & $O(n \log n)$ & $O(n \log^2 n)$ \\
+3D & $O(\log^3 n + k)$ & $O(n \log^2 n)$ & $O(n \log^3 n)$ \\
+$d$-D & $O(\log^d n + k)$ & $O(n \log^{d-1} n)$ & $O(n \log^{d} n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The space grows by a factor of $\log n$ per dimension, which limits the practicality of range trees beyond 3D. For high-dimensional data, techniques like kd-trees, locality-sensitive hashing, or random projection methods are preferred.
+
+\subsection{Counting Queries}
+
+For \emph{counting} queries (how many points fall in the 3D range, rather than listing them), each tertiary tree node stores a count, and the query sums over $O(\log^3 n)$ nodes. This avoids the $O(k)$ reporting cost and gives $O(\log^3 n)$ query time.
+
+\section{Semigroup Model}
+\label{sec:semigroup-model}
+
+The Fenwick tree is elegant, but it relies on a critical property: the operation must be \textbf{invertible} (e.g., subtraction inverts addition, allowing prefix queries via $\text{sum}(r) - \text{sum}(l-1)$). When the operation has no inverse --- such as $\min$, $\max$, or $\gcd$ --- the Fenwick trick fails. The \textbf{semigroup model} handles these cases using a segment tree.
+
+\subsection{Group vs.\ Semigroup}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Property & Group (invertible) & Semigroup (non-invertible) \\
+\midrule
+Example operations & $+$, $\times$, $\oplus$ & $\min$, $\max$, $\gcd$ \\
+Has identity? & Yes & Yes \\
+Has inverse? & Yes & No \\
+Fenwick tree? & Yes ($O(\log n)$) & No \\
+Segment tree? & Yes ($O(\log n)$) & Yes ($O(\log n)$) \\
+Range query trick & $\text{prefix}(r) - \text{prefix}(l-1)$ & Must traverse both halves \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Why Fenwick Fails for min}
+
+The Fenwick tree computes prefix queries by summing selected nodes. To get a range query, it subtracts prefix sums. But $\min$ has no subtraction: there is no operation that undoes a minimum.
+
+\subsection{Segment Tree for Semigroup Queries}
+
+A segment tree handles non-invertible operations because it traverses both halves of the tree independently and combines results. The query does not rely on prefix subtraction.
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Combine>
+class seg_tree {
+public:
+    seg_tree(const std::vector<T>& data, Combine combine)
+        : n_(data.size()), tree_(4 * n_),
+          combine_(combine) {
+        build(data, 1, 0, n_ - 1);
+    }
+
+    T query(int l, int r) {
+        return query(1, 0, n_ - 1, l, r);
+    }
+
+    void update(int pos, const T& val) {
+        update(1, 0, n_ - 1, pos, val);
+    }
+
+private:
+    void build(const std::vector<T>& data,
+            int node, int lo, int hi) {
+        if (lo == hi) { tree_[node] = data[lo]; return; }
+        int mid = (lo + hi) / 2;
+        build(data, 2 * node, lo, mid);
+        build(data, 2 * node + 1, mid + 1, hi);
+        tree_[node] = combine_(tree_[2*node],
+                               tree_[2*node+1]);
+    }
+
+    T query(int node, int lo, int hi,
+            int ql, int qr) {
+        if (ql > hi || qr < lo) return T{};
+        if (ql <= lo && hi <= qr) return tree_[node];
+        int mid = (lo + hi) / 2;
+        return combine_(
+            query(2*node, lo, mid, ql, qr),
+            query(2*node+1, mid+1, hi, ql, qr));
+    }
+
+    void update(int node, int lo, int hi,
+            int pos, const T& val) {
+        if (lo == hi) { tree_[node] = val; return; }
+        int mid = (lo + hi) / 2;
+        if (pos <= mid)
+            update(2*node, lo, mid, pos, val);
+        else
+            update(2*node+1, mid+1, hi, pos, val);
+        tree_[node] = combine_(tree_[2*node],
+                               tree_[2*node+1]);
+    }
+
+    int n_;
+    std::vector<T> tree_;
+    Combine combine_;
+};
+\end{lstlisting}
+
+\subsection{When to Use Which}
+
+\begin{itemize}
+    \item \textbf{Fenwick tree:} operation is invertible ($+$, $\times$, XOR), want simpler code and less memory
+    \item \textbf{Segment tree:} operation is non-invertible ($\min$, $\max$, $\gcd$), or need range updates with lazy propagation
+    \item \textbf{Sparse table:} static data, idempotent operation, need $O(1)$ queries
+\end{itemize}
+
+\section{Persistent Union-Find}
+\label{sec:persistent-uf}
+
+The standard union-find\index{union-find} (Section~\ref{sec:union-find}) is \textbf{not persistent}: path compression overwrites parent pointers, destroying old versions. A \textbf{persistent union-find} preserves the full history of union and find operations.
+
+\subsection{Why Persistence Is Hard}
+
+In a standard union-find, path compression modifies parent pointers in place:
+
+\begin{lstlisting}[language=C++]
+size_t find(size_t x) {
+    while (parent_[x] != x) {
+        parent_[x] = parent_[parent_[x]];  // destructive!
+        x = parent_[x];
+    }
+    return x;
+}
+\end{lstlisting}
+
+Once \texttt{parent\_[x]} is overwritten, the previous tree structure is lost.
+
+\subsection{Fat Nodes}
+
+A \textbf{fat node} approach stores the full history of changes at each node. Each node records every value its parent pointer has ever taken, along with the version at which each change occurred.
+
+\begin{lstlisting}[language=C++]
+struct fat_node {
+    std::vector<std::pair<int,int>> history;
+    // (version, parent_value)
+
+    int parent_at(int version) const {
+        int result = -1;
+        for (auto& [v, p] : history) {
+            if (v <= version) result = p;
+            else break;
+        }
+        return result;
+    }
+
+    void set_parent(int version, int new_parent) {
+        history.emplace_back(version, new_parent);
+    }
+};
+\end{lstlisting}
+
+Without path compression, each union creates $O(1)$ new entries, and a find traverses $O(\log n)$ nodes. Total space: $O(m \log n)$ for $m$ operations on $n$ elements.
+
+\subsection{Path Copying}
+
+\textbf{Path copying} creates a new version of each node along the modification path while sharing all other nodes with previous versions. This is the same technique used in persistent BSTs.
+
+\begin{lstlisting}[language=C++]
+struct persistent_node {
+    int parent;
+    int rank;
+};
+
+class persistent_union_find {
+public:
+    persistent_union_find(int n) {
+        std::vector<persistent_node> base(n);
+        for (int i = 0; i < n; ++i)
+            base[i] = {i, 0};
+        versions_.push_back(base);
+    }
+
+    int find(int version, int x) {
+        auto& nodes = versions_[version];
+        while (nodes[x].parent != x)
+            x = nodes[x].parent;
+        return x;
+    }
+
+    int union_sets(int version, int x, int y) {
+        auto nodes = versions_.back();
+        int rx = find(version, x);
+        int ry = find(version, y);
+        if (rx == ry) return version;
+
+        if (nodes[rx].rank < nodes[ry].rank)
+            std::swap(rx, ry);
+        nodes[ry].parent = rx;
+        if (nodes[rx].rank == nodes[ry].rank)
+            nodes[rx].rank++;
+
+        versions_.push_back(nodes);
+        return versions_.size() - 1;
+    }
+
+private:
+    std::vector<std::vector<persistent_node>> versions_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Technique & Per Operation & Space per Op & Path Compression \\
+\midrule
+Fat nodes (no compression) & $O(\log n)$ find & $O(1)$ & No \\
+Fat nodes + compression & $O(\log n)$ amortized & $O(\log n)$ amortized & Yes \\
+Path copying & $O(\log n)$ find & $O(\log n)$ & No \\
+Path copying + compression & $O(\log n)$ amortized & $O(\log n)$ & Yes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{List Splitting}
+\label{sec:list-splitting}
+
+Given a sorted list and a predicate $P$, the \emph{list splitting} problem divides the list into two sorted sublists: elements satisfying $P$ on the left and elements not satisfying $P$ on the right. This is a fundamental primitive in functional data structures.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Priority queue splitting:} divide into high-priority and low-priority tasks
+    \item \textbf{Range partitioning:} split a dataset by a threshold for parallel processing
+    \item \textbf{Database indexing:} partition records by a predicate for selective queries
+    \item \textbf{Compiler optimization:} split live ranges to reduce register pressure
+\end{itemize}
+
+\subsection{Splitting with Treaps}
+
+A treap assigns random priorities to nodes and maintains the BST property on keys and the heap property on priorities. The split operation traverses from the root, placing nodes into left and right subtrees depending on whether they satisfy the predicate.
+
+\begin{lstlisting}[language=C++]
+#include <random>
+#include <utility>
+
+struct Node {
+    int key;
+    int priority;
+    int size;
+    Node *left, *right;
+    Node(int k, int p)
+        : key(k), priority(p), size(1),
+          left(nullptr), right(nullptr) {}
+};
+
+int sz(Node *n) { return n ? n->size : 0; }
+
+void update(Node *n) {
+    if (n) n->size = 1 + sz(n->left) + sz(n->right);
+}
+
+std::pair<Node*, Node*> split(Node *root,
+        auto pred) {
+    if (!root) return {nullptr, nullptr};
+    if (pred(root->key)) {
+        auto [l, r] = split(root->right, pred);
+        root->right = l;
+        update(root);
+        return {root, r};
+    } else {
+        auto [l, r] = split(root->left, pred);
+        root->left = r;
+        update(root);
+        return {l, root};
+    }
+}
+
+Node* merge(Node *a, Node *b) {
+    if (!a || !b) return a ? a : b;
+    if (a->priority > b->priority) {
+        a->right = merge(a->right, b);
+        update(a);
+        return a;
+    } else {
+        b->left = merge(a, b->left);
+        update(b);
+        return b;
+    }
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Data Structure & Split Time & Merge Time & Space \\
+\midrule
+Sorted Array & $O(n)$ & $O(n)$ & $O(n)$ \\
+Linked List & $O(n)$ & $O(n)$ & $O(1)$ extra \\
+Treap & $O(\log n)$ amortized & $O(\log n)$ amortized & $O(n)$ \\
+Weight-Balanced Tree & $O(\log n)$ & $O(\log n)$ & $O(n)$ \\
+Skip List & $O(\log n)$ avg & $O(\log n)$ avg & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Maintenance of Linear Order}
+\label{sec:linear-order}
+
+The \emph{linear order maintenance} problem requires supporting insertions, deletions, and rank queries on a dynamic set of elements. We maintain an ordered list and answer queries of the form ``what is the rank of element $x$?'' and ``what is the element at rank $k$?''
+
+\subsection{Order-Statistic Trees}
+
+An \emph{order-statistic tree} is an augmented balanced BST (typically a red-black tree) where each node stores the size of its subtree. This single augmentation enables $O(\log n)$ rank computation and index-based selection.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Time & Description \\
+\midrule
+Insert $(k)$ & $O(\log n)$ & Insert key and update subtree sizes \\
+Delete $(k)$ & $O(\log n)$ & Remove key and update subtree sizes \\
+Rank $(k)$ & $O(\log n)$ & Position of $k$ in sorted order \\
+Select $(i)$ & $O(\log n)$ & $i$-th smallest element \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+Order-statistic trees underpin dynamic ranking in leaderboards, line-number computation in text editors, ranked retrieval in databases, and online quantile estimation.
+
+\section{Union of Intervals}
+\label{sec:union-intervals}
+
+Given a collection of $n$ closed intervals $[a_i, b_i]$, the \emph{interval union} problem computes the total measure of their union, expressed as a set of disjoint merged intervals. This is a classic sweep-line problem.
+
+\subsection{Sweep-Line Algorithm}
+
+The algorithm sorts all interval endpoints and performs a sweep. We maintain a counter indicating the number of intervals covering the current position. When the counter transitions from 0 to positive, a new merged interval begins. When it transitions from positive to 0, the interval ends.
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <algorithm>
+#include <utility>
+
+std::vector<std::pair<int,int>> mergeIntervals(
+        std::vector<std::pair<int,int>>& intervals) {
+    if (intervals.empty()) return {};
+
+    std::vector<std::pair<int,int>> events;
+    for (auto [l, r] : intervals) {
+        events.push_back({l, 1});
+        events.push_back({r, -1});
+    }
+    std::sort(events.begin(), events.end());
+
+    std::vector<std::pair<int,int>> result;
+    int count = 0, start = 0;
+    for (auto [pos, delta] : events) {
+        if (count == 0 && delta == 1) start = pos;
+        count += delta;
+        if (count == 0 && delta == -1)
+            result.push_back({start, pos});
+    }
+    return result;
+}
+
+int totalUnionLength(
+        std::vector<std::pair<int,int>>& intervals) {
+    auto merged = mergeIntervals(intervals);
+    int total = 0;
+    for (auto [l, r] : merged) total += r - l;
+    return total;
+}
+\end{lstlisting}
+
+\subsection{Dynamic Interval Union}
+
+For dynamic settings where intervals arrive and depart, an augmented interval tree can be used. Each interval tree node stores the maximum endpoint in its subtree, enabling $O(\log n)$ insertion and deletion. The union length is maintained by keeping a secondary structure over the merged intervals.
+
+\begin{center}
+\begin{tabular}{lccl}
+\toprule
+Approach & Time & Space & Notes \\
+\midrule
+Sort + Sweep & $O(n \log n)$ & $O(n)$ & Static input, offline \\
+Interval Tree (dynamic) & $O(\log n)$ per op & $O(n)$ & Insert/remove intervals \\
+Segment Tree (dynamic) & $O(\log n)$ per op & $O(n)$ & Compressed coordinates \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Interval-Restricted Maximum Sum}
+\label{sec:interval-max-sum}
+
+Given an array $A[1..n]$ and queries $[l, r]$, the \emph{interval-restricted maximum sum} problem finds the maximum sum of a contiguous subarray within $A[l..r]$. This extends Kadane's algorithm to an indexed-query setting.
+
+\subsection{Segment Tree Augmentation}
+
+A segment tree on array $A$ stores at each node four values: the maximum subarray sum ($\texttt{best}$), the maximum prefix sum ($\texttt{pref}$), the maximum suffix sum ($\texttt{suff}$), and the total sum ($\texttt{total}$). These combine in $O(1)$ per merge:
+
+\[
+\texttt{total} = L.\texttt{total} + R.\texttt{total}
+\]
+\[
+\texttt{pref} = \max(L.\texttt{pref},\; L.\texttt{total} + R.\texttt{pref})
+\]
+\[
+\texttt{suff} = \max(R.\texttt{suff},\; R.\texttt{total} + L.\texttt{suff})
+\]
+\[
+\texttt{best} = \max(L.\texttt{best},\; R.\texttt{best},\;
+L.\texttt{suff} + R.\texttt{pref})
+\]
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <climits>
+
+struct Info {
+    long long total, pref, suff, best;
+    Info() : total(0), pref(0), suff(0), best(0) {}
+    Info(long long v)
+        : total(v), pref(v), suff(v), best(v) {}
+};
+
+Info merge(const Info &a, const Info &b) {
+    Info res;
+    res.total = a.total + b.total;
+    res.pref = std::max(a.pref, a.total + b.pref);
+    res.suff = std::max(b.suff, b.total + a.suff);
+    res.best = std::max({a.best, b.best,
+                         a.suff + b.pref});
+    return res;
+}
+
+class MaxSubarrayTree {
+    int n;
+    std::vector<Info> tree;
+    std::vector<long long> arr;
+
+    void build(int node, int lo, int hi) {
+        if (lo == hi) {
+            tree[node] = Info(arr[lo]);
+            return;
+        }
+        int mid = (lo + hi) / 2;
+        build(2*node, lo, mid);
+        build(2*node+1, mid+1, hi);
+        tree[node] = merge(tree[2*node],
+                           tree[2*node+1]);
+    }
+
+    void update(int node, int lo, int hi,
+            int idx, long long val) {
+        if (lo == hi) {
+            arr[idx] = val;
+            tree[node] = Info(val);
+            return;
+        }
+        int mid = (lo + hi) / 2;
+        if (idx <= mid)
+            update(2*node, lo, mid, idx, val);
+        else
+            update(2*node+1, mid+1, hi, idx, val);
+        tree[node] = merge(tree[2*node],
+                           tree[2*node+1]);
+    }
+
+    Info query(int node, int lo, int hi,
+            int ql, int qr) {
+        if (ql <= lo && hi <= qr) return tree[node];
+        int mid = (lo + hi) / 2;
+        if (qr <= mid)
+            return query(2*node, lo, mid, ql, qr);
+        if (ql > mid)
+            return query(2*node+1, mid+1, hi, ql, qr);
+        return merge(query(2*node, lo, mid, ql, qr),
+                     query(2*node+1, mid+1, hi, ql, qr));
+    }
+
+public:
+    MaxSubarrayTree(const std::vector<long long>& a)
+        : n(a.size()), tree(4*n), arr(a) {
+        if (n > 0) build(1, 0, n-1);
+    }
+
+    void update(int idx, long long val) {
+        update(1, 0, n-1, idx, val);
+    }
+
+    long long query(int l, int r) {
+        return query(1, 0, n-1, l, r).best;
+    }
+};
+\end{lstlisting}
+
+\subsection{Comparison}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Approach & Query Time & Preprocessing \\
+\midrule
+Kadane per query & $O(n)$ & $O(1)$ \\
+Segment tree (augmented) & $O(\log n)$ & $O(n)$ \\
+Mo's + segment tree & $O(\sqrt{n}\log n)$ amortized & $O(n)$ \\
+Sparse table (static) & $O(1)$ & $O(n \log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Level Ancestor Problem}
+\label{sec:level-ancestor}
+
+The level ancestor problem asks: given a rooted tree $T$ and a node $v$ at depth $d$, find the ancestor of $v$ at depth $d - k$. This query is denoted $\text{LA}(v, k)$.
+
+\subsection{Jump Pointers}
+
+Each node stores a pointer to its $2^i$-th ancestor. With $O(\lg n)$ pointers per node, preprocessing takes $O(n \lg n)$ and a query decomposes $k$ in binary, taking $O(\lg n)$.
+
+\begin{lstlisting}[language=C++]
+class JumpPointerTree {
+    std::vector<std::vector<int>> up;
+    std::vector<int> depth;
+    int n;
+
+    void preprocess(int v, int p) {
+        up[v][0] = p;
+        for (int j = 1; (1 << j) <= n; j++)
+            up[v][j] = up[v][j-1] != -1
+                ? up[up[v][j-1]][j-1] : -1;
+        for (int c : adj[v]) {
+            depth[c] = depth[v] + 1;
+            preprocess(c, v);
+        }
+    }
+
+    int query(int v, int k) {
+        for (int j = 0; k > 0; j++) {
+            if (k & 1) v = up[v][j];
+            k >>= 1;
+        }
+        return v;
+    }
+};
+\end{lstlisting}
+
+\subsection{Optimal $O(1)$ Query}
+
+The optimal solution reduces LA to LCA via the Euler tour. Construct the Euler tour of $T$ and record each node's first occurrence. Then LA reduces to RMQ on an array of $2n - 1$ entries. With the four-Russians trick, RMQ answers in $O(1)$ with $O(n)$ preprocessing, yielding $O(1)$ level ancestor queries.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Tree embedding:} embed a general tree into a caterpillar while preserving depths
+    \item \textbf{Balanced separators:} identify separator vertices in planar graphs
+    \item \textbf{LCA reduction:} computing distance between two nodes reduces to LA
+\end{itemize}
+
+\section{The Predecessor Problem and Lower Bounds}
+\label{sec:predecessor-lower}
+
+The predecessor problem: maintain a set $S$ of keys from universe $U = \{0, \ldots, 2^w - 1\}$, supporting insert, delete, $\text{pred}(x) = \max\{y \in S : y \le x\}$, and $\text{succ}(x)$.
+
+\subsection{Information-Theoretic Lower Bound}
+
+Any data structure must use $\Omega(\lg n)$ bits per element. For comparison-based methods, this implies $\Omega(\lg n)$ time per operation.
+
+\subsection{Cell Probe Lower Bound}
+
+In the cell probe model (only memory accesses count), the round elimination technique proves:
+\[
+  t = \Omega\!\left(\min\!\left(\lg w,\; \frac{\lg n}{\lg \lg n}\right)\right)
+\]
+for any cell probe data structure supporting predecessor queries.
+
+\subsection{Upper Bounds}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Data Structure & Query & Update & Space \\
+\midrule
+Balanced BST & $O(\lg n)$ & $O(\lg n)$ & $O(n)$ \\
+van Emde Boas & $O(\lg \lg u)$ & $O(\lg \lg u)$ & $O(n \lg \lg u)$ \\
+Fusion tree & $O(\lg n / \lg \lg n)$ & $O(\lg n / \lg \lg n)$ & $O(n)$ \\
+X-fast trie & $O(\lg w)$ & $O(\lg w)$ & $O(nw)$ \\
+Y-fast trie & $O(\lg w)$ & $O(\lg w)$ am. & $O(n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The Open Gap}
+
+When $w = \Theta(\lg^c n)$, the best upper bound is $O(\lg \lg n)$ (vEB) while the lower bound is $\Omega(\lg n / \lg \lg n)$. Closing this gap remains a central open problem in data structure theory.
+
+%% ============================================================
+%% KINETIC DATA STRUCTURES (MIT 6.851 coverage)
+%% ============================================================
+
+\section{Kinetic Data Structures}
+\label{sec:kinetic-ds}
+
+In many applications, the data we store moves over time according to known trajectories, and we must answer geometric queries that remain valid as the motion unfolds. A \emph{kinetic data structure} (KDS) maintains attributes of moving objects where each object's position is a known function of time.
+
+\subsection{Certificates and Failure Times}
+
+A \emph{certificate} is a predicate that must hold for the current answer to be correct. For example, if $p_i$ is currently the minimum, we need $x_i(t) \leq x_j(t)$ for all $j \neq i$. Each inequality becomes false at a specific \emph{failure time}:
+\[
+  t_{ij} = \frac{a_j - a_i}{b_i - b_j}, \quad \text{when } b_i \neq b_j.
+\]
+We store all certificates in a priority queue keyed by failure time. At each event, we extract the earliest failing certificate, repair the structure, and insert new certificates.
+
+\subsection{Kinetic Tournament}
+
+A kinetic tournament is a complete binary tree whose leaves store moving points. Each internal node stores the current minimum and the certificate guaranteeing it. When a certificate fails, the minimum is updated and new certificates are created.
+
+\begin{lstlisting}[language=C++]
+struct MovingPoint {
+    double a, b;  // position = a + b*t
+    double position(double t) const { return a + b * t; }
+};
+
+struct Certificate {
+    int i, j;
+    double failureTime;
+    bool operator>(const Certificate& o) const {
+        return failureTime > o.failureTime;
+    }
+};
+
+class KineticTournament {
+    std::vector<MovingPoint> pts;
+    std::vector<int> tree;
+    std::priority_queue<Certificate,
+        std::vector<Certificate>,
+        std::greater<Certificate>> certs;
+    int n;
+
+    void addCertificate(int i, int j) {
+        if (pts[i].b == pts[j].b) return;
+        double t = (pts[j].a - pts[i].a)
+                 / (pts[i].b - pts[j].b);
+        if (t > 0) certs.push({i, j, t});
+    }
+
+    void build(int node, int lo, int hi) {
+        if (lo == hi) { tree[node] = lo; return; }
+        int mid = (lo + hi) / 2;
+        build(2*node, lo, mid);
+        build(2*node+1, mid+1, hi);
+        int l = tree[2*node], r = tree[2*node+1];
+        tree[node] = (pts[l].a < pts[r].a) ? l : r;
+        addCertificate(l, r);
+    }
+
+public:
+    KineticTournament(const std::vector<MovingPoint>& p)
+        : pts(p), n(p.size()), tree(4 * p.size()) {
+        build(1, 0, n - 1);
+    }
+
+    void advanceTo(double t) {
+        while (!certs.empty() &&
+               certs.top().failureTime <= t) {
+            Certificate c = certs.top(); certs.pop();
+            if (pts[c.i].position(c.failureTime) >
+                pts[c.j].position(c.failureTime))
+                build(1, 0, n - 1);
+        }
+    }
+
+    int currentMin() const { return tree[1]; }
+};
+\end{lstlisting}
+
+\subsection{Industrial Applications}
+
+\begin{itemize}
+    \item \textbf{Autonomous vehicles:} real-time collision detection between moving objects
+    \item \textbf{GPS fleet tracking:} kinetic nearest-neighbor queries for moving vehicles
+    \item \textbf{Game engines:} physics simulation, collision prediction
+    \item \textbf{Air traffic control:} conflict detection between aircraft minutes ahead of time
+    \item \textbf{Robotics:} path planning in environments with moving obstacles
+\end{itemize}
+
+\subsection{Comparison}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Structure & Certificate Failures & Space & Primary Use \\
+\midrule
+Kinetic heap & $O(n \log n)$ & $O(n)$ & Convex hull \\
+Kinetic tournament & $O(n \log n)$ exp. & $O(n)$ & Min / max queries \\
+Kinetic sorted list & $O(n \log n)$ & $O(n)$ & Ordered maintenance \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% ============================================================
+%% PLANAR POINT LOCATION (MIT 6.851 coverage)
+%% ============================================================
+
+\section{Planar Point Location}
+\label{sec:planar-point-location}
+
+The \emph{planar point location} problem asks: given a subdivision of the plane into regions (faces), which region contains a query point? This is fundamental to geographic information systems (GIS), computer-aided design (CAD), and map overlays.
+
+\subsection{The Problem}
+
+A planar subdivision is a planar graph embedded in the plane, dividing it into faces. Each face may have a label (e.g., a county name in a map). A query asks: given a point $q = (x, y)$, return the face containing $q$.
+
+\subsection{Trapezoidal Maps}
+
+A \emph{trapezoidal map} is constructed by shooting vertical rays upward and downward from each vertex until hitting an edge. This decomposes each face into trapezoids (or triangles for degenerate cases). Point location in a trapezoidal map reduces to locating the trapezoid containing the query point.
+
+A \emph{randomized incremental construction} builds the trapezoidal map in $O(n \log n)$ expected time using a search DAG. The DAG has $O(n)$ nodes and answers point location queries in $O(\log n)$ expected time.
+
+\subsection{Kirkpatrick's Hierarchy}
+
+\emph{Kirkpatrick's algorithm} uses a hierarchy of progressively coarser triangulations. Starting from a triangulation of $n$ vertices, every third vertex is removed, producing a triangulation with $O(n/4)$ vertices. The process repeats until only a constant number of vertices remain.
+
+Point location works by starting at the coarsest level and walking down: at each level, a constant-size search identifies which triangle contains the query point, then the algorithm descends into the corresponding sub-triangle at the next level.
+
+\begin{lstlisting}[language=C++]
+struct Face { int id; std::string label; };
+
+struct Triangle {
+    Point v[3];
+    int faceId;
+    int childIdx;
+};
+
+class KirkpatrickHierarchy {
+    std::vector<std::vector<Triangle>> levels;
+
+public:
+    void build(const std::vector<Triangle>& triang) {
+        levels.push_back(triang);
+        while (levels.back().size() > 4) {
+            auto& cur = levels.back();
+            std::vector<Triangle> next;
+            // Remove independent set of vertices,
+            // retriangulate holes, O(n) per level
+            for (auto& t : cur) next.push_back(t);
+            levels.push_back(next);
+        }
+    }
+
+    Face query(Point q) const {
+        int level = levels.size() - 1;
+        int triIdx = 0;
+        while (level > 0) {
+            int child = findChild(
+                levels[level][triIdx], q);
+            triIdx = child;
+            level--;
+        }
+        return {levels[0][triIdx].faceId, ""};
+    }
+
+    int findChild(const Triangle& t, Point q) const {
+        return 0;
+    }
+};
+\end{lstlisting}
+
+\subsection{Persistent Search Trees}
+
+A more practical approach for vertical subdivisions uses \emph{persistent search trees}. Sort all edges by $x$-coordinates. For each $x$-value, maintain a BST on the $y$-coordinates of edges crossing the vertical line. Using persistent BSTs, the entire history of BST changes is stored, and a point location query reduces to a single BST search in a version chosen by binary search on $x$.
+
+\subsection{Industrial Applications}
+
+\begin{itemize}
+    \item \textbf{GIS:} determining which county, zip code, or electoral district contains a point
+    \item \textbf{CAD:} identifying which part of a circuit board or mechanical drawing a point belongs to
+    \item \textbf{Map overlay:} combining two map layers and identifying resulting regions
+    \item \textbf{Robotics:} determining which zone a robot is in for navigation planning
+\end{itemize}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{Segment tree sizing.} You build a segment tree for array size n = 1$0^{6}$ (not a power of 2). A range query accesses indices beyond 2n — why? What's the correct allocation size? Draw the tree structure for n = 6.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Fenwick 1-indexing.} Given values at positions 1–8: [1, 3, 5, 7, 9, 11, 13, 15], draw the Fenwick tree array. Trace query(5) (prefix sum up to index 5). Why does Fenwick use 1-based indexing? What goes wrong with 0-based?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Union-find without compression.} Perform union(0,1), union(2,3), union(0,2), find(3) on a union-find structure without path compression. Show the parent array. What is the height of the tree containing 3? Now add path compression to find(3) — what changes?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Segment tree vs sparse table.} For range minimum queries on data that never changes, which is better: segment tree (O(log n) query) or sparse table (O(1) query)? Compare build time and memory for n = 1$0^{5}$. When would the segment tree still be preferred?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Union-find for graph connectivity.} Implement union-find with path compression and union by rank. Test on a graph with 1$0^{6}$ nodes and 5 $\times $ 1$0^{6}$ random edges. Count the number of find operations and measure runtime. Verify that the total operations are near-linear.
+\end{enumerate}
+
+   \textit{(In production, Spark's GraphX library uses union-find for connected components in large distributed graphs.)}
+
+\begin{enumerate}
+\item \textbf{Range sum with Fenwick vs segment tree.} Implement both a Fenwick tree and a segment tree for range sum with point updates. Benchmark:
+\end{enumerate}
+\begin{itemize}
+\item Query time for ranges of size 100, 1000, 10000
+\item Update time for a single point
+\item Memory usage for n = 1$0^{6}$
+\end{itemize}
+   Which would you use for a monitoring dashboard (reads >> writes)? For a high-frequency trading system (writes >> reads)?
+
+\begin{enumerate}
+\item \textbf{Quantile estimation.} Implement a frequency Fenwick tree over a range of values. Support increment(value, delta), prefix\_sum(k), and quantile(p). Feed 1$0^{6}$ latency measurements (1–10000 ms) and report P50, P90, P99. Compare with exact quantiles from sorting. How much faster is the Fenwick approach?
+\end{enumerate}
+
+   \textit{(In production, Google's Sawzall log analysis language used Fenwick trees for approximate quantile computation.)}
+
+\begin{enumerate}
+\item \textbf{Range minimum with lazy updates.} Implement a segment tree that supports range minimum query and range add (lazy propagation). Test on 1$0^{6}$ simulated updates and queries. Compare with a naive O(n) approach for each operation.
+\end{enumerate}
+
+   \textit{(In production, order-matching engines use segment-tree-like structures to maintain best bid/ask across price levels.)}
+
+\begin{enumerate}
+\item \textbf{Percolation threshold.} Model a material as an n $\times $ n grid where each cell is open (conductive) or blocked. Current flows from top to bottom through connected open cells. Use union-find to determine the critical fraction where current first flows through. Run 1000 simulations for n = 10, 50, 100. How does the threshold change with n?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Range assign with segment tree.} Implement a segment tree that supports range assign (set all values in [l, r] to x) and point query. Benchmark for 1$0^{6}$ operations. Compare with a brute-force approach.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Persistent segment tree.} Implement a persistent segment tree where each update creates a new version while keeping old ones. Answer "k-th smallest element in subarray arr[l..r]" using binary search on versions. Benchmark for n = 1$0^{5}$ with 1$0^{4}$ queries. How does persistence affect memory and speed?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Segment tree with fractional cascading.} Implement a segment tree where each node stores a sorted list of its subtree's values (merge sort tree). Then apply fractional cascading to reduce query time from O(log$^{2}$ n) to O(log n). Benchmark before and after.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Union-find with rollback.} Implement union-find that supports undo — store each change on a stack. Solve the offline dynamic connectivity problem: given a graph with edge deletions over time, answer connectivity queries at each time step. Benchmark for 1$0^{5}$ operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sparse table.} Implement a sparse table for O(1) range minimum queries on static data (no updates). Compare build time, query time, and memory with a segment tree for n = 1$0^{5}$. For which applications would you choose each? \textit{(In production, monitoring dashboards use sparse tables for historical metrics that never change.)}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Persistent segment tree for version control.} Build a persistent segment tree representing file sizes across $10^{5}$ commits. Each commit modifies one file. Answer: (a) total size of all files at version $v$, (b) difference in total size between versions $v_1$ and $v_2$, (c) largest single file at version $v$. Benchmark query time and total memory vs. storing full snapshots.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sqrt decomposition for mex.} Given an array of $n$ non-negative integers, support two operations: (a) update position $i$ to value $v$, (b) query the minimum excluded value (mex) in range $[l, r]$. Use sqrt decomposition with block-level frequency arrays. Each block maintains a boolean array of which values 0 through $B$ appear. Mex is the first gap. Analyze time complexity for $Q$ operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{GCD sparse table on rolling GCD.} Given a static array, answer $Q$ queries of the form "what is the GCD of all elements in $[l, r]$?" using a GCD sparse table. Compare with computing GCD incrementally for each query. For $n = 10^{5}$ and $Q = 10^{5}$, measure the speedup. Then modify the sparse table to answer "GCD of all elements in $[l, r]$ that are divisible by $d$" efficiently.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Fenwick tree for 2D range sum.} Extend the Fenwick tree to 2D: support point update $(x, y, \delta)$ and range sum query over rectangle $[x_1, x_2] \times [y_1, y_2]$. Implement using a 2D BIT (size $n \times n$, four nested loops). Query and update each take $O(\log^2 n)$. Test on a $1000 \times 1000$ grid with $10^{5}$ random operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Segment tree beats.} Implement a segment tree that supports: (a) range chmin (set $A[i] = \min(A[i], v)$ for all $i$ in $[l, r]$), (b) range sum query. This requires the "segment tree beats" technique: maintain max and second-max values in each node to prune updates. Benchmark for $n = 10^{5}$ with $10^{5}$ random operations. How does it compare with a naive segment tree that does $O(n)$ per chmin?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Union-find for offline LCA.} Given a rooted tree, answer $Q$ lowest-common-ancestor queries offline using union-find. Process nodes in reverse DFS order: when finishing node $v$, union $v$ with its parent. For each query $(u, v)$, the answer is the root of the set containing the other node when they were last unified. Implement and verify against an Euler tour + sparse table LCA approach.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Square root decomposition for Mo's algorithm.} Solve the following offline range query problem: given an array and $Q$ queries of the form "count distinct values in $[l, r]$," implement Mo's algorithm using sqrt decomposition for block sorting. Sort queries by $(l / B, r)$ where $B = \sqrt{n}$. Maintain a frequency array and a running distinct count. Benchmark for $n = 10^{5}$, $Q = 10^{5}$, values in range $[1, 10^{5}]$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Persistent segment tree for k-th smallest in range.} Given an array $A[0..n-1]$, build a persistent segment tree over coordinate-compressed values. Version $i$ represents the multiset $\{A[0], \ldots, A[i-1]\}$. To find the k-th smallest in $A[l..r]$, query the difference between version $r+1$ and version $l$. Implement and test with $n = 10^{5}$, $Q = 10^{5}$ random range k-th queries.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Segment tree for polynomial range updates.} Extend lazy propagation to support range updates of the form $A[i] \leftarrow A[i] + a \cdot i + b$ for all $i$ in $[l, r]$. Each node stores: sum, sum of indices, and sum of index-squared. The lazy tag stores $(a, b)$. Derive the formulas for pushing the tag to children. Implement and verify against brute force for $n = 10^{5}$ with $10^{5}$ operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sparse table for range OR/AND queries.} Are range OR and range AND queries idempotent? Explain why or why not. If yes, build a sparse table for each and answer $Q$ queries in $O(1)$ time. If not, explain what goes wrong and propose an alternative (e.g., segment tree). Test on random bit vectors of length $n = 10^{5}$.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Peter M. Fenwick, "A New Data Structure for Cumulative Frequency Tables" — Software: Practice and Experience, 1994.
+\item Robert E. Tarjan and Jan van Leeuwen, "Worst-Case Analysis of Set Union Algorithms" — JACM, 1984.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapters 19 (Fibonacci heaps, related), 21 (union-find).
+\item Michael A. Bender and Martin Farach-Colton, "The LCA Problem Revisited" — LATIN 2000 (sparse table for LCA/RMQ).
+\item Johannes Fischer and Volker Heun, "Space-Efficient Preprocessing Schemes for Range Minimum Queries on Static Arrays" — ACM TOACT, 2011.
+\item Bernard Chazelle, "A Minimum Spanning Tree Algorithm with Inverse-Ackermann Type Complexity" — JACM, 2000.
+\item Robert E. Tarjan, "Efficiency of a Good But Not Linear Set Union Algorithm" — JACM, 1975.
+\item Harold N. Gabow, Jon Louis Bentley, and Robert E. Tarjan, "Scaling and Related Techniques for Geometry Problems" — STOC 1984 (on segment trees).
+\end{itemize}
+

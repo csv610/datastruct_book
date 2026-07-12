@@ -1,0 +1,476 @@
+\chapter{C++ STL Quick Reference}\label{appendices:c-stl-quick-reference}
+
+\section{A.1 Containers}
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Container & Header & Description & Iterator Category \\
+\texttt{std::vector<T>} & \texttt{<vector>} & Dynamic array & Random access \\
+\texttt{std::deque<T>} & \texttt{<deque>} & Double-ended queue & Random access \\
+\texttt{std::list<T>} & \texttt{<list>} & Doubly linked list & Bidirectional \\
+\texttt{std::forward\_list<T>} & \texttt{<forward\_list>} & Singly linked list & Forward \\
+\texttt{std::array<T, N>} & \texttt{<array>} & Fixed-size array & Random access \\
+\texttt{std::string} & \texttt{<string>} & Dynamic character array & Random access \\
+\texttt{std::set<T>} & \texttt{<set>} & Ordered set (red-black tree) & Bidirectional \\
+\texttt{std::multiset<T>} & \texttt{<set>} & Ordered set with duplicates & Bidirectional \\
+\texttt{std::unordered\_set<T>} & \texttt{<unordered\_set>} & Hash set & Forward \\
+\texttt{std::map<K, V>} & \texttt{<map>} & Ordered map & Bidirectional \\
+\texttt{std::multimap<K, V>} & \texttt{<map>} & Ordered map with duplicates & Bidirectional \\
+\texttt{std::unordered\_map<K, V>} & \texttt{<unordered\_map>} & Hash map & Forward \\
+\texttt{std::stack<T>} & \texttt{<stack>} & LIFO adapter & --- \\
+\texttt{std::queue<T>} & \texttt{<queue>} & FIFO adapter & --- \\
+\texttt{std::priority\_queue<T>} & \texttt{<queue>} & Max-heap adapter & --- \\
+\bottomrule
+\end{tabular}}
+\end{center}
+\section{A.2 Algorithms (in \texttt{<algorithm>})}
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llc}
+\toprule
+Algorithm & Description & Complexity \\
+\texttt{sort(first, last)} & Introsort & O(n log n) \\
+\texttt{stable\_sort(first, last)} & Merge sort (stable) & O(n log n) \\
+\texttt{partial\_sort(first, mid, last)} & Heap selection & O(n log k) \\
+\texttt{nth\_element(first, nth, last)} & Quickselect & O(n) avg \\
+\texttt{lower\_bound(first, last, val)} & First $\ge $ val & O(log n) \\
+\texttt{upper\_bound(first, last, val)} & First > val & O(log n) \\
+\texttt{binary\_search(first, last, val)} & Existence test & O(log n) \\
+\texttt{merge(first1, last1, first2, last2, out)} & Merge sorted ranges & O(n + m) \\
+\texttt{inplace\_merge(first, mid, last)} & Merge in-place & O(n log n) \\
+\texttt{remove(first, last, val)} & Remove elements & O(n) \\
+\texttt{unique(first, last)} & Remove consecutive duplicates & O(n) \\
+\texttt{reverse(first, last)} & Reverse range & O(n) \\
+\texttt{rotate(first, mid, last)} & Rotate range & O(n) \\
+\texttt{next\_permutation(first, last)} & Next lexicographic perm & O(n) \\
+\texttt{accumulate(first, last, init)} & Sum (in \texttt{<numeric>}) & O(n) \\
+\texttt{partial\_sum(first, last, out)} & Prefix sums & O(n) \\
+\texttt{adjacent\_difference(first, last, out)} & Differences & O(n) \\
+\bottomrule
+\end{tabular}}
+\end{center}
+\section{A.3 Chrono (\texttt{<chrono>})}
+
+\begin{lstlisting}[language=C++]
+using clock = std::chrono::steady_clock;
+auto start = clock::now();
+// ... work ...
+auto end = clock::now();
+auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+\end{lstlisting}
+
+\section{A.4 Smart Pointers (\texttt{<memory>})}
+
+\begin{lstlisting}[language=C++]
+auto p = std::make_unique<int>(42);
+auto s = std::make_shared<int>(42);
+auto w = std::weak_ptr<int>(s);
+\end{lstlisting}
+
+\section{A.5 Random (\texttt{<random>})}
+
+\begin{lstlisting}[language=C++]
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> dis(1, 6);
+int roll = dis(gen);
+\end{lstlisting}
+
+\section{A.6 Utilities}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Utility & Header & Description \\
+\texttt{std::pair<T1, T2>} & \texttt{<utility>} & Two values \\
+\texttt{std::tuple<Ts...>} & \texttt{<tuple>} & Multiple values \\
+\texttt{std::optional<T>} & \texttt{<optional>} & Value or empty \\
+\texttt{std::variant<Ts...>} & \texttt{<variant>} & Type-safe union \\
+\texttt{std::any} & \texttt{<any>} & Type-erased value \\
+\texttt{std::span<T>} & \texttt{<span>} & Non-owning view (C++20) \\
+\texttt{std::string\_view} & \texttt{<string\_view>} & String view (C++17) \\
+\texttt{std::function<R(Args...)>} & \texttt{<functional>} & Type-erased callable \\
+\bottomrule
+\end{tabular}
+\end{center}
+\bigskip
+
+\chapter{Complexity Classes}\label{appendices:complexity-classes}
+
+\section{B.1 Common Time Complexities}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Complexity & Name & Example \\
+O(1) & Constant & Array access, hash lookup \\
+O(log n) & Logarithmic & Binary search, balanced tree ops \\
+O($\sqrt {n}$) & Square root & Integer factorization (naive) \\
+O(n) & Linear & Linear search, array sum \\
+O(n log n) & Linearithmic & Merge sort, heap ops \\
+O(n$^{2}$) & Quadratic & Bubble sort, naive matrix multiply \\
+O(n$^{3}$) & Cubic & Floyd-Warshall, naive matrix multiply \\
+O(2$^{n}$) & Exponential & Subset generation, TSP \\
+O(n!) & Factorial & Permutation generation \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{B.2 NP-Completeness}
+
+\begin{itemize}
+\item \textbf{P:} problems solvable in polynomial time
+\item \textbf{NP:} problems verifiable in polynomial time
+\item \textbf{NP-complete:} hardest problems in NP (if any one is solvable in P, all are)
+\item \textbf{NP-hard:} at least as hard as any NP problem
+\end{itemize}
+
+\textbf{Canonical NP-complete problems:}
+\begin{itemize}
+\item Boolean satisfiability (SAT)
+\item Traveling salesman (decision version)
+\item Vertex cover
+\item Clique
+\item Graph coloring
+\item Subset sum
+\item Knapsack (decision version)
+\item Hamiltonian cycle
+\end{itemize}
+
+\section{B.3 Master Theorem (Refresher)}
+
+T(n) = a$\cdot $T(n/b) + f(n), a $\ge $ 1, b > 1:
+
+\begin{enumerate}
+\item If f(n) = O(n\textasciicircum{}(log\_b a - $\varepsilon $)) $\to $ T(n) = $\Theta $(n\textasciicircum{}(log\_b a))
+\item If f(n) = $\Theta $(n\textasciicircum{}(log\_b a) $\cdot $ lo$g^{k}$ n) $\to $ T(n) = $\Theta $(n\textasciicircum{}(log\_b a) $\cdot $ log\textasciicircum{}(k+1) n)
+\item If f(n) = $\Omega $(n\textasciicircum{}(log\_b a + $\varepsilon $)) and a$\cdot $f(n/b) $\le $ c$\cdot $f(n) for c < 1 $\to $ T(n) = $\Theta $(f(n))
+\end{enumerate}
+
+\bigskip
+
+\chapter{Mathematical Review}\label{appendices:mathematical-review}
+
+\section{C.1 Summations}
+
+\begin{itemize}
+\item Arithmetic: 1 + 2 + ... + n = n(n+1)/2
+\item Squares: 1$^{2}$ + 2$^{2}$ + ... + n$^{2}$ = n(n+1)(2n+1)/6
+\item Geometric: 1 + r + r$^{2}$ + ... + r$^{n}$ = (r\textasciicircum{}(n+1) - 1)/(r - 1), r $\ne $ 1
+\item Harmonic: H\_n = 1 + 1/2 + ... + 1/n $\approx $ ln n + $\gamma $ ($\gamma $ $\approx $ 0.57721)
+\end{itemize}
+
+\section{C.2 Logarithms}
+
+\begin{itemize}
+\item log\_b (xy) = log\_b x + log\_b y
+\item log\_b (x/y) = log\_b x - log\_b y
+\item log\_b ($x^{k}$) = k log\_b x
+\item log\_a x = log\_b x / log\_b a
+\item log n! = $\Theta $(n log n)
+\end{itemize}
+
+\section{C.3 Combinatorics}
+
+\begin{itemize}
+\item n choose k: C(n, k) = n! / (k! (n-k)!)
+\item Binomial: (x + y)$^{n}$ = $\Sigma $ C(n, k) $x^{k}$ y\textasciicircum{}(n-k)
+\item Number of subsets of an n-element set: 2$^{n}$
+\item Number of permutations: n!
+\item Expected value: E[X] = $\Sigma $ x$\cdot $P(X = x)
+\end{itemize}
+
+\section{C.4 Important Inequalities}
+
+\begin{itemize}
+\item Jensen: f(E[X]) $\le $ E[f(X)] for convex f
+\item Markov: P(X $\ge $ a) $\le $ E[X] / a
+\item Chebyshev: P(|X - $\mu $| $\ge $ k$\sigma $) $\le $ 1/k$^{2}$
+\item Chernoff: P(X $\ge $ (1+$\delta $)$\mu $) $\le $ exp(-$\mu $$\cdot $$\delta $$^{2}$/3) for independent Poisson trials
+\item Union bound: P($\cup $ A\_i) $\le $ $\Sigma $ P(A\_i)
+\end{itemize}
+
+\section{C.5 Useful Constants}
+
+\begin{itemize}
+\item e $\approx $ 2.71828
+\item $\pi $ $\approx $ 3.14159
+\item ln 2 $\approx $ 0.69315
+\item $\gamma $ (Euler-Mascheroni) $\approx $ 0.57722
+\item $\phi $ (golden ratio) $\approx $ 1.61803
+\end{itemize}
+
+%% ============================================================
+%% ADDITIONAL APPENDIX TOPICS (Brass coverage)
+%% ============================================================
+
+\section{D.1 External Memory Model}
+\label{sec:external-memory}
+
+The \textbf{external memory model} (also called the I/O model or disk model) accounts for the cost of moving data between fast internal memory (RAM) and slow external storage (disk, SSD). In this model, computation is free; only data transfers between memory and disk are counted.
+
+\subsection{Model Parameters}
+
+\begin{itemize}
+    \item $n$: number of data elements
+    \item $B$: size of a disk block (transfer unit)
+    \item $M$: size of internal memory (RAM)
+    \item Number of I/Os: $\text{I/O}(n)$ = number of block transfers
+\end{itemize}
+
+\subsection{Sorting in External Memory}
+
+The \textbf{$k$-way merge sort} is optimal for external sorting:
+\begin{enumerate}
+    \item Sort $M/B$ runs of size $M$ each in internal memory: $O(n/B)$ I/Os
+    \item Merge $k = M/B$ runs at a time: $O((n/B) \log_{M/B} (n/M))$ I/Os
+\end{enumerate}
+
+This matches the lower bound $\Omega((n/B) \log_{M/B} (n/B))$ for comparison-based external sorting.
+
+\subsection{B-Trees as External Memory Structures}
+
+B-trees (Section~\ref{sec:ab-trees}) are the standard external memory search structure. A B-tree of order $m$ (branching factor $m$) has:
+\begin{itemize}
+    \item Height: $O(\log_m n)$
+    \item Search: $O(\log_m n)$ I/Os
+    \item Insert/delete: $O(\log_m n)$ I/Os
+\end{itemize}
+
+With $m = B$ (matching the disk block size), each node fits in one block, and each I/O fetches an entire node. This is why B-trees dominate database indexing.
+
+\subsection{Buffer Trees}
+
+A \textbf{buffer tree} is a B-tree variant that buffers $O(B)$ updates per node. When a node's buffer is full, it flushes to its children. This batch approach reduces random I/Os:
+\begin{itemize}
+    \item Insert $k$ elements: $O((k/B) \log_{m/B} (n/B))$ I/Os amortized
+    \item Range query: $O((k/B) + \log_{m/B} (n/B))$ I/Os
+\end{itemize}
+
+\section{D.2 Cache-Oblivious Algorithms}
+\label{sec:cache-oblivious}
+
+A \textbf{cache-oblivious} algorithm is designed to perform well on \emph{any} cache hierarchy, without knowing the cache parameters ($B$ and $M$). The key insight is that algorithms with good \emph{tall cache complexity} automatically adapt to any level of the memory hierarchy.
+
+\subsection{The Cache Model}
+
+The \textbf{cache-oblivious model} has:
+\begin{itemize}
+    \item Two-level memory: cache of size $M$, blocks of size $B$
+    \item Optimal replacement policy (future oracle, for analysis)
+    \item Cost: number of cache misses (block transfers)
+\end{itemize}
+
+An algorithm is cache-oblivious if its performance bound does not depend on $B$ or $M$.
+
+\subsection{Cache-Oblivious B-Tree}
+
+The van Emde Boas (vEB) layout of a complete binary tree places nodes in memory so that small subtrees fit in cache lines. This gives $O(\log_B n)$ cache misses per search, matching B-trees without knowing $B$.
+
+\subsection{Cache-Oblivious Priority Queue}
+
+A cache-oblivious priority queue is structured as a B-tree of B-trees. The amortized cost per operation is:
+\[
+  O\!\left(\frac{1}{B} \log_{M/B} \frac{N}{B}\right) \text{ I/Os}
+\]
+This matches the optimal bound for comparison-based priority queues. Tokutek's TokuDB storage engine uses fractal trees---a variant of cache-oblivious B-trees---to achieve high write throughput in MySQL and MongoDB.
+
+\subsection{Cache-Oblivious Matrix Multiplication}
+
+Recursive structure divides the $n \times n$ matrix into four $\frac{n}{2} \times \frac{n}{2}$ submatrices, performing $O(n^3 / B\sqrt{M})$ cache misses---within a constant factor of optimal.
+
+\subsection{Why Cache-Oblivious Works}
+
+The vEB layout ensures small subtrees (up to height $\lg B$) are stored contiguously. A fetched cache line brings in an entire subtree of $B$ nodes, maximizing useful data per miss.
+
+\section{D.25 Lazy Funnelsort and Distribution Sweeping}
+\label{sec:funnelsort}
+
+\subsection{Lazy Funnelsort}
+
+Lazy funnelsort (Frigo, Leiserson, Prokop, Ramachandran) is the optimal cache-oblivious sorting algorithm. A funnel of order $k$ merges $k$ sorted sequences of total size $N$ using:
+\[
+  O\!\left(\frac{N}{B} \log_{N/M} \frac{N}{B}\right) \text{ I/Os}
+\]
+
+\begin{lstlisting}[language=C++]
+void funnelsort(std::vector<int>& arr, int lo, int hi,
+                 int order) {
+    int n = hi - lo;
+    if (n <= 1) return;
+    if (order == 1) {
+        std::sort(arr.begin() + lo, arr.begin() + hi);
+        return;
+    }
+    int k = 1;
+    while (k * k < order) k++;
+    int chunk = (n + k - 1) / k;
+    for (int i = 0; i < k; i++) {
+        int s = lo + i * chunk;
+        int e = std::min(lo + (i + 1) * chunk, hi);
+        funnelsort(arr, s, e, order / k);
+    }
+    // k-way merge
+}
+\end{lstlisting}
+
+\subsection{Distribution Sweeping}
+
+Distribution sweeping applies the cache-oblivious merge technology to the sweep-line paradigm. For batched 2D orthogonal range counting, it achieves the sorting bound:
+\[
+  O\!\left(\frac{n}{B} \log_{n/M} \frac{n}{B}\right) \text{ I/Os}
+\]
+This is optimal under the comparison-based I/O model.
+
+\subsection{Online Cache-Oblivious 2D Range Searching}
+
+The cache-oblivious range tree, laid out in vEB order, supports 2D orthogonal range counting in $O\bigl(\frac{\lg^2 n}{B} + \lg_B n\bigr)$ I/Os per query with $O(n/B)$ space.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Problem & I/O Complexity & Algorithm \\
+\midrule
+Sorting & $O(\frac{N}{B} \log_{M/B} \frac{N}{B})$ & Funnelsort \\
+Batched 2D range counting & $O(\frac{n}{B} \log_{n/M} \frac{n}{B})$ & Distribution sweeping \\
+2D range counting (online) & $O(\frac{\lg^2 n}{B} + \lg_B n)$ & Cache-oblivious range tree \\
+$K$-way merge & $O(\frac{N}{B} \log_{K} \frac{N}{B})$ & Funnel \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{D.3 Ordered File Maintenance}
+\label{sec:ordered-file}
+
+The \emph{ordered file maintenance} problem asks: maintain a sorted sequence of $n$ elements in an array with small gaps, supporting insert and delete while minimizing element moves. This is the fundamental black box behind cache-oblivious B-trees.
+
+\subsection{The Problem}
+
+A sorted array requires $O(n)$ shifts per insertion. By leaving small \emph{gaps} between elements, we can insert without shifting everything. The challenge is to use gaps strategically so no region becomes too dense.
+
+\subsection{The Algorithm}
+
+The array is partitioned into blocks of size $B$. Each block holds $\Theta(B)$ elements. When a block overflows, it is split; when it underflows, it is merged with a neighbor. Elements are assigned rational labels (fractions with denominator $2^k$). When inserting between labels $a$ and $b$, we choose the midpoint $(a+b)/2$. If the denominator exceeds a threshold, the block is rebuilt, redistributing all labels. The amortized cost is $O(\lg^2 n)$ moves per operation.
+
+\subsection{Connection to Cache-Oblivious B-Trees}
+
+Ordered file maintenance is the black box that makes cache-oblivious B-trees work. The leaves of a cache-oblivious B-tree are maintained using ordered file maintenance: elements within a leaf block are stored in sorted order, and when a leaf overflows, it is split. The van Emde Boas layout ensures any root-to-leaf path touches $O(\lg_B n)$ cache lines.
+
+\subsection{Connection to List Labeling}
+
+The \emph{list labeling} problem is closely related: maintain $n$ items in sorted order, assigning each item an integer label from $\{1, \ldots, N\}$ so that lexicographic order matches sorted order. The best scheme achieves $O(1)$ amortized label changes per operation using $O(\lg n)$ bits per label. Ordered file maintenance generalizes list labeling by also requiring physical adjacency in the array.
+
+\subsection{C++ Implementation Sketch}
+
+\begin{lstlisting}[language=C++]
+class OrderedFile {
+    struct Block {
+        std::vector<int> elements;
+    };
+    std::vector<Block> blocks;
+    int blockSize;
+
+    void split(int idx) {
+        Block& b = blocks[idx];
+        int mid = b.elements.size() / 2;
+        Block nb;
+        nb.elements.assign(b.elements.begin() + mid,
+                           b.elements.end());
+        b.elements.resize(mid);
+        blocks.insert(blocks.begin() + idx + 1, nb);
+    }
+
+    void merge(int idx) {
+        auto& cur = blocks[idx].elements;
+        auto& nxt = blocks[idx + 1].elements;
+        cur.insert(cur.end(), nxt.begin(), nxt.end());
+        blocks.erase(blocks.begin() + idx + 1);
+    }
+
+public:
+    OrderedFile(int B = 64) : blockSize(B) {}
+
+    void insert(int val) {
+        int idx = 0;
+        for (int i = 0; i < (int)blocks.size(); i++) {
+            if (!blocks[i].elements.empty() &&
+                val > blocks[i].elements.back())
+                { idx = i + 1; continue; }
+            idx = i; break;
+        }
+        if (idx == (int)blocks.size())
+            blocks.push_back({{}});
+        auto& e = blocks[idx].elements;
+        auto pos = std::lower_bound(e.begin(),
+                                    e.end(), val);
+        e.insert(pos, val);
+        if ((int)e.size() > 2 * blockSize) split(idx);
+    }
+
+    bool search(int val) const {
+        for (auto& b : blocks) {
+            auto it = std::lower_bound(b.elements.begin(),
+                b.elements.end(), val);
+            if (it != b.elements.end() && *it == val)
+                return true;
+        }
+        return false;
+    }
+};
+\end{lstlisting}
+
+\subsection{Industrial Impact}
+
+The most prominent application is through fractal tree indexing. Tokutek's TokuDB achieved 10--100$\times$ write speedup over InnoDB for write-heavy workloads. TokuDB was adopted by Percona, MariaDB, and MongoDB. The key advantage: fractal trees perform $O(\lg_B n)$ I/Os per insert, matching B-tree performance with better worst-case guarantees through buffering. Ordered file maintenance also appears in database systems maintaining sorted indices on flash storage, where write amplification must be minimized.
+
+\section{D.3 Pointer Machine Complexity}
+\label{sec:pointer-machine}
+
+The \textbf{pointer machine} is a computational model where:
+\begin{itemize}
+    \item Data is stored in nodes connected by pointers
+    \item Each node has a fixed number of pointer fields and data fields
+    \item Operations are: follow a pointer, compare data, allocate a node
+    \item No arithmetic on addresses is allowed (unlike RAM model)
+\end{itemize}
+
+\subsection{Separation from RAM}
+
+Many data structures that are $O(1)$ on a RAM model require $\Omega(\log n)$ on a pointer machine. For example, an array with direct indexing is $O(1)$ on RAM but requires a balanced BST (giving $O(\log n)$) on a pointer machine.
+
+\subsection{Optimal Pointer-Machine Structures}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & RAM & Pointer Machine \\
+\midrule
+Predecessor/successor & $O(1)$ with hash & $O(\log n)$ with BST \\
+Union-find & $O(\alpha(n))$ & $O(\alpha(n))$ \\
+Priority queue (decrease-key) & $O(1)$ amortised (Fibonacci) & $O(1)$ amortised \\
+Persistent BST & $O(\log n)$ & $O(\log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The pointer machine model is relevant for:
+\begin{itemize}
+    \item \textbf{Persistent data structures:} all persistent structures operate on pointer machines (path copying creates new nodes via pointer assignment)
+    \item \textbf{Functional programming:} purely functional structures are pointer machines (immutable nodes linked by pointers)
+    \item \textbf{Garbage-collected languages:} Java, C\#, Python all use pointer machines under the hood
+\end{itemize}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Appendices A–C.
+\item Donald E. Knuth, \textit{The Art of Computer Programming}, Volume 1: Fundamental Algorithms. Section 1.2 (mathematical preliminaries).
+\item Michael Sipser, \textit{Introduction to the Theory of Computation}, 3rd Edition. Cengage, 2012.
+\item Oded Goldreich, \textit{Computational Complexity: A Conceptual Perspective}. Cambridge University Press, 2008.
+\item Michael R. Garey and David S. Johnson, \textit{Computers and Intractability: A Guide to the Theory of NP-Completeness}. W. H. Freeman, 1979.
+\item cppreference.com — Online C++ standard library reference.
+\end{itemize}
+

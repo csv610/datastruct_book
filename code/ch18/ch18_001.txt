@@ -1,0 +1,8 @@
+procedure backtrack(x):
+    if x is a solution:
+        record x
+        return
+    for each choice c in valid_choices(x):
+        make_choice(x, c)
+        backtrack(x)
+        unmake_choice(x, c)  // backtrack step

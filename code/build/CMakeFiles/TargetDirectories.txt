@@ -1,0 +1,4 @@
+/Users/csv610/Projects/Courses/SahniBook/new-edition/code/build/CMakeFiles/all_tests.dir
+/Users/csv610/Projects/Courses/SahniBook/new-edition/code/build/CMakeFiles/test.dir
+/Users/csv610/Projects/Courses/SahniBook/new-edition/code/build/CMakeFiles/edit_cache.dir
+/Users/csv610/Projects/Courses/SahniBook/new-edition/code/build/CMakeFiles/rebuild_cache.dir

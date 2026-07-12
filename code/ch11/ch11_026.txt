@@ -1,0 +1,12 @@
+Memory                           Disk
+  +-------------------+    Level 0: [SST] [SST] [SST]
+  |  Memtable (sorted)|              |       |       |
+  |  (in-memory BST)  |              v       v       v
+  |                   |    Level 1: [======SST======]
+  |  key1 -> val1     |              (merged, larger)
+  |  key2 -> val2     |
+  |  key3 -> val3     |    Level 2: [========SST========]
+  +-------------------+              (largest, fewest files)
+
+  Write path:  Memtable  (fast, sequential after flush)
+  Read path:   Memtable -> L0 -> L1 -> ... -> Ln

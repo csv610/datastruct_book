@@ -1,0 +1,10 @@
+Start at (i=7, j=5):
+  X[6]='B' == Y[4]='B' -> match! Record 'B', go to (6,4)
+  X[5]='A' == Y[3]='A' -> match! Record 'A', go to (5,3)
+  X[4]='D' != Y[2]='C'. dp[3][3]=2 >= dp[4][2]=2? Yes -> go up to (3,3)
+  X[2]='C' == Y[2]='C' -> match! Record 'C', go to (2,2)
+  X[1]='B' != Y[1]='D'. dp[1][2]=1 >= dp[2][1]=1? Yes -> go up to (1,2)
+  X[0]='A' != Y[1]='D'. dp[0][2]=0 < dp[1][1]=0? No -> go up to (0,2)
+  i=0, stop.
+
+Result (reversed): B, A, C, B -> "BCAB"  (length 4)

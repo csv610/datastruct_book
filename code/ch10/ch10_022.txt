@@ -1,0 +1,16 @@
+Weak heap (right-child tree with reverse bits):
+
+         [2]-----r=0
+                  |
+         [5]-----r=0
+                  |
+         [3]-----r=1  (left subtree reversed)
+                /
+         [7]   [4]
+
+Right-child chain: 2 -> 5 -> 3
+Left children hang off nodes where r=1
+
+Weak heap property:
+  For every node n:  n->data <= n->right->data
+  The reverse bit determines the structure of left subtrees.

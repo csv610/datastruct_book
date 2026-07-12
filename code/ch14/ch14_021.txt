@@ -1,0 +1,4 @@
+// After building persistent seg tree over prefix sums of
+// frequency arrays (one version per prefix):
+// Query: count of elements <= x in A[l..r]
+//   = query(version r+1, 0, x) - query(version l, 0, x)

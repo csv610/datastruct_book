@@ -1,0 +1,24 @@
+Hypergraph with 4 vertices, 3 hyperedges:
+
+    e1 = {A, B, C}
+    e2 = {B, C, D}
+    e3 = {A, D}
+
+        A-------B
+        |\  e1 /|
+        | \   / |
+        |  \ /  |
+        |   X   |       e1 connects A, B, C
+        |  / \  |       e2 connects B, C, D
+        | /   \ |       e3 connects A, D (standard edge)
+        |/  e2 \|
+        D-------C
+
+    Incidence matrix:
+         e1  e2  e3
+    A [  1   0   1 ]
+    B [  1   1   0 ]
+    C [  1   1   0 ]
+    D [  0   1   1 ]
+
+    M[v][e] = 1 iff vertex v belongs to hyperedge e

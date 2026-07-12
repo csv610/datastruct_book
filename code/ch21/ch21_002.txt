@@ -1,0 +1,19 @@
+Original tree (version 0):
+          10
+         /  \
+        5    15
+       / \
+      3   7
+
+After updating 3 -> 33 (version 1):
+              10           <-- NEW root for version 1
+             /  \
+           [5]   15       <-- 5 is a NEW node (copied)
+           / \
+         [33]  7          <-- 33 is NEW; 7 is SHARED with version 0
+          |         |
+     version 0:  10 -> 5 -> 3  (old, unchanged)
+                 5 -> 7 (shared)
+                 10 -> 15 (shared)
+
+The old version is still reachable via the version 0 root.

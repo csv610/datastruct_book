@@ -1,0 +1,13 @@
+Universe [0, U) split into sqrt(U) clusters:
+
+  summary:  [0] [1] [2] [3] ... [sqrt(U)-1]
+              |   |   |   |          |
+  clusters: [C0][C1][C2][C3]...[C_{sqrt(U)-1}]
+            each cluster has sqrt(U) bits
+
+  To find successor(x):
+    1. Find which cluster x belongs to (high bits)
+    2. Find successor within that cluster (low bits)
+    3. If no successor in that cluster, find next
+       non-empty cluster via summary, then find
+       minimum in that cluster.

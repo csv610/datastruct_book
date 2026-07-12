@@ -1,0 +1,4 @@
+int sum_list(Node* head) {
+    if (!head) return 0;
+    return head->data + sum_list(head->next);
+}

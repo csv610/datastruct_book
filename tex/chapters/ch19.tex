@@ -1,0 +1,1635 @@
+\chapter{Probabilistic Data Structures}\label{ch19:probabilistic-data-structures}
+
+\section{Introduction}
+
+Not all problems require exact answers. When processing massive data streams, probabilistic data structures\index{probabilistic data structure} provide memory-efficient approximate answers with bounded error.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Bloom Filters}
+
+A \textbf{Bloom filter}\index{Bloom filter} tests set membership with no false negatives and a controllable false positive rate. It uses k hash functions and a bit array of size m.
+
+\subsection{Operations}
+
+\begin{lstlisting}[language=C++]
+class bloom_filter {
+public:
+    bloom_filter(size_t expected_elements, double false_positive_rate = 0.01) {
+        // Optimal size and hash count
+        m_ = -expected_elements * std::log(false_positive_rate) 
+             / (std::log(2) * std::log(2));
+        k_ = std::max(1, static_cast<int>(std::round(
+             (m_ / expected_elements) * std::log(2))));
+        bits_.resize(m_, false);
+    }
+
+    void insert(std::string_view key) {
+        auto [h1, h2] = hash(key);
+        for (int i = 0; i < k_; ++i) {
+            size_t pos = (h1 + i * h2) % m_;
+            bits_[pos] = true;
+        }
+    }
+
+    bool contains(std::string_view key) const {
+        auto [h1, h2] = hash(key);
+        for (int i = 0; i < k_; ++i) {
+            size_t pos = (h1 + i * h2) % m_;
+            if (!bits_[pos]) return false;  // definitely not present
+        }
+        return true;  // probably present
+    }
+
+private:
+    // Double hashing
+    std::pair<size_t, size_t> hash(std::string_view key) const {
+        std::hash<std::string_view> h;
+        size_t hval = h(key);
+        return {hval, hval >> 16 | (hval << 16)};
+    }
+
+    size_t m_;  // bits in filter
+    int k_;     // number of hash functions
+    std::vector<bool> bits_;
+};
+\end{lstlisting}
+
+\textbf{Properties:}
+\begin{itemize}
+\item \textbf{No false negatives:} if contains() returns false, the key was definitely not inserted
+\item \textbf{False positives:} contains() may return true for a key that was not inserted
+\item \textbf{Cannot delete} (without extensions like counting Bloom filters\index{counting Bloom filter})
+\end{itemize}
+
+\textbf{Optimal parameters:} m = -n ln P / (ln 2)$^{2}$, k = (m/n) ln 2, where n = expected elements, P = target false positive rate.
+
+\textbf{Application:} Cache filtering, spell checkers, database join optimization, cryptocurrency SPV nodes.
+
+\section{Cuckoo Filters}
+
+A \textbf{cuckoo filter}\index{cuckoo filter} (Fan et al., 2014) is a Bloom filter alternative that supports \textbf{deletion} with better space efficiency for low false positive rates. The name comes from ``cuckoo hashing'' — items that collide are displaced to alternate locations, like a cuckoo bird evicting eggs.
+
+\subsection{Core Idea}
+
+Like a Bloom filter, a cuckoo filter stores fingerprints (short hash values) in a fixed-size array. Each element maps to \textbf{two candidate buckets} (not $k$ buckets like a Bloom filter). When inserting:
+
+\begin{enumerate}
+\item Compute the fingerprint $f$ of the key and the two candidate bucket indices $i_1, i_2$
+\item If either bucket has an empty slot, place $f$ there
+\item If both buckets are full, \textbf{evict} an existing fingerprint to its alternate bucket (the other candidate for that fingerprint)
+\item After at most a constant number of evictions (typically 500), declare the filter full and trigger a rebuild
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+  Bucket 7:  [f1] [f2] [  ] [  ]       Bucket 12: [f3] [f4] [f5] [f6]
+              |                              |
+           i1 = 7                         i2 = 12
+
+  Insert f7 (maps to buckets 7 and 12):
+    Both full  ->  evict f3 from bucket 12 to its alternate (bucket 7 or another)
+
+\end{lstlisting}
+
+\subsection{Cuckoo Filter Implementation}
+
+\begin{lstlisting}[language=C++]
+class cuckoo_filter {
+public:
+    cuckoo_filter(size_t capacity, double target_fpr = 0.01)
+        : buckets_(capacity) {
+        // fingerprint size in bits: ceil(log2(1/fpr)) + 3 for amortized analysis
+        fp_bits_ = static_cast<int>(std::ceil(std::log2(1.0 / target_fpr))) + 3;
+        fp_mask_ = (1ULL << fp_bits_) - 1;
+    }
+
+    void insert(std::string_view key) {
+        auto f = fingerprint(key);
+        auto [i1, i2] = bucket_indices(key, f);
+
+        // Try to insert into either bucket
+        if (try_insert(i1, f)) return;
+        if (try_insert(i2, f)) return;
+
+        // Both full -- evict from the first bucket
+        for (int n = 0; n < max_kicks; ++n) {
+            size_t victim_idx = (n % 2 == 0) ? i1 : i2;
+            auto evicted = kickout(victim_idx, f);
+            f = evicted;
+            // Compute alternate bucket for the evicted fingerprint
+            victim_idx = alt_index(victim_idx, evicted);
+            if (try_insert(victim_idx, f)) return;
+        }
+        // If we get here, filter is too full -- rebuild with larger array
+    }
+
+    bool contains(std::string_view key) const {
+        auto f = fingerprint(key);
+        auto [i1, i2] = bucket_indices(key, f);
+        return bucket_contains(i1, f) || bucket_contains(i2, f);
+    }
+
+    void erase(std::string_view key) {
+        auto f = fingerprint(key);
+        auto [i1, i2] = bucket_indices(key, f);
+        if (remove_from_bucket(i1, f)) return;
+        remove_from_bucket(i2, f);
+    }
+
+private:
+    static constexpr int max_kicks = 500;
+    static constexpr int bucket_size_ = 4;
+
+    struct bucket {
+        uint64_t fingerprints[4] = {0, 0, 0, 0};
+        uint8_t count = 0;
+    };
+
+    std::vector<bucket> buckets_;
+    int fp_bits_;
+    uint64_t fp_mask_;
+
+    uint64_t fingerprint(std::string_view key) const {
+        uint64_t h = std::hash<std::string_view>{}(key);
+        return (h ^ (h >> 32)) & fp_mask_;
+    }
+
+    std::pair<size_t, size_t> bucket_indices(std::string_view key, uint64_t f) const {
+        uint64_t h = std::hash<std::string_view>{}(key);
+        size_t i1 = h % buckets_.size();
+        size_t i2 = alt_index(i1, f);
+        return {i1, i2};
+    }
+
+    // Partial-key hashing: derive the alternate index from the bucket index
+    // and fingerprint alone (no need to re-hash the original key)
+    size_t alt_index(size_t index, uint64_t f) const {
+        return index ^ static_cast<size_t>(
+            ((f >> 16) ^ (f * 0x517cc1b727220a95ULL)) % buckets_.size());
+    }
+
+    bool try_insert(size_t idx, uint64_t f) {
+        if (buckets_[idx].count < bucket_size_) {
+            buckets_[idx].fingerprints[buckets_[idx].count++] = f;
+            return true;
+        }
+        return false;
+    }
+
+    uint64_t kickout(size_t idx, uint64_t new_f) {
+        int slot = buckets_[idx].count - 1;
+        uint64_t old_f = buckets_[idx].fingerprints[slot];
+        buckets_[idx].fingerprints[slot] = new_f;
+        return old_f;
+    }
+
+    bool bucket_contains(size_t idx, uint64_t f) const {
+        for (int i = 0; i < buckets_[idx].count; ++i)
+            if (buckets_[idx].fingerprints[i] == f) return true;
+        return false;
+    }
+
+    bool remove_from_bucket(size_t idx, uint64_t f) {
+        for (int i = 0; i < buckets_[idx].count; ++i) {
+            if (buckets_[idx].fingerprints[i] == f) {
+                buckets_[idx].fingerprints[i] =
+                    buckets_[idx].fingerprints[--buckets_[idx].count];
+                return true;
+            }
+        }
+        return false;
+    }
+};
+\end{lstlisting}
+
+The key insight is \textbf{partial-key hashing}: the alternate bucket index is derived from the current index and the fingerprint alone, without re-hashing the original key. This means evictions don't require knowing the original key — they just swap fingerprints between two buckets.
+
+\subsection{Cuckoo Filter vs Bloom Filter}
+
+\begin{center}
+\begin{tabular}{ccccc}
+\toprule
+Property & Bloom Filter & Cuckoo Filter \\
+Space at 1\% FPR & 9.6 bits/elem & 8.0 bits/elem \\
+Space at 0.1\% FPR & 14.4 bits/elem & 12.0 bits/elem \\
+Deletion & No (without counting) & Yes \\
+Lookup speed & $k$ hash probes & 2 memory accesses \\
+Cache friendliness & Moderate & High (2 buckets) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+Cuckoo filters use less space because each bucket stores 4 fingerprints (32+ bits) rather than individual bits — better utilization of cache lines. The trade-off: cuckoo filters can fail to insert when the array is too full, requiring a rebuild.
+
+\textbf{When to use which:}
+\begin{itemize}
+\item \textbf{Bloom filter:} When deletions are not needed, or when the element count is unknown and may grow without bound
+\item \textbf{Cuckoo filter:} When deletions are needed, or when space is tight and the maximum element count is known
+\end{itemize}
+
+\section{Count-Min Sketch}
+
+Count approximate frequencies of items in a stream using a 2D array of counters and hash functions.
+
+\begin{lstlisting}[language=C++]
+class count_min_sketch {
+public:
+    count_min_sketch(double epsilon, double delta) {
+        // width = ceil(e / epsilon), depth = ceil(ln(1 / delta))
+        width_ = static_cast<size_t>(std::ceil(std::exp(1) / epsilon));
+        depth_ = static_cast<size_t>(std::ceil(std::log(1.0 / delta)));
+        counts_.resize(depth_, std::vector<size_t>(width_, 0));
+    }
+
+    void add(std::string_view key, size_t count = 1) {
+        for (size_t i = 0; i < depth_; ++i) {
+            size_t pos = hash_i(key, i) % width_;
+            counts_[i][pos] += count;
+        }
+    }
+
+    size_t estimate(std::string_view key) const {
+        size_t min_val = SIZE_MAX;
+        for (size_t i = 0; i < depth_; ++i) {
+            size_t pos = hash_i(key, i) % width_;
+            min_val = std::min(min_val, counts_[i][pos]);
+        }
+        return min_val;
+    }
+
+private:
+    size_t hash_i(std::string_view key, size_t i) const {
+        return std::hash<std::string_view>{}(key) + i * 0x9e3779b97f4a7c15ULL;
+    }
+
+    size_t width_, depth_;
+    std::vector<std::vector<size_t>> counts_;
+};
+\end{lstlisting}
+
+\section{Heavy Hitters (Misra-Gries)}
+
+Find the most frequent items in a stream — items that appear more than $\frac{n}{k}$ times. The Misra-Gries algorithm uses O(k) counters to identify all heavy hitters.
+
+\subsection{The Idea}
+
+Maintain at most k-1 (item, count) pairs. For each new item:
+\begin{itemize}
+\item If it matches an existing entry, increment its count.
+\item If not and we have fewer than k-1 entries, add it with count 1.
+\item If we have k-1 entries, decrement all counts by 1 and remove any entries with count 0.
+\end{itemize}
+
+After processing the stream, any item with count $> 0$ is a candidate. Verify candidates by a second pass.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename Key>
+class misra_gries {
+public:
+    explicit misra_gries(int k) : k_(k) {}
+
+    void add(const Key& key) {
+        // If key already tracked, increment
+        auto it = counters_.find(key);
+        if (it != counters_.end()) {
+            it->second += 1;
+            return;
+        }
+
+        // If room, add new entry
+        if (static_cast<int>(counters_.size()) < k_ - 1) {
+            counters_[key] = 1;
+            return;
+        }
+
+        // Decrement all, remove zeros
+        for (auto it = counters_.begin(); it != counters_.end(); ) {
+            it->second -= 1;
+            if (it->second == 0) it = counters_.erase(it);
+            else ++it;
+        }
+    }
+
+    std::vector<std::pair<Key, size_t>> heavy_hitters(size_t min_count) const {
+        std::vector<std::pair<Key, size_t>> result;
+        for (const auto& [key, count] : counters_) {
+            if (count >= min_count) result.push_back({key, count});
+        }
+        return result;
+    }
+
+    const std::unordered_map<Key, size_t>& counters() const { return counters_; }
+
+private:
+    int k_;
+    std::unordered_map<Key, size_t> counters_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item \textbf{Space:} O(k) counters
+\item \textbf{Update:} O(1) amortized
+\item \textbf{Guarantee:} any item with frequency $> \frac{n}{k}$ is among the candidates. False positives possible — verify with a second pass.
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network security:} detect DDoS attacks by finding IPs sending $> \frac{n}{k}$ requests
+\item \textbf{Query analysis:} find most popular search queries at Google/Bing scale
+\item \textbf{Log analytics:} top error codes in server logs
+\item \textbf{Clickstream analysis:} most visited pages in the last hour
+\end{itemize}
+
+\textbf{Relationship to Count-Min Sketch:} Count-Min Sketch\index{Count-Min sketch} gives approximate frequency for any item. Misra-Gries gives exact identification of heavy hitters with less space. For heavy hitters specifically, Misra-Gries is preferred. For arbitrary frequency queries, Count-Min is better.
+
+\section{HyperLogLog}
+
+Estimate the number of distinct elements in a large stream using O(log log n) space.
+
+\begin{lstlisting}[language=C++]
+class hyperloglog {
+public:
+    hyperloglog(int precision = 14) : precision_(precision) {
+        m_ = 1 << precision;  // number of registers
+        registers_.resize(m_, 0);
+    }
+
+    void add(std::string_view key) {
+        auto hash = std::hash<std::string_view>{}(key);
+        size_t idx = hash >> (64 - precision_);  // first p bits
+        uint8_t zeros = count_leading_zeros(hash << precision_);
+        registers_[idx] = std::max(registers_[idx], zeros + 1);
+    }
+
+    double estimate() const {
+        double sum = 0.0;
+        size_t zeros = 0;
+        for (uint8_t r : registers_) {
+            sum += 1.0 / (1 << r);
+            if (r == 0) ++zeros;
+        }
+        double e = alpha_m_ * m_ * m_ / sum;
+
+        // Small range correction
+        if (e <= 2.5 * m_) {
+            if (zeros > 0) e = m_ * std::log(static_cast<double>(m_) / zeros);
+        }
+        return e;
+    }
+
+private:
+    static uint8_t count_leading_zeros(size_t x) {
+        return __builtin_clzll(x);
+    }
+
+    int precision_;
+    size_t m_;
+    std::vector<uint8_t> registers_;
+    static constexpr double alpha_m_ = 0.7213 / (1 + 1.079 / (1 << 14));
+};
+\end{lstlisting}
+
+\section{Quantile Estimation}
+
+Estimate the median or any quantile from a data stream without storing all elements. A \textbf{quantile} $q$ is the value below which $q$ fraction of elements fall (e.g., median = 0.5-quantile, P99 = 0.99-quantile).
+
+\subsection{Greenwald-Khanna Sketch}
+
+The GK sketch maintains a set of summary tuples $(v_i, g_i, \Delta_i)$ where $v_i$ is a value, $g_i$ is the maximum gap to the next summary value, and $\Delta_i$ is the maximum gap to the previous summary value.
+
+\begin{lstlisting}[language=C++]
+class quantile_estimator {
+public:
+    explicit quantile_estimator(double epsilon) : epsilon_(epsilon) {}
+
+    void add(double value) {
+        ++total_count_;
+        summary_.push_back({value, 1, 0});
+
+        // Merge adjacent tuples to maintain size bound
+        if (summary_.size() > static_cast<size_t>(1.0 / epsilon_)) {
+            merge_tuples();
+        }
+    }
+
+    double query(double phi) const {
+        // Query the phi-quantile (e.g., 0.5 for median)
+        if (summary_.empty()) return 0.0;
+
+        double rank = phi * total_count_;
+        size_t cumulative = 0;
+
+        for (size_t i = 0; i < summary_.size(); ++i) {
+            cumulative += summary_[i].g;
+            if (cumulative + summary_[i].delta >= static_cast<size_t>(rank) &&
+                cumulative <= static_cast<size_t>(rank)) {
+                return summary_[i].value;
+            }
+        }
+        return summary_.back().value;
+    }
+
+private:
+    struct tuple {
+        double value;
+        size_t g;      // gap to next
+        size_t delta;   // max gap to previous
+    };
+
+    void merge_tuples() {
+        std::vector<tuple> merged;
+        for (size_t i = 0; i + 1 < summary_.size(); ++i) {
+            if (summary_[i].g + summary_[i+1].g +
+                summary_[i+1].delta <= 2 * epsilon_ * total_count_) {
+                // Merge: skip this tuple
+                merged.push_back({summary_[i].value,
+                    summary_[i].g + summary_[i+1].g,
+                    summary_[i+1].delta});
+                ++i;  // skip next
+            } else {
+                merged.push_back(summary_[i]);
+            }
+        }
+        if (!merged.empty()) merged.back().delta = 0;
+        summary_ = std::move(merged);
+    }
+
+    double epsilon_;
+    size_t total_count_ = 0;
+    std::vector<tuple> summary_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item \textbf{Space:} O($\frac{1}{\epsilon} \log(\epsilon n))$ tuples
+\item \textbf{Update:} O($\frac{1}{\epsilon}$) amortized
+\item \textbf{Query:} O($\frac{1}{\epsilon}$)
+\item \textbf{Accuracy:} returns value within $\epsilon n$ of true rank
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Monitoring dashboards:} P50, P90, P99 latency percentiles in real time
+\item \textbf{Database query optimization:} estimate result distribution without scanning all rows
+\item \textbf{Adaptive load balancing:} route requests based on recent response time distribution
+\item \textbf{SLA monitoring:} are 99\% of requests served within 100ms?
+\end{itemize}
+
+\textbf{Alternatives:} t-digest (better accuracy for extreme quantiles), KLL sketch (better space-accuracy tradeoff). The GK sketch is the classic choice; t-digest is more common in production (used by Elasticsearch, Apache Flink).
+
+\section{Reservoir Sampling}
+
+Select k random elements from a stream of unknown length.
+
+\begin{lstlisting}[language=C++]
+std::vector<int> reservoir_sample(std::span<const int> stream, size_t k) {
+    std::vector<int> reservoir(stream.begin(), stream.begin() + k);
+    std::mt19937 rng(std::random_device{}());
+
+    for (size_t i = k; i < stream.size(); ++i) {
+        size_t j = std::uniform_int_distribution<size_t>(0, i)(rng);
+        if (j < k) reservoir[j] = stream[i];
+    }
+    return reservoir;
+}
+\end{lstlisting}
+
+Each element has probability k/n of being in the final sample.
+
+\section{Sliding Window Model}
+
+Most streaming algorithms assume you see the entire stream. In practice, you often need statistics over only the \textbf{last N elements} — a sliding window. The challenge: maintain a summary using O(polylog N) space while elements expire.
+
+\subsection{Exponential Histogram}
+
+The exponential histogram (Datar et al., 2002) maintains approximate counts over a sliding window of size W. It uses O($\frac{1}{\epsilon} \log W$) space to give $(1 \pm \epsilon)$-approximate counts.
+
+The idea: divide the stream into buckets of exponentially increasing sizes. Each bucket covers a contiguous segment and stores its count. The smallest bucket covers 1 element, the next covers 2, then 4, 8, etc.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class sliding_window_counter {
+public:
+    explicit sliding_window_counter(size_t window_size, double epsilon = 0.01)
+        : window_(window_size), epsilon_(epsilon) {}
+
+    void add(const T& item, size_t timestamp) {
+        // Add to bucket 0
+        buckets_[0].push_back({item, 1});
+        total_ += 1;
+
+        // Merge buckets with same size if needed
+        compact();
+
+        // Remove expired elements
+        while (!buckets_.empty() && buckets_.front().start_time +
+               buckets_.front().count <= timestamp - window_) {
+            total_ -= buckets_.front().count;
+            buckets_.pop_front();
+        }
+    }
+
+    size_t count() const { return total_; }
+
+    // Approximate count of item in current window
+    size_t approximate_count(const T& item) const {
+        size_t result = 0;
+        for (const auto& bucket : buckets_) {
+            for (const auto& [val, cnt] : bucket.items) {
+                if (val == item) result += cnt;
+            }
+        }
+        return result;
+    }
+
+private:
+    struct bucket {
+        std::deque<std::pair<T, int>> items;
+        size_t count = 0;
+        size_t start_time = 0;
+    };
+
+    void compact() {
+        // Merge consecutive buckets of same size
+        for (size_t i = 0; i + 1 < buckets_.size(); ++i) {
+            while (buckets_[i].count == buckets_[i+1].count &&
+                   buckets_[i].count > 0) {
+                // Merge bucket i+1 into bucket i
+                for (auto& item : buckets_[i+1].items)
+                    buckets_[i].items.push_back(item);
+                buckets_[i].count += buckets_[i+1].count;
+                buckets_.erase(buckets_.begin() + i + 1);
+            }
+        }
+    }
+
+    size_t window_;
+    double epsilon_;
+    std::deque<bucket> buckets_;
+    size_t total_ = 0;
+};
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Network monitoring:} count packets/bytes in the last N seconds
+\item \textbf{Rate limiting:} sliding window counters for API rate limits (Redis, NGINX)
+\item \textbf{Log analysis:} error rate over the last hour, not the entire log
+\item \textbf{Sensor networks:} recent average temperature, not lifetime average
+\end{itemize}
+
+\textbf{Complexity:} O($\frac{1}{\epsilon} \log W$) space, O(1) amortized per update.
+
+\section{Consistent Hashing}
+
+Distribute keys across a changing set of servers while minimizing remapping when servers join or leave. Each server is mapped to points on a hash ring, and each key is assigned to the nearest clockwise server.
+
+\begin{lstlisting}[language=C++]
+class consistent_hash_ring {
+public:
+    void add_server(std::string_view name, int virtual_nodes = 100) {
+        for (int i = 0; i < virtual_nodes; ++i) {
+            auto h = hash(std::string(name) + ":" + std::to_string(i));
+            ring_[h] = name;
+        }
+    }
+
+    void remove_server(std::string_view name) {
+        std::erase_if(ring_, [&](const auto& p) {
+            return p.second == name;
+        });
+    }
+
+    std::string_view get_server(std::string_view key) const {
+        if (ring_.empty()) return "";
+        auto it = ring_.lower_bound(hash(key));
+        if (it == ring_.end()) it = ring_.begin();
+        return it->second;
+    }
+
+private:
+    static uint64_t hash(std::string_view s) {
+        return std::hash<std::string_view>{}(s);
+    }
+
+    std::map<uint64_t, std::string> ring_;
+};
+\end{lstlisting}
+
+When a server is removed, only its keys migrate to the next server; every other key stays put. Virtual nodes improve load balance by spreading each server across many ring positions.
+
+\section{Locality-Sensitive Hashing}
+
+Approximate nearest-neighbor search in high dimensions by hashing inputs so that similar items collide with high probability.
+
+The basic LSH\index{LSH} family for cosine similarity (simhash):
+\begin{itemize}
+\item Generate k random hyperplanes
+\item For each item, compute the sign of each hyperplane dot product — the k-bit signature captures the angular neighborhood
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+class simhash {
+public:
+    simhash(size_t bits, size_t dim)
+        : bits_(bits), planes_(bits, std::vector<double>(dim)) {
+        std::mt19937 rng(std::random_device{}());
+        std::normal_distribution<double> dist(0.0, 1.0);
+        for (auto& v : planes_)
+            for (auto& x : v) x = dist(rng);
+    }
+
+    uint64_t signature(std::span<const double> vec) const {
+        uint64_t sig = 0;
+        for (size_t i = 0; i < bits_; ++i) {
+            double dot = 0.0;
+            for (size_t j = 0; j < vec.size(); ++j)
+                dot += planes_[i][j] * vec[j];
+            if (dot > 0) sig |= (1ULL << i);
+        }
+        return sig;
+    }
+
+    // Hamming distance on signatures approximates cosine distance
+    static double cosine_similarity(uint64_t a, uint64_t b) {
+        return 1.0 - static_cast<double>(std::popcount(a ^ b)) / 64.0;
+    }
+
+private:
+    size_t bits_;
+    std::vector<std::vector<double>> planes_;
+};
+\end{lstlisting}
+
+\section{Merkle Tree (Hash Tree)}
+
+A \textbf{Merkle tree} is a binary tree where each leaf stores the hash of a data block and each internal node stores the hash of its two children. It enables efficient verification that a specific block belongs to a large dataset without downloading the entire dataset.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+                  Hash(A||B)
+                 /          \
+            Hash(A)       Hash(B)
+           /      \      /      \
+     Hash(d0) Hash(d1) Hash(d2) Hash(d3)
+       |        |        |        |
+      d0       d1       d2       d3
+\end{lstlisting}
+
+\noindent The \textbf{root hash} uniquely represents the entire dataset. Changing any single data block changes the root hash, making tampering immediately detectable.
+
+\subsection{Operations}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <string>
+#include <cstdint>
+#include <functional>
+#include <stdexcept>
+
+class merkle_tree {
+public:
+    using hash_fn = std::function<std::string(const std::string&)>;
+
+    merkle_tree(std::vector<std::string> data, hash_fn h)
+        : hash_(std::move(h)), data_(std::move(data)) {
+        size_t n = data_.size();
+        if (n == 0)
+            throw std::invalid_argument("empty data");
+        // Round up to next power of 2
+        size_t leaves = 1;
+        while (leaves < n) leaves *= 2;
+        tree_.resize(2 * leaves, "");
+        // Compute leaf hashes
+        for (size_t i = 0; i < leaves; ++i) {
+            if (i < n)
+                tree_[leaves + i] = hash_(data_[i]);
+            else
+                tree_[leaves + i] = hash_("");  // padding
+        }
+        // Build internal nodes bottom-up
+        for (size_t i = leaves - 1; i >= 1; --i)
+            tree_[i] = hash_(tree_[2 * i] + tree_[2 * i + 1]);
+        leaves_ = leaves;
+    }
+
+    std::string get_root_hash() const {
+        return tree_[1];
+    }
+
+    // Merkle proof: list of sibling hashes from leaf to root
+    std::vector<std::pair<std::string, bool>>
+    get_proof(size_t index) const {
+        std::vector<std::pair<std::string, bool>> proof;
+        size_t pos = leaves_ + index;
+        while (pos > 1) {
+            bool is_left = (pos % 2 == 1);
+            size_t sibling = is_left ? pos - 1 : pos + 1;
+            proof.emplace_back(tree_[sibling], is_left);
+            pos /= 2;
+        }
+        return proof;
+    }
+
+    // Verify that data_block is at index using the proof
+    static bool verify_proof(
+        hash_fn h,
+        const std::string& data_block,
+        size_t index,
+        const std::string& expected_root,
+        const std::vector<std::pair<std::string, bool>>& proof)
+    {
+        std::string current = h(data_block);
+        for (const auto& [sibling_hash, is_left] : proof) {
+            if (is_left)
+                current = h(sibling_hash + current);
+            else
+                current = h(current + sibling_hash);
+        }
+        return current == expected_root;
+    }
+
+private:
+    hash_fn hash_;
+    std::vector<std::string> data_;
+    std::vector<std::string> tree_;
+    size_t leaves_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Cost \\
+\midrule
+Build tree & $O(n)$ \\
+Root hash & $O(1)$ \\
+Generate proof & $O(\log n)$ \\
+Verify proof & $O(\log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Blockchain:} Bitcoin and Ethereum use Merkle trees to summarize all transactions in a block. A light client can verify a single transaction with a $\log n$ proof instead of downloading every transaction.
+    \item \textbf{Git:} Git commit objects contain a Merkle tree of the repository file tree, enabling efficient diff and integrity verification.
+    \item \textbf{Distributed databases:} Cassandra and DynamoDB use Merkle trees to detect and reconcile inconsistencies between replicas during anti-entropy sync.
+\end{itemize}
+
+\section{Quotient Filter}
+
+A \textbf{quotient filter}\index{quotient filter} is a space-efficient hash table that stores fingerprints using quotienting. Unlike a Bloom filter, it supports \textbf{counting and deletion}. A key $k$ is mapped to a fingerprint $f$ using a hash function, then split into quotient $q = f / 2^r$ and remainder $r = f \bmod 2^r$.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+  Quotient  |  Remainder slots
+  ---------+-------------------------------
+     0     |  [  _ ] [  _ ] [  _ ] [  _ ]
+     1     |  [ b1 ] [  _ ] [  _ ] [  _ ]
+     2     |  [ a0 ] [ a1 ] [  _ ] [  _ ]
+     3     |  [ c0 ] [  _ ] [  _ ] [  _ ]
+      .    |       .    .    .    .
+\end{lstlisting}
+
+\noindent Collisions with the same quotient form a \textbf{run} stored in consecutive slots using linear probing. A small auxiliary array tracks the start of each run.
+
+\subsection{Operations}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <cstdint>
+#include <functional>
+#include <optional>
+
+class quotient_filter {
+public:
+    quotient_filter(size_t capacity, size_t fingerprint_bits = 8)
+        : r_(fingerprint_bits),
+          size_(1ULL << (capacity > 0 ? compute_q_bits(capacity, fingerprint_bits) : 4)),
+          mask_(size_ - 1),
+          fingerprints_(size_, 0),
+          occupied_(size_, 0),
+          continuations_(size_, 0),
+          counts_(size_, 0),
+          size__(0)
+    {
+        q_bits_ = compute_q_bits(capacity, fingerprint_bits);
+    }
+
+    bool insert(uint64_t key) {
+        uint64_t f = fingerprint(key);
+        uint64_t q = f >> r_;
+        uint64_t rem = f & ((1ULL << r_) - 1);
+        if (counts_[q] == 0) {
+            // Empty cluster -- place directly
+            size_t pos = q;
+            while (occupied_[pos]) pos = (pos + 1) & mask_;
+            place(pos, q, rem);
+            return true;
+        }
+        // Find the run for quotient q
+        size_t run_start = find_run_start(q);
+        // Check for duplicate
+        size_t pos = run_start;
+        for (size_t i = 0; i < counts_[q]; ++i) {
+            if (fingerprints_[pos] == rem) return false;  // already present
+            pos = (pos + 1) & mask_;
+        }
+        // Insert at end of run
+        place(pos, q, rem);
+        return true;
+    }
+
+    bool lookup(uint64_t key) const {
+        uint64_t f = fingerprint(key);
+        uint64_t q = f >> r_;
+        uint64_t rem = f & ((1ULL << r_) - 1);
+        if (counts_[q] == 0) return false;
+        size_t pos = find_run_start(q);
+        for (size_t i = 0; i < counts_[q]; ++i) {
+            if (fingerprints_[pos] == rem) return true;
+            pos = (pos + 1) & mask_;
+        }
+        return false;
+    }
+
+    bool remove(uint64_t key) {
+        uint64_t f = fingerprint(key);
+        uint64_t q = f >> r_;
+        uint64_t rem = f & ((1ULL << r_) - 1);
+        if (counts_[q] == 0) return false;
+        size_t pos = find_run_start(q);
+        for (size_t i = 0; i < counts_[q]; ++i) {
+            if (fingerprints_[pos] == rem) {
+                // Shift run left and compact
+                compact(pos, q);
+                return true;
+            }
+            pos = (pos + 1) & mask_;
+        }
+        return false;
+    }
+
+    size_t size() const { return size__; }
+
+private:
+    size_t r_, q_bits_, size_, mask_;
+    size_t size__;
+    std::vector<uint64_t> fingerprints_;
+    std::vector<bool> occupied_;
+    std::vector<bool> continuations_;
+    std::vector<size_t> counts_;
+
+    static size_t compute_q_bits(size_t cap, size_t r) {
+        size_t total_slots = cap * 2;  // 50% load factor
+        size_t q = 0;
+        while ((1ULL << q) < total_slots) ++q;
+        return q;
+    }
+
+    uint64_t fingerprint(uint64_t key) const {
+        // SplitMix64-style hash
+        key ^= key >> 30;
+        key *= 0xbf58476d1ce4e5b9ULL;
+        key ^= key >> 27;
+        key *= 0x94d049bb133111ebULL;
+        key ^= key >> 31;
+        return key & ((1ULL << (q_bits_ + r_)) - 1);
+    }
+
+    size_t find_run_start(uint64_t q) const {
+        // Count occupied slots before q
+        size_t count = 0;
+        for (size_t i = 0; i < q; ++i)
+            if (occupied_[i]) ++count;
+        // Scan from q to find the (count+1)-th occupied cluster
+        size_t pos = q;
+        size_t seen = 0;
+        while (seen < count) {
+            pos = (pos + 1) & mask_;
+            if (occupied_[pos]) ++seen;
+        }
+        return (pos + 1) & mask_;
+    }
+
+    void place(size_t pos, uint64_t q, uint64_t rem) {
+        fingerprints_[pos] = rem;
+        occupied_[q] = true;
+        ++counts_[q];
+        ++size__;
+    }
+
+    void compact(size_t pos, uint64_t q) {
+        // Shift elements left to fill the gap
+        size_t next = (pos + 1) & mask_;
+        while (counts_[q] > 1 || (next != pos && occupied_[next])) {
+            fingerprints_[pos] = fingerprints_[next];
+            pos = next;
+            next = (next + 1) & mask_;
+        }
+        // Clear the last slot
+        occupied_[q] = false;
+        if (counts_[q] > 0) --counts_[q];
+        --size__;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Cost \\
+\midrule
+Insert & $O(1)$ amortized \\
+Lookup & $O(1)$ amortized \\
+Delete & $O(1)$ amortized \\
+Space & $O(n)$ fingerprints \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Comparison with Bloom Filter}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Property & Bloom Filter & Quotient Filter \\
+\midrule
+Supports deletion & No & Yes \\
+Space efficiency & Moderate & Higher (smaller fingerprint) \\
+Cache performance & Poor & Good (sequential probing) \\
+False positives & Yes & Yes (via hash collision) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The quotient filter's sequential memory layout gives it better cache locality than a Bloom filter of equivalent size, making it preferred when deletion support is needed.
+
+\section{MinHash}
+
+\textbf{MinHash}\index{MinHash} estimates the \textbf{Jaccard similarity} between two sets without comparing all elements. Given sets $A$ and $B$, the Jaccard similarity is $J(A,B) = |A \cap B| / |A \cup B|$. MinHash uses $k$ independent hash functions; for each function, the minimum hash value over a set is computed, producing a \textbf{signature} of $k$ values.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Set A = {a, c, d, f, g}    Set B = {b, c, e, f, g}
+
+  h1:  min(h1(A)) = h1(f)     min(h1(B)) = h1(b)
+  h2:  min(h2(A)) = h2(c)     min(h2(B)) = h2(c)
+  h3:  min(h3(A)) = h3(d)     min(h3(B)) = h3(e)
+
+  Sig(A) = [h1(f), h2(c), h3(d)]
+  Sig(B) = [h1(b), h2(c), h3(e)]
+  Matches: 1 out of 3 => J estimate = 0.33
+\end{lstlisting}
+
+\noindent For each hash function $h_i$, $P[\min(h_i(A)) = \min(h_i(B))] = J(A,B)$. The fraction of matching entries in two signatures is an unbiased estimator of the Jaccard similarity.
+
+\subsection{Operations}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <unordered_set>
+#include <cstdint>
+#include <random>
+#include <algorithm>
+#include <numeric>
+
+class minhash {
+public:
+    minhash(size_t num_hashes, size_t seed = 42)
+        : k_(num_hashes), hashes_(num_hashes)
+    {
+        // Generate k independent hash function parameters
+        std::mt19937_64 rng(seed);
+        for (size_t i = 0; i < k_; ++i) {
+            uint64_t a = rng(), b = rng();
+            hashes_[i] = [a, b](uint64_t x) -> uint64_t {
+                // 64-bit multiply-shift hash
+                return a * x + b;
+            };
+        }
+    }
+
+    // Compute MinHash signature for a set of elements
+    std::vector<uint64_t> compute_signature(
+        const std::unordered_set<std::string>& set) const
+    {
+        std::vector<uint64_t> sig(k_, UINT64_MAX);
+        for (const auto& elem : set) {
+            uint64_t h = std::hash<std::string>{}(elem);
+            for (size_t i = 0; i < k_; ++i) {
+                uint64_t val = hashes_[i](h);
+                sig[i] = std::min(sig[i], val);
+            }
+        }
+        return sig;
+    }
+
+    // Estimate Jaccard similarity from two signatures
+    static double estimate_jaccard(
+        const std::vector<uint64_t>& sig_a,
+        const std::vector<uint64_t>& sig_b)
+    {
+        size_t matches = 0;
+        size_t k = sig_a.size();
+        for (size_t i = 0; i < k; ++i)
+            if (sig_a[i] == sig_b[i]) ++matches;
+        return static_cast<double>(matches) / k;
+    }
+
+    size_t num_hashes() const { return k_; }
+
+private:
+    size_t k_;
+    std::vector<std::function<uint64_t(uint64_t)>> hashes_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Cost \\
+\midrule
+Compute signature & $O(k \cdot n)$ where $n = |S|$ \\
+Estimate Jaccard & $O(k)$ \\
+Signature size & $O(k)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Increasing $k$ reduces the variance of the estimate. With $k = 200$ the standard error is approximately $1/\sqrt{k} \approx 0.07$, sufficient for most similarity tasks.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Near-duplicate detection:} Web crawlers use MinHash to detect pages with high Jaccard similarity, filtering redundant content at scale.
+    \item \textbf{Recommendation systems:} Users with similar item sets (high Jaccard) receive similar recommendations; MinHash makes this comparison sublinear.
+    \item \textbf{Locality-sensitive hashing\index{locality-sensitive hashing} (LSH):} MinHash signatures are banded and hashed to find \emph{candidate pairs} in $O(n)$ expected time, enabling subquadratic all-pairs similarity search.
+\end{itemize}
+
+\section{HyperLogLog}
+
+HyperLogLog\index{HyperLogLog} estimates the number of distinct elements in a stream using $O(m)$ registers (typically $m = 2^p$ for $10 \le p \le 16$). The key insight is that a uniformly distributed hash produces leading zeros with probability $2^{-j}$; the maximum number of leading zeros across $m$ buckets gives a raw estimate, which is then corrected using the harmonic mean.
+
+\subsection{Core Idea}
+
+Given a 64-bit hash function, for each element:
+\begin{enumerate}
+    \item Hash the element: $h = \text{hash}(x)$.
+    \item Use the first $p$ bits to select one of $m = 2^p$ buckets.
+    \item In the remaining $64 - p$ bits, count the leading zeros $\rho(w)$ (plus 1).
+    \item Store $\max(\rho(w))$ in the selected bucket.
+\end{enumerate}
+
+The raw cardinality estimate is:
+\[
+E = \alpha_m \cdot m^2 \cdot \left( \sum_{j=1}^{m} 2^{-M[j]} \right)^{-1}
+\]
+where $M[j]$ is the register value for bucket $j$ and $\alpha_m$ is a bias-correction constant. For $m \ge 128$, $\alpha_m \approx 0.7213 / (1 + 1.079 / m)$.
+
+A linear counting correction is applied when $E \le 2.5 \cdot m$: count the number of zero registers $V$ and use $E' = m \cdot \ln(m / V)$ instead.
+
+\subsection{Standard Error}
+
+The standard error of HyperLogLog is approximately $1.04 / \sqrt{m}$. With $p = 14$ ($m = 16384$ registers, 20 KB), the standard error is $\approx 0.81\%$, giving approximately 2.5\% accuracy at the 95\% confidence level.
+
+\begin{lstlisting}[language=C++, caption={HyperLogLog cardinality estimator}]
+#include <array>
+#include <cstdint>
+#include <cmath>
+#include <algorithm>
+#include <bit>
+
+class HyperLogLog {
+public:
+    explicit HyperLogLog(uint8_t p)
+        : p_(p), m_(1u << p), alpha_(0.7213 / (1.0 + 1.079 / m_))
+    {
+        M_.fill(0);
+    }
+
+    void add(uint64_t hash) {
+        uint32_t idx = hash >> (64 - p_);
+        uint64_t w = hash << p_ | (1ULL << (p_ - 1));
+        uint8_t rho = static_cast<uint8_t>(
+            std::countl_zero(w) + 1);
+        M_[idx] = std::max(M_[idx], rho);
+    }
+
+    double estimate() const {
+        double sum = 0.0;
+        int zeros = 0;
+        for (int j = 0; j < m_; ++j) {
+            sum += std::pow(2.0, -M_[j]);
+            if (M_[j] == 0) ++zeros;
+        }
+        double E = alpha_ * m_ * m_ / sum;
+        if (E <= 2.5 * m_ && zeros > 0) {
+            E = m_ * std::log(static_cast<double>(m_) / zeros);
+        }
+        if (E > (1ULL << 32) / 30.0) {
+            E = -std::pow(2.0, 32) *
+                std::log1p(-E / std::pow(2.0, 32));
+        }
+        return E;
+    }
+
+    void merge(const HyperLogLog& other) {
+        for (int j = 0; j < m_; ++j)
+            M_[j] = std::max(M_[j], other.M_[j]);
+    }
+
+    size_t memory_bytes() const {
+        return m_ + 2 * sizeof(uint8_t) + sizeof(int);
+    }
+
+private:
+    uint8_t p_;
+    int m_;
+    double alpha_;
+    std::array<uint8_t, 1 << 16> M_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Cost \\
+\midrule
+Add element & $O(1)$ \\
+Estimate cardinality & $O(m)$ \\
+Merge two structures & $O(m)$ \\
+Memory & $O(m)$ bytes (typically 2--64 KB) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+\begin{itemize}
+    \item \textbf{Network monitoring:} Estimate unique IP addresses in a time window without storing them all.
+    \item \textbf{Database query planning:} Cardinality estimates for JOIN and GROUP BY operations drive cost-based optimizers.
+    \item \textbf{Analytics:} Count unique users, unique sessions, or unique search queries in large-scale event streams.
+\end{itemize}
+
+\section{Reservoir Sampling}
+
+Reservoir sampling selects a uniform random sample of $k$ elements from a stream of $n$ elements where $n$ is unknown or too large to hold in memory. Algorithm R (Vitter, 1985) is the simplest approach.
+
+\subsection{Algorithm R}
+
+Maintain a reservoir $R$ of size $k$. For the $i$-th element ($i \ge 1$):
+\begin{enumerate}
+    \item If $i \le k$, insert the element into $R$.
+    \item If $i > k$, generate a random integer $j$ uniformly from $\{1, 2, \ldots, i\}$. If $j \le k$, replace $R[j-1]$ with the new element.
+\end{enumerate}
+
+The probability that any element ends up in the sample is exactly $k / n$, proven by induction on $i$.
+
+\subsection{Correctness Argument}
+
+At step $i > k$:
+\[
+\Pr[\text{element } i \text{ is in } R] = \frac{k}{i}
+\]
+For element $j \le i$ to survive step $i$:
+\[
+\Pr[\text{element } j \text{ survives step } i] = 1 - \frac{1}{i} = \frac{i-1}{i}
+\]
+After $n$ steps, the survival probability is:
+\[
+\prod_{i=j+1}^{n} \frac{i-1}{i} = \frac{j}{n}
+\]
+Thus each element has probability $k / n$ of being selected.
+
+\begin{lstlisting}[language=C++, caption={Reservoir sampling (Algorithm R)}]
+#include <vector>
+#include <random>
+#include <iterator>
+
+template <typename Iter>
+std::vector<typename std::iterator_traits<Iter>::value_type>
+reservoir_sample(Iter begin, Iter end, size_t k,
+                 std::mt19937& rng)
+{
+    std::vector<typename std::iterator_traits<Iter>::value_type>
+        R;
+    R.reserve(k);
+
+    size_t i = 0;
+    for (auto it = begin; it != end; ++it, ++i) {
+        if (i < k) {
+            R.push_back(*it);
+        } else {
+            std::uniform_int_distribution<size_t>
+                dist(0, i);
+            size_t j = dist(rng);
+            if (j < k)
+                R[j] = *it;
+        }
+    }
+    return R;
+}
+
+template <typename T>
+class StreamSampler {
+public:
+    explicit StreamSampler(size_t k, uint64_t seed = 42)
+        : k_(k), rng_(seed), n_(0) {
+        R_.reserve(k);
+    }
+
+    void add(const T& value) {
+        if (n_ < k_) {
+            R_.push_back(value);
+        } else {
+            std::uniform_int_distribution<size_t>
+                dist(0, n_);
+            size_t j = dist(rng_);
+            if (j < k_)
+                R_[j] = value;
+        }
+        ++n_;
+    }
+
+    const std::vector<T>& sample() const { return R_; }
+    size_t total_count() const { return n_; }
+
+private:
+    size_t k_;
+    std::mt19937 rng_;
+    uint64_t n_;
+    std::vector<T> R_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Operation & Cost \\
+\midrule
+Add element & $O(1)$ \\
+Memory & $O(k)$ \\
+Space & $O(k)$ words \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Applications}
+\begin{itemize}
+    \item \textbf{Data analytics:} Sampling from massive datasets for A/B testing or exploratory analysis.
+    \item \textbf{Stream processing:} Selecting representative queries from a log stream for debugging.
+    \item \textbf{Machine learning:} Creating balanced training sets from imbalanced streams.
+\end{itemize}
+
+\section{Count-Distinct (Linear Counting)}
+
+Linear counting is the simplest distinct-element counting technique: allocate a bitmap of $m$ bits, hash each element to a position, and set that bit. The number of zero bits $V$ gives an estimate of the distinct count $n$.
+
+\subsection{Estimate Formula}
+
+The fraction of zero bits follows:
+\[
+\frac{V}{m} \approx e^{-n/m}
+\]
+Rearranging gives the linear counting estimate:
+\[
+\hat{n} = -m \cdot \ln\left(\frac{V}{m}\right)
+\]
+This estimate is accurate when the bitmap is not too full (less than $\sim 70\%$ set). Once $V / m$ drops below a threshold, switch to another method or double $m$.
+
+\begin{lstlisting}[language=C++, caption={Linear counting for distinct elements}]
+#include <vector>
+#include <functional>
+#include <cmath>
+
+class LinearCounter {
+public:
+    explicit LinearCounter(size_t m)
+        : m_(m), bits_(m, false), count_(0) {}
+
+    void add(uint64_t hash) {
+        size_t idx = hash % m_;
+        if (!bits_[idx]) {
+            bits_[idx] = true;
+            ++count_;
+        }
+    }
+
+    double estimate() const {
+        if (count_ == m_) return static_cast<double>(m_);
+        double V = static_cast<double>(m_ - count_);
+        return -m_ * std::log(V / m_);
+    }
+
+    double load_factor() const {
+        return static_cast<double>(count_) / m_;
+    }
+
+    size_t memory_bytes() const {
+        return m_ / 8 + 2 * sizeof(size_t);
+    }
+
+private:
+    size_t m_;
+    std::vector<bool> bits_;
+    size_t count_;
+};
+\end{lstlisting}
+
+\subsection{When to Use}
+
+\begin{itemize}
+    \item Use when cardinality is expected to be small relative to $m$ (bitmap not too full).
+    \item Provides a simple, fast baseline; HyperLogLog is preferred for large cardinalities.
+    \item Linear counting uses roughly $n / \ln 2 \approx 1.44n$ bits when $V \approx m / 2$.
+\end{itemize}
+
+\section{Exercises}
+
+\begin{enumerate}
+\item Implement HyperLogLog with $p = 10, 12, 14, 16$ and estimate the number of distinct values in a stream of $10^7$ uniform random integers. Plot standard error vs.\ $p$ and compare with the theoretical value $1.04 / \sqrt{2^p}$.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a streaming system that switches from linear counting to HyperLogLog when the bitmap load factor exceeds 70\%. Compare accuracy at the switch point with using HyperLogLog alone from the start.
+\end{enumerate}
+
+\begin{enumerate}
+\item Use reservoir sampling with $k = 50$ to sample from a stream of $10^6$ integers where each integer $x$ appears with probability proportional to $1 / \log(x + 2)$. Verify empirically that the frequency of each sampled element matches its true frequency within expected error.
+\end{enumerate}
+
+\begin{enumerate}
+\item Merge two HyperLogLog structures with different seeds on disjoint halves of a dataset. Does the merged estimate match the true distinct count? How does accuracy degrade when the two halves overlap by 50\%?
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a probabilistic counter using $b$ bitmaps of size $m = 8192$ with different hash seeds. At query time, use the bitmap with the lowest load factor to estimate cardinality. Compare accuracy and space with a single large bitmap of size $b \cdot m$.
+\end{enumerate}
+
+\subsection{Top-K Approximation}
+
+Finding the top-$k$ most frequent elements in a data stream is a common problem
+in network traffic analysis, trending topics, and log monitoring.
+A min-heap of size $k$ paired with a hash map provides an online algorithm that
+approximates the top-$k$ elements without storing the entire stream.
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+#include <queue>
+#include <unordered_map>
+#include <vector>
+#include <string>
+
+using Entry = std::pair<int, std::string>;   // (count, element)
+
+// Min-heap of size k: keep the k elements with the largest counts.
+class TopK {
+public:
+    TopK(std::size_t k) : k_(k) {}
+
+    void insert(const std::string& item) {
+        int& cnt = freq_[item];
+        cnt++;
+        if (in_heap_.count(item)) {
+            // Already in heap; will be rebuilt on next topK().
+            stale_ = true;
+            return;
+        }
+        if (heap_.size() < k_) {
+            heap_.emplace(cnt, item);
+            in_heap_.insert(item);
+        } else if (cnt > heap_.top().first) {
+            auto [old_cnt, old_item] = heap_.top();
+            heap_.pop();
+            in_heap_.erase(old_item);
+            heap_.emplace(cnt, item);
+            in_heap_.insert(item);
+        }
+    }
+
+    std::vector<std::string> topK() {
+        if (stale_) rebuild();
+        std::vector<std::string> result;
+        while (!heap_.empty()) {
+            result.push_back(heap_.top().second);
+            heap_.pop();
+        }
+        std::reverse(result.begin(), result.end());
+        in_heap_.clear();
+        stale_ = false;
+        return result;
+    }
+
+private:
+    void rebuild() {
+        // Rebuild heap from current frequency map.
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<>> fresh;
+        for (auto& [item, cnt] : freq_) {
+            if (fresh.size() < k_) {
+                fresh.emplace(cnt, item);
+            } else if (cnt > fresh.top().first) {
+                fresh.pop();
+                fresh.emplace(cnt, item);
+            }
+        }
+        heap_ = std::move(fresh);
+    }
+
+    std::size_t k_;
+    std::unordered_map<std::string, int> freq_;
+    std::priority_queue<Entry, std::vector<Entry>, std::greater<>> heap_;
+    std::unordered_set<std::string> in_heap_;
+    bool stale_ = false;
+};
+\end{lstlisting}
+
+The hash map accumulates exact counts; the min-heap evicts the smallest count
+when a new candidate exceeds the heap's minimum.  When a heap-resident element
+receives an update, the algorithm marks the heap as stale and rebuilds it on
+demand, keeping the structure correct without per-update re-heapification.
+The space cost is $O(k + u)$, where $u$ is the number of distinct items seen and
+$k$ is the desired output size.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Bloom filter false positive rate exceeds requirements & Too many false positives, wasted queries & Calculate optimal k and m from n and desired P; verify with test data \\
+Using Bloom filter when deletions are needed & Standard Bloom filter doesn't support deletion & Use counting Bloom filter or switch to a Cuckoo filter \\
+Cuckoo filter insertion failure (too full) & Insert returns without adding element & Rebuild with 2$\times $ buckets; or use counting Bloom filter \\
+Cuckoo filter max kicks exceeded during eviction & Infinite loop or degraded performance & Limit evictions (500), trigger rebuild when exceeded \\
+Forgetting Consistent Hashing's virtual nodes & Skewed distribution for non-uniform servers & Add 100–200 virtual nodes per physical server \\
+Hash collision in MinHash / Simhash & Wrong similarity estimate & Use multiple hash functions (k = 100+ for MinHash) \\
+HyperLogLog with too few registers (m too small) & High estimation error & Use m = 2$^{12}$ (4096 registers) for \textasciitilde{}1.6\% error \\
+Using reservoir sampling without shuffling first n elements & First k elements overrepresented, bias & Implement Fisher-Yates for the first k positions \\
+LSH hash table with too few bands & Poor recall (many near neighbors missed) & Tune band count b and row count r for desired (recall, precision) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{center}
+\begin{tabular}{ccccc}
+\toprule
+Structure & Problem & Space & Error & Supports Deletion \\
+Bloom filter & Membership & O(m) bits & False positive rate P & With counting variant \\
+Cuckoo filter & Membership & O(m) bits & False positive rate P & Yes \\
+Count-Min Sketch & Frequency & O(dw) counters & Additive $\varepsilon $$\cdot $n & No \\
+Heavy Hitters (Misra-Gries) & Top-k items & O(k) counters & Exact for f $>$ n/k & No \\
+HyperLogLog & Cardinality & O(m log log n) & 1.04/$\sqrt {m}$ relative & No \\
+Quantile Estimation (GK) & Quantiles & O($\frac{1}{\varepsilon}$ log $\varepsilon $n) & $\varepsilon $n rank error & No \\
+Reservoir Sampling & Random sample & O(k) & Uniform -- exact & No \\
+Sliding Window & Window count & O($\frac{1}{\varepsilon}$ log W) & $(1 \pm \varepsilon)$ & Yes \\
+Consistent Hashing & Key distribution & O(nV) mapping & Near-perfect balance & Yes \\
+LSH / Simhash & Approx NN & O(k) per item & Depends on k & -- \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+These trade-offs are essential for streaming data, big data analytics, distributed systems, and ML pipelines.
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For a Bloom filter with m = 100 bits, k = 3 hash functions, and n = 10 elements inserted, what is the expected false positive rate? Compute using the formula (1 - e\textasciicircum{}{-kn/m})\textasciicircum{}k.
+\end{enumerate}
+
+\begin{enumerate}
+\item How many bits are needed for a Bloom filter to achieve a false positive rate of 1\% with 10$^{6}$ elements? What if we need 0.1\%?
+\end{enumerate}
+
+\begin{enumerate}
+\item For Count-Min Sketch, if we want to guarantee that all frequency estimates have error at most 0.1\% with probability 99\%, how many rows and columns do we need?
+\end{enumerate}
+
+\begin{enumerate}
+\item For HyperLogLog with 14-bit precision (m = 16384 registers), what is the standard error? If we halve the precision (use 13 bits), how does the error change?
+\end{enumerate}
+
+\begin{enumerate}
+\item Explain why Bloom filters have false positives but no false negatives. Give a concrete example of a false positive.
+\end{enumerate}
+
+\begin{enumerate}
+\item A cuckoo filter with bucket size 4 and 8 bits per fingerprint has a 1\% false positive rate. How many buckets are needed for 10$^{6}$ elements? How does this compare with a Bloom filter using the same false positive rate?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Implement a \textbf{counting Bloom filter} that supports deletion by replacing each bit with a small counter (typically 4 bits). Compare space with the standard Bloom filter.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{Bloom filter union and intersection} — given two Bloom filters with the same parameters, compute the union (OR) and intersection (AND). Verify that the union correctly represents the union of the two sets.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{Bloom filter vs Cuckoo filter benchmark}: insert 10$^{6}$ elements, then measure space, insertion throughput, lookup throughput, and deletion throughput for each. At what false positive rate does the Cuckoo filter become strictly better?
+\end{enumerate}
+
+\begin{enumerate}
+\item Compare Count-Min Sketch vs \texttt{std::unordered\_map} for frequency estimation\index{frequency estimation} on a stream of 10$^{6}$ items with 10$^{5}$ distinct keys. Measure the error in the sketch's estimates and the memory used.
+\end{enumerate}
+
+\begin{enumerate}
+\item Use HyperLogLog to estimate the number of distinct IP addresses in a network log with 10$^{7}$ entries. Compare accuracy at precision values p = 10, 12, 14, 16.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{reservoir sampling} for k = 100 from a stream of unknown length. Verify that each element has probability k/n of being in the sample through simulation.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{heavy hitters} algorithm (lossy counting or space-saving) that finds all elements with frequency > $\phi $$\cdot $n in a stream. Compare with Count-Min Sketch.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{Bloom filter} for a web crawler to avoid revisiting URLs. How does the false positive rate affect the number of missed pages?
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{consistent hashing} for a distributed cache with 5 servers and 100 keys. Show the distribution of keys when a server joins and when one leaves. Use 50 virtual nodes per server.
+\end{enumerate}
+
+\begin{enumerate}
+\item Use \textbf{simhash} to find near-duplicate documents in a collection of 100 text snippets. Compute the cosine similarity from signatures and compare with exact cosine similarity of TF-IDF vectors.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(MinHash)} Read about MinHash for estimating set similarity (Jaccard coefficient). Implement MinHash with k hash functions and compare with exact Jaccard computation for random sets.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Cuckoo filter scaling)} Our cuckoo filter uses a fixed bucket size of 4 and a max of 500 kicks. Experiment with different bucket sizes (2, 4, 8) and max kick limits. How do these parameters affect the fill factor before a rebuild is needed? At what load factor does the filter become unstable?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(HyperLogLog++)} Read about Google's HyperLogLog++ improvements (Heule et al., 2013) including bias correction and sparse representation. Implement the sparse representation for small cardinalities.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Count-Min Sketch variants)} Research the Conservative Update variant of Count-Min Sketch. Implement it and measure the improvement in accuracy.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(DDSketch)} Research the DDSketch algorithm for streaming quantiles. Implement it and compare accuracy with the Greenwald-Khanna algorithm on skewed distributions.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Rendezvous hashing)} Implement HRW (highest random weight) hashing and compare load distribution with consistent hashing. Which achieves better balance with fewer virtual nodes?
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Burton H. Bloom, "Space/Time Trade-offs in Hash Coding with Allowable Errors" — CACM, 1970.
+\item Graham Cormode and S. Muthukrishnan, "An Improved Data Stream Summary: The Count-Min Sketch and Its Applications" — Journal of Algorithms, 2005.
+\item Philippe Flajolet, Eric Fusy, Olivier Gandouet, and Frederic Meunier, "HyperLogLog: the Analysis of a Near-Optimal Cardinality Estimation Algorithm" — AOFA, 2007.
+\item Jeffrey S. Vitter, "Random Sampling with a Reservoir" — ACM TOMS, 1985.
+\item Andrei Z. Broder, "On the Resemblance and Containment of Documents" — Compression and Complexity of Sequences, 1997.
+\item Bin Fan, Dave G. Andersen, Michael Kaminsky, and Michael D. Mitzenmacher, "Cuckoo Filter: Practically Better Than Bloom" — ACM CoNEXT, 2014.
+\item Stefan Heule, Marc Nunkesser, and Alexander Hall, "HyperLogLog in Practice: Algorithmic Engineering of a State of the Art Cardinality Estimation Algorithm" — EDBT, 2013.
+\item Jayadev Misra and David Gries, "Finding Repeated Elements" — Science of Computer Programming, 1982.
+\item Michael Greenwald and Sanjeev Khanna, "Space-Efficient Online Computation of Quantile Summaries" — SIGMOD, 2001 (GK sketch).
+\item Gurmeet Singh Manku and Rajeev Motwani, "Approximate Frequency Counts over Data Streams" — VLDB, 2002 (Misra-Gries and related algorithms).
+\item Datar, Gionis, Indyk, and Motwani, "Maintaining Stream Statistics over Sliding Windows" — SIAM Review, 2002 (exponential histogram).
+\item David Karger et al., "Consistent Hashing and Random Trees: Distributed Caching Protocols for Relieving Hot Spots on the World Wide Web" — STOC, 1997.
+\item Piotr Indyk and Rajeev Motwani, "Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality" — STOC, 1998.
+\item Moses S. Charikar, "Similarity Estimation Techniques from Rounding Algorithms" — STOC, 2002.
+\item Ted Dunning, "The T-Digest: Efficient Estimates of Distributions" — 2013.
+\item Graham Cormode, S. Muthukrishnan, Korn, and Fang, "Towards a Science of Data Streaming" — (survey of streaming algorithms).
+\end{itemize}
+

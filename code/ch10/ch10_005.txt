@@ -1,0 +1,5 @@
+Step 1: Move last to root  ->  [50, 80, 70, 30, 20]
+Step 2: Sift down 50:
+  Compare with children 80 and 70  ->  80 is largest  ->  swap
+  [80, 50, 70, 30, 20]
+Step 3: Compare 50 with children 30 and 20  ->  50 is largest  ->  stop

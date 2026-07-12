@@ -1,0 +1,1453 @@
+\chapter{Queues}\label{ch07:queues}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The Queue ADT}
+
+A \textbf{queue} follows FIFO (First In, First Out): insertions at the \textbf{rear}, deletions from the \textbf{front}.
+
+\subsection{Operations}
+
+\begin{itemize}
+\item \textbf{push(value)} — insert at rear
+\item \textbf{pop()} — remove and return the front element
+\item \textbf{front()} — return the front element
+\item \textbf{back()} — return the rear element
+\item \textbf{empty()}, \textbf{size()}
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item Task scheduling (print queues, thread pools)
+\item Breadth-first search (Chapter 12)
+\item Buffering (I/O, streaming)
+\item Message passing (queues in concurrent systems)
+\end{itemize}
+
+\section{Array-Based Queue (Circular Buffer)}
+
+A naive array queue would be inefficient: after many pushes and pops, front moves forward and space at the beginning is wasted. A \textbf{circular buffer} solves this by wrapping around.
+
+\begin{lstlisting}[language=Java]
+Initial: [_, _, _, _]   front=0, rear=0
+push 10: [10, _, _, _]  front=0, rear=1
+push 20: [10, 20, _, _] front=0, rear=2
+pop:     [_, 20, _, _]  front=1, rear=2   (returns 10)
+push 30: [_, 20, 30, _] front=1, rear=3
+push 40: [_, 20, 30, 40] front=1, rear=0  (wraps around!)
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class circular_queue {
+public:
+    explicit circular_queue(size_t initial_capacity = 8)
+        : data_(std::make_unique<T[]>(initial_capacity))
+        , capacity_(initial_capacity), front_(0), size_(0) {}
+
+    void push(const T& value) {
+        if (size_ == capacity_) grow();
+        size_t pos = (front_ + size_) % capacity_;
+        data_[pos] = value;
+        ++size_;
+    }
+
+    void push(T&& value) {
+        if (size_ == capacity_) grow();
+        size_t pos = (front_ + size_) % capacity_;
+        data_[pos] = std::move(value);
+        ++size_;
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("queue is empty");
+        front_ = (front_ + 1) % capacity_;
+        --size_;
+    }
+
+    T& front() {
+        if (empty()) throw std::underflow_error("queue is empty");
+        return data_[front_];
+    }
+    const T& front() const {
+        if (empty()) throw std::underflow_error("queue is empty");
+        return data_[front_];
+    }
+
+    T& back() {
+        if (empty()) throw std::underflow_error("queue is empty");
+        return data_[(front_ + size_ - 1) % capacity_];
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    size_t size() const noexcept { return size_; }
+
+private:
+    void grow() {
+        size_t new_capacity = capacity_ * 2;
+        auto new_data = std::make_unique<T[]>(new_capacity);
+        for (size_t i = 0; i < size_; ++i) {
+            new_data[i] = std::move(data_[(front_ + i) % capacity_]);
+        }
+        front_ = 0;
+        capacity_ = new_capacity;
+        data_ = std::move(new_data);
+    }
+
+    std::unique_ptr<T[]> data_;
+    size_t capacity_, front_, size_;
+};
+\end{lstlisting}
+
+All operations: O(1) amortized.
+
+\section{Linked Queue}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class linked_queue {
+public:
+    linked_queue() = default;
+
+    void push(const T& value) {
+        auto new_node = std::make_unique<node>(value);
+        if (rear_) {
+            rear_->next = std::move(new_node);
+            rear_ = rear_->next.get();
+        } else {
+            front_ = std::move(new_node);
+            rear_ = front_.get();
+        }
+        ++size_;
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("queue is empty");
+        front_ = std::move(front_->next);
+        if (!front_) rear_ = nullptr;
+        --size_;
+    }
+
+    T& front() {
+        if (empty()) throw std::underflow_error("queue is empty");
+        return front_->data;
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    size_t size() const noexcept { return size_; }
+
+private:
+    struct node {
+        T data;
+        std::unique_ptr<node> next;
+        explicit node(const T& d) : data(d) {}
+    };
+    std::unique_ptr<node> front_;
+    node* rear_ = nullptr;
+    size_t size_ = 0;
+};
+\end{lstlisting}
+
+\section{Applications}
+
+\subsection{Message Queue (Apache Kafka / AWS SQS)}
+
+Message queues decouple producers from consumers. In a simplified Kafka-like publish-subscribe system, a queue holds messages that multiple consumers can process:
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class message_queue {
+public:
+    void publish(const T& message) {
+        std::scoped_lock lock(mutex_);
+        queue_.push(message);
+        cv_.notify_one();
+    }
+
+    T consume(std::chrono::milliseconds timeout = std::chrono::seconds(30)) {
+        std::unique_lock lock(mutex_);
+        if (!cv_.wait_for(lock, timeout, [this] { return !queue_.empty(); })) {
+            throw std::runtime_error("consume timeout -- no messages available");
+        }
+        T msg = queue_.front();
+        queue_.pop();
+        return msg;
+    }
+
+    size_t size() const {
+        std::scoped_lock lock(mutex_);
+        return queue_.size();
+    }
+
+private:
+    linked_queue<T> queue_;
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+};
+\end{lstlisting}
+
+\textbf{Usage in production:} LinkedIn uses Apache Kafka to handle over 7 trillion messages per day. Each topic partition is an ordered, immutable queue. Twitter's event bus processes 500 million tweets/day through message queues. The queue abstraction provides backpressure: if consumers fall behind, the queue grows (or triggers auto-scaling).
+
+\subsection{Web Crawler Frontier (BFS)}
+
+A web crawler maintains a frontier of URLs to visit. BFS (queue-based) ensures politeness — it visits pages in discovery order, typically used by search engines like Googlebot:
+
+\begin{lstlisting}[language=C++]
+class web_crawler {
+public:
+    web_crawler(std::string_view seed_url, size_t max_pages = 10000)
+        : frontier_(), visited_(), max_pages_(max_pages) {
+        frontier_.push(seed_url);
+    }
+
+    void crawl() {
+        while (!frontier_.empty() && visited_.size() < max_pages_) {
+            std::string url = frontier_.front(); frontier_.pop();
+            if (visited_.count(url)) continue;
+            visited_.insert(url);
+
+            std::cout << "Crawling: " << url << " ("
+                      << visited_.size() << "/" << max_pages_ << ")\n";
+
+            auto links = fetch_links(url);  // HTTP GET + HTML parsing
+            for (const auto& link : links) {
+                if (!visited_.count(link) && same_domain(url, link)) {
+                    frontier_.push(link);
+                }
+            }
+        }
+    }
+
+    size_t pages_crawled() const { return visited_.size(); }
+
+private:
+    std::vector<std::string> fetch_links(std::string_view url) {
+        // Simulate fetching -- in production this uses libcurl or CPPREST
+        return {};
+    }
+
+    bool same_domain(std::string_view a, std::string_view b) {
+        auto pos_a = a.find("://"), pos_b = b.find("://");
+        if (pos_a == std::string_view::npos) pos_a = 0;
+        else pos_a += 3;
+        if (pos_b == std::string_view::npos) pos_b = 0;
+        else pos_b += 3;
+        std::string_view domain_a = a.substr(pos_a, a.find('/', pos_a) - pos_a);
+        std::string_view domain_b = b.substr(pos_b, b.find('/', pos_b) - pos_b);
+        return domain_a == domain_b;
+    }
+
+    linked_queue<std::string> frontier_;
+    std::unordered_set<std::string> visited_;
+    size_t max_pages_;
+};
+\end{lstlisting}
+
+\textbf{Politeness:} Production crawlers (Googlebot, Bingbot) add a delay between requests to the same domain — equivalent to rate-limited dequeue. The queue also respects \texttt{robots.txt}, which filters URLs before enqueuing.
+
+\subsection{Thread Pool Task Queue}
+
+Modern web servers (NGINX, Apache, uWSGI) use a thread pool with a shared task queue. Worker threads consume tasks from the queue as they become available:
+
+\begin{lstlisting}[language=C++]
+class thread_pool {
+public:
+    explicit thread_pool(size_t num_threads = std::thread::hardware_concurrency()) {
+        workers_.reserve(num_threads);
+        for (size_t i = 0; i < num_threads; ++i) {
+            workers_.emplace_back([this] { worker_loop(); });
+        }
+    }
+
+    ~thread_pool() {
+        {
+            std::scoped_lock lock(mutex_);
+            done_ = true;
+        }
+        cv_.notify_all();
+        for (auto& t : workers_) t.join();
+    }
+
+    void enqueue(std::function<void()> task) {
+        std::scoped_lock lock(mutex_);
+        tasks_.push(std::move(task));
+        cv_.notify_one();
+    }
+
+private:
+    void worker_loop() {
+        while (true) {
+            std::function<void()> task;
+            {
+                std::unique_lock lock(mutex_);
+                cv_.wait(lock, [this] { return done_ || !tasks_.empty(); });
+                if (done_ && tasks_.empty()) return;
+                task = tasks_.front(); tasks_.pop();
+            }
+            task();  // execute outside the lock
+        }
+    }
+
+    linked_queue<std::function<void()>> tasks_;
+    std::vector<std::thread> workers_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    bool done_ = false;
+};
+\end{lstlisting}
+
+\textbf{Usage:} NGINX uses this pattern for its thread pool module (ngx\_thread\_pool), processing hundreds of thousands of concurrent connections. uWSGI's async mode runs a thread pool with a queue of requests, each handled by a greenlet.
+
+\section{Deque (Double-Ended Queue)}
+
+A deque allows push/pop at both ends. C++ provides \texttt{std::deque} — typically implemented as a sequence of fixed-size blocks.
+
+\begin{lstlisting}[language=C++]
+std::deque<int> dq;
+dq.push_back(10);     // [10]
+dq.push_front(5);     // [5, 10]
+dq.push_back(20);     // [5, 10, 20]
+dq.pop_front();       // [10, 20]
+dq.pop_back();        // [10]
+\end{lstlisting}
+
+\texttt{std::deque} offers O(1) operations at both ends and O(1) random access. It is the default container for \texttt{std::stack} and \texttt{std::queue}.
+
+\section{STL Connection: std::queue}
+
+\begin{lstlisting}[language=C++]
+std::queue<int> q;                          // uses std::deque
+std::queue<int, std::list<int>> ql;       // list-based
+
+q.push(10);
+q.push(20);
+int x = q.front();  // 10
+q.pop();            // removes 10
+\end{lstlisting}
+
+\section{Circular Queue: Full Implementation}
+
+The circular queue (ring buffer) uses modular arithmetic so that when the rear or front index reaches the end of the array, it wraps around to the beginning. This avoids the "drift" problem of a naive array queue, where elements slide forward and wasted space accumulates at the front.
+
+\begin{lstlisting}[language=C++]
+// A fixed-capacity circular queue.
+// Uses one wasted slot to distinguish full from empty.
+// When (rear_ + 1) % cap == front_, the queue is full.
+// When front_ == rear_, the queue is empty.
+template <typename T>
+class circular_queue_v2 {
+public:
+    explicit circular_queue_v2(int capacity)
+        : cap_(capacity + 1), data_(new T[capacity + 1]),
+          front_(0), rear_(0) {}
+
+    ~circular_queue_v2() { delete[] data_; }
+
+    // Disallow copying for simplicity.
+    circular_queue_v2(const circular_queue_v2&) = delete;
+    circular_queue_v2& operator=(const circular_queue_v2&) = delete;
+
+    void enqueue(const T& value) {
+        if (is_full()) {
+            throw std::overflow_error("queue is full");
+        }
+        data_[rear_] = value;
+        rear_ = (rear_ + 1) % cap_;
+    }
+
+    T dequeue() {
+        if (is_empty()) {
+            throw std::underflow_error("queue is empty");
+        }
+        T value = data_[front_];
+        front_ = (front_ + 1) % cap_;
+        return value;
+    }
+
+    T& front() {
+        if (is_empty()) {
+            throw std::underflow_error("queue is empty");
+        }
+        return data_[front_];
+    }
+
+    bool is_empty() const { return front_ == rear_; }
+
+    bool is_full() const {
+        return (rear_ + 1) % cap_ == front_;
+    }
+
+    int size() const {
+        return (rear_ - front_ + cap_) % cap_;
+    }
+
+private:
+    int cap_;
+    T* data_;
+    int front_;   // index of the first element
+    int rear_;    // index of the NEXT insertion point
+};
+
+// Driver: exercise all operations.
+int main() {
+    circular_queue_v2<int> q(5);   // capacity = 5
+
+    q.enqueue(10);
+    q.enqueue(20);
+    q.enqueue(30);
+    std::cout << "front: " << q.front() << "\n";  // 10
+    std::cout << "size:  " << q.size()   << "\n";  // 3
+
+    q.dequeue();
+    q.enqueue(40);
+    q.enqueue(50);
+    q.enqueue(60);   // now full (capacity = 5)
+    std::cout << "full: " << q.is_full() << "\n";  // 1
+
+    // Demonstrates wrap-around: indices wrap to 0.
+    while (!q.is_empty()) {
+        std::cout << q.dequeue() << " ";
+    }
+    std::cout << "\n";  // 20 30 40 50 60
+    return 0;
+}
+\end{lstlisting}
+
+\textbf{Key design decisions:}
+\begin{itemize}
+\item We allocate \texttt{capacity + 1} slots and keep one slot unused. This lets us distinguish full from empty using only the two index pointers (no extra counter needed).
+\item The \texttt{front\_} index points to the first element; \texttt{rear\_} points to the \emph{next} insertion position. Empty means \texttt{front\_ == rear\_}. Full means the next position for \texttt{rear\_} would collide with \texttt{front\_}.
+\item The \texttt{size()} function computes \texttt{(rear\_ - front\_ + cap\_) \% cap\_}, which correctly handles the case where \texttt{rear\_} has wrapped past 0 while \texttt{front\_} has not.
+\end{itemize}
+
+\textbf{Alternative: using a count variable.} Instead of wasting one slot, you can track \texttt{count\_} alongside \texttt{front\_} and \texttt{rear\_}. Full is \texttt{count\_ == cap\_}; empty is \texttt{count\_ == 0}. This uses every slot but adds one integer of overhead.
+
+\textbf{Wrap-around arithmetic.} The expression \texttt{(index + 1) \% capacity} is the heart of the circular buffer. When \texttt{index} reaches \texttt{capacity - 1}, adding 1 gives \texttt{capacity}, and modulo brings it back to 0. This is the same mechanism used in OS ring buffers, network packet queues, and audio streaming buffers.
+
+\section{Double-Ended Queue (Deque)}
+
+A \textbf{deque} (double-ended queue) supports insertion and deletion at both ends in O(1). It generalizes both the stack and the queue. The standard library provides \texttt{std::deque}, but understanding the internals is important for interview and system-design purposes.
+
+\subsection{Deque ADT}
+
+\begin{itemize}
+\item \textbf{push\_front(value)} -- insert at the front
+\item \textbf{push\_back(value)} -- insert at the rear
+\item \textbf{pop\_front()} -- remove and return the front element
+\item \textbf{pop\_back()} -- remove and return the rear element
+\item \textbf{front()}, \textbf{back()} -- access without removal
+\item \textbf{empty()}, \textbf{size()}
+\end{itemize}
+
+All operations are O(1).
+
+\subsection{Implementation 1: Doubly Linked List}
+
+A doubly linked list naturally supports O(1) insertion/deletion at both ends if we maintain \texttt{head} and \texttt{tail} pointers.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class deque_linked {
+public:
+    deque_linked() = default;
+
+    ~deque_linked() {
+        while (head_) {
+            node* temp = head_;
+            head_ = head_->next;
+            delete temp;
+        }
+    }
+
+    void push_front(const T& value) {
+        node* n = new node(value);
+        n->next = head_;
+        if (head_) head_->prev = n;
+        head_ = n;
+        if (!tail_) tail_ = head_;
+        ++sz_;
+    }
+
+    void push_back(const T& value) {
+        node* n = new node(value);
+        if (tail_) {
+            tail_->next = n;
+            n->prev = tail_;
+        } else {
+            head_ = n;
+        }
+        tail_ = n;
+        ++sz_;
+    }
+
+    T pop_front() {
+        if (!head_) throw std::underflow_error("empty");
+        T val = head_->data;
+        node* temp = head_;
+        head_ = head_->next;
+        if (head_) head_->prev = nullptr;
+        else tail_ = nullptr;
+        delete temp;
+        --sz_;
+        return val;
+    }
+
+    T pop_back() {
+        if (!tail_) throw std::underflow_error("empty");
+        T val = tail_->data;
+        node* temp = tail_;
+        tail_ = tail_->prev;
+        if (tail_) tail_->next = nullptr;
+        else head_ = nullptr;
+        delete temp;
+        --sz_;
+        return val;
+    }
+
+    bool empty() const { return sz_ == 0; }
+    int size() const { return sz_; }
+
+private:
+    struct node {
+        T data;
+        node* prev = nullptr;
+        node* next = nullptr;
+        explicit node(const T& d) : data(d) {}
+    };
+    node* head_ = nullptr;
+    node* tail_ = nullptr;
+    int sz_ = 0;
+};
+\end{lstlisting}
+
+\textbf{Pros:} simple, exact capacity, no wasted slots. \textbf{Cons:} each node is a separate heap allocation -- poor cache locality, allocator overhead.
+
+\subsection{Implementation 2: Circular Array}
+
+A circular array deque uses a dynamic array with \texttt{front} and \texttt{rear} indices that can move in both directions. The array grows when full.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class deque_circular {
+public:
+    explicit deque_circular(int cap = 4)
+        : cap_(cap), data_(new T[cap]), front_(0), sz_(0) {}
+
+    ~deque_circular() { delete[] data_; }
+
+    void push_front(const T& value) {
+        if (sz_ == cap_) grow();
+        front_ = (front_ - 1 + cap_) % cap_;
+        data_[front_] = value;
+        ++sz_;
+    }
+
+    void push_back(const T& value) {
+        if (sz_ == cap_) grow();
+        int rear = (front_ + sz_) % cap_;
+        data_[rear] = value;
+        ++sz_;
+    }
+
+    T pop_front() {
+        if (sz_ == 0) throw std::underflow_error("empty");
+        T val = data_[front_];
+        front_ = (front_ + 1) % cap_;
+        --sz_;
+        return val;
+    }
+
+    T pop_back() {
+        if (sz_ == 0) throw std::underflow_error("empty");
+        int rear = (front_ + sz_ - 1) % cap_;
+        T val = data_[rear];
+        --sz_;
+        return val;
+    }
+
+    T& operator[](int idx) {
+        return data_[(front_ + idx) % cap_];
+    }
+
+    bool empty() const { return sz_ == 0; }
+    int size() const { return sz_; }
+
+private:
+    void grow() {
+        int new_cap = cap_ * 2;
+        T* new_data = new T[new_cap];
+        for (int i = 0; i < sz_; ++i) {
+            new_data[i] = data_[(front_ + i) % cap_];
+        }
+        delete[] data_;
+        data_ = new_data;
+        cap_ = new_cap;
+        front_ = 0;
+    }
+
+    int cap_;
+    T* data_;
+    int front_;
+    int sz_;
+};
+\end{lstlisting}
+
+\textbf{Comparison:} \texttt{std::deque} is typically implemented as a \emph{sequence of fixed-size blocks} (not a single circular array). This avoids large contiguous allocations while still giving O(1) push at both ends and O(1) random access. The block-map approach is a middle ground between a single circular buffer (which must copy everything on grow) and a linked list (which has poor cache behavior).
+
+\subsection{Applications}
+
+\textbf{Sliding Window Maximum.} Given an array and window size $k$, find the maximum in every contiguous window. A monotonic deque maintains candidates in decreasing order. For each new element, pop smaller elements from the back; the front of the deque is always the window maximum. Total time: O(n).
+
+\begin{lstlisting}[language=C++]
+// Returns the maximum in every window of size k.
+std::vector<int> sliding_window_max(
+    const std::vector<int>& nums, int k)
+{
+    std::deque<int> dq;  // stores indices
+    std::vector<int> result;
+
+    for (int i = 0; i < (int)nums.size(); ++i) {
+        // Remove indices outside the window.
+        while (!dq.empty() && dq.front() <= i - k) {
+            dq.pop_front();
+        }
+        // Remove smaller elements from the back.
+        while (!dq.empty() && nums[dq.back()] <= nums[i]) {
+            dq.pop_back();
+        }
+        dq.push_back(i);
+        if (i >= k - 1) {
+            result.push_back(nums[dq.front()]);
+        }
+    }
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Palindrome checking.} A deque can check palindromes in O(n): push all characters onto a deque, then compare \texttt{pop\_front()} with \texttt{pop\_back()} until the deque is empty or a mismatch is found. This requires no random access.
+
+\textbf{Other applications:} Browser forward/backward history (deque of pages), undo/redo (deque of states), work-stealing schedulers (each thread owns a deque; idle threads steal from the back), implementing both stack and queue from a single data structure.
+
+\section{Queue Using Two Stacks}
+
+A FIFO queue can be implemented using two stacks. The key insight: one stack handles incoming elements (push stack), and the other handles outgoing elements (pop stack). When the pop stack is empty, we transfer all elements from the push stack, reversing their order so the oldest element ends up on top.
+
+\begin{lstlisting}[language=C++]
+// Amortized O(1) queue using two stacks.
+// Each element is pushed and popped at most twice.
+template <typename T>
+class queue_via_stacks {
+public:
+    void push(const T& value) {
+        in_stack_.push(value);
+    }
+
+    // Amortized O(1): each element moves from in_stack_
+    // to out_stack exactly once over the lifetime of the queue.
+    T pop() {
+        if (out_stack_.empty()) {
+            transfer();
+        }
+        if (out_stack_.empty()) {
+            throw std::underflow_error("queue is empty");
+        }
+        T val = out_stack_.top();
+        out_stack_.pop();
+        return val;
+    }
+
+    T front() {
+        if (out_stack_.empty()) {
+            transfer();
+        }
+        return out_stack_.top();
+    }
+
+    bool empty() const {
+        return in_stack_.empty() && out_stack_.empty();
+    }
+
+    int size() const {
+        return in_stack_.size() + out_stack_.size();
+    }
+
+private:
+    void transfer() {
+        while (!in_stack_.empty()) {
+            out_stack_.push(in_stack_.top());
+            in_stack_.pop();
+        }
+    }
+
+    std::stack<T> in_stack_;   // for push
+    std::stack<T> out_stack_;  // for pop
+};
+
+// Exercise all operations.
+int main() {
+    queue_via_stacks<int> q;
+    q.push(1);
+    q.push(2);
+    q.push(3);
+    std::cout << q.pop() << "\n";  // 1 (FIFO)
+    q.push(4);
+    std::cout << q.pop() << "\n";  // 2
+    std::cout << q.pop() << "\n";  // 3
+    std::cout << q.pop() << "\n";  // 4
+    return 0;
+}
+\end{lstlisting}
+
+\textbf{Amortized analysis.} Each element is pushed onto \texttt{in\_stack\_} once and later transferred (popped from \texttt{in\_stack\_}, pushed onto \texttt{out\_stack\_}) once. Then it is popped from \texttt{out\_stack\_} once. Total work per element: 3 stack operations. Since each stack operation is O(1), the amortized cost per element is O(1). A single \texttt{pop()} call can be O(n) in the worst case (when a transfer is needed), but this is an infrequent operation amortized over many calls.
+
+\textbf{Alternative: push O(n), pop O(1).} The reverse approach keeps all elements in sorted order in one stack. On \texttt{push}, transfer everything to the auxiliary stack, push the new element onto the original stack, then transfer back. This is less practical but occasionally appears in interviews.
+
+\section{Priority Queue Applications}
+
+A \textbf{priority queue} is a data structure where each element has a priority. The element with the highest priority is removed first (regardless of insertion order). C++ provides \texttt{std::priority\_queue}, typically implemented as a binary heap.
+
+\begin{lstlisting}[language=C++]
+// std::priority_queue is a max-heap by default.
+std::priority_queue<int> max_pq;
+max_pq.push(30);
+max_pq.push(10);
+max_pq.push(20);
+std::cout << max_pq.top() << "\n";  // 30
+max_pq.pop();
+std::cout << max_pq.top() << "\n";  // 20
+
+// Min-heap: use std::greater.
+std::priority_queue<int, std::vector<int>,
+                    std::greater<int>> min_pq;
+min_pq.push(30);
+min_pq.push(10);
+min_pq.push(20);
+std::cout << min_pq.top() << "\n";  // 10
+\end{lstlisting}
+
+\subsection{Dijkstra's Shortest-Path Algorithm}
+
+Dijkstra's algorithm finds the shortest path from a source vertex to all other vertices in a weighted graph with non-negative edge weights. A min-priority queue (keyed by current distance) gives an efficient implementation: $O((V + E) \log V)$.
+
+\textbf{Worked example.} Consider a graph with vertices A through E and edges:
+\begin{verbatim}
+A --1--> B --2--> D
+A --4--> C --1--> D
+B --3--> C --5--> E
+D --1--> E
+\end{verbatim}
+
+\textbf{Trace (Dijkstra from A):}
+
+\begin{verbatim}
+Step  PQ (dist, v)        Visit  Update neighbors
+  --  ------------------  -----  --------------------
+  0   (0,A) (inf,B..E)    A      B: 0+1=1, C: 0+4=4
+  1   (1,B) (4,C)(inf,D..E) B    C: min(4, 1+3)=4, D: 1+2=3
+  2   (3,D) (4,C)(inf,E)  D      E: 3+1=4, C: min(4,3+?)=4
+  3   (4,C) (4,E)          C      E: min(4,4+5)=4
+  4   (4,E)                E      (no neighbors to relax)
+  --  done: A=0, B=1, D=3, C=4, E=4
+\end{verbatim}
+
+\begin{lstlisting}[language=C++]
+// Dijkstra using std::priority_queue.
+// Graph: adjacency list, (neighbor, weight) pairs.
+void dijkstra(
+    const std::vector<std::vector<std::pair<int,int>>>& adj,
+    int source, int n)
+{
+    // Min-priority queue: (distance, vertex).
+    using pii = std::pair<int,int>;
+    std::priority_queue<pii, std::vector<pii>,
+                        std::greater<pii>> pq;
+
+    std::vector<int> dist(n, INT_MAX);
+    std::vector<int> prev(n, -1);
+    dist[source] = 0;
+    pq.push({0, source});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top();
+        pq.pop();
+        if (d > dist[u]) continue;  // stale entry
+
+        for (auto [v, w] : adj[u]) {
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                prev[v] = u;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    for (int i = 0; i < n; ++i) {
+        std::cout << i << ": dist=" << dist[i]
+                  << " path=";
+        // Reconstruct path.
+        for (int v = i; v != -1; v = prev[v]) {
+            std::cout << v << " ";
+        }
+        std::cout << "\n";
+    }
+}
+\end{lstlisting}
+
+\textbf{Why a priority queue?} Without it, Dijkstra requires scanning all vertices to find the unvisited minimum, costing O(V$^{2}$). The priority queue reduces this to O(log V) per extraction, yielding O((V + E) log V) total. For sparse graphs (E = O(V)), this is much faster.
+
+\subsection{Job Scheduling with Priorities}
+
+In operating systems and cloud computing, processes or tasks have priorities. A priority queue ensures the highest-priority task is always processed next. Consider a simple task scheduler:
+
+\begin{lstlisting}[language=C++]
+struct task {
+    std::string name;
+    int priority;       // higher = more urgent
+    int deadline;       // time units
+};
+
+// Max-heap ordered by priority.
+struct task_cmp {
+    bool operator()(const task& a, const task& b) {
+        return a.priority < b.priority;
+    }
+};
+
+void schedule_tasks() {
+    std::priority_queue<task, std::vector<task>,
+                        task_cmp> scheduler;
+
+    scheduler.push({"backup",      2, 100});
+    scheduler.push({"critical_db", 5, 10});
+    scheduler.push({"log_rotate",  1, 50});
+    scheduler.push({"user_request",4, 5});
+
+    while (!scheduler.empty()) {
+        task t = scheduler.top();
+        scheduler.pop();
+        std::cout << "Running: " << t.name
+                  << " (priority=" << t.priority
+                  << ")\n";
+    }
+    // Output: critical_db, user_request, backup, log_rotate
+}
+\end{lstlisting}
+
+\textbf{Real-world systems:} Linux's CFS (Completely Fair Scheduler) uses a red-black tree (not a heap) to manage process priorities. Kubernetes uses a priority queue for pod scheduling: higher-priority pods are admitted to the cluster first. Cloud task queues (AWS SQS with FIFO + priority, Celery with priority lanes) provide priority-based message processing.
+
+\section{BFS Applications}
+
+Breadth-first search (BFS) uses a queue to explore a graph level by level. Beyond basic traversal, BFS solves several important problems.
+
+\subsection{Word Ladder Problem}
+
+Given two words (\texttt{beginWord} and \texttt{endWord}) and a dictionary of valid words, find the shortest transformation sequence from \texttt{beginWord} to \texttt{endWord}, where each intermediate word must be in the dictionary and differs by exactly one letter.
+
+\textbf{Worked trace.} Find the shortest ladder from \texttt{COLD} to \texttt{WARM}, dictionary = \{\texttt{COLD}, \texttt{CORD}, \texttt{CARD}, \texttt{WARD}, \texttt{WARM}, \texttt{WORE}, \texttt{WORM}\}.
+
+\begin{verbatim}
+BFS explores in order of distance from COLD.
+
+Level 0: COLD
+Level 1: CORD (change L->R)
+Level 2: CARD (CORD: O->A)
+Level 3: WARD (CARD: C->W)
+Level 4: WARM (WARD: D->M)
+Answer: COLD -> CORD -> CARD -> WARD -> WARM (length 5)
+\end{verbatim}
+
+\begin{lstlisting}[language=C++]
+int word_ladder(const std::string& begin,
+                const std::string& end,
+                const std::unordered_set<std::string>& dict)
+{
+    if (begin == end) return 0;
+
+    std::queue<std::pair<std::string,int>> bfs;
+    std::unordered_set<std::string> visited;
+    bfs.push({begin, 1});
+    visited.insert(begin);
+
+    while (!bfs.empty()) {
+        auto [word, steps] = bfs.front();
+        bfs.pop();
+
+        // Try changing each character.
+        for (int i = 0; i < (int)word.size(); ++i) {
+            char original = word[i];
+            for (char c = 'a'; c <= 'z'; ++c) {
+                if (c == original) continue;
+                word[i] = c;
+                if (word == end) return steps + 1;
+                if (dict.count(word) &&
+                    !visited.count(word))
+                {
+                    visited.insert(word);
+                    bfs.push({word, steps + 1});
+                }
+            }
+            word[i] = original;  // restore
+        }
+    }
+    return 0;  // no ladder found
+}
+\end{lstlisting}
+
+\textbf{Complexity.} Let $N$ be the dictionary size and $L$ the word length. Each state has $26L$ neighbors. BFS visits each state at most once. Time: O(N $\cdot$ L $\cdot$ 26). Space: O(N) for the visited set and queue.
+
+\subsection{Bipartiteness Checking}
+
+A graph is \textbf{bipartite} if its vertices can be partitioned into two sets such that every edge connects vertices in different sets. Equivalently, a graph is bipartite if and only if it contains no odd-length cycles.
+
+BFS can check bipartiteness in O(V + E): color the source vertex 0, then alternate colors (0 and 1) at each BFS level. If you ever find an edge connecting two vertices of the same color, the graph is not bipartite.
+
+\begin{lstlisting}[language=C++]
+bool is_bipartite(
+    const std::vector<std::vector<int>>& adj, int n)
+{
+    std::vector<int> color(n, -1);  // -1 = uncolored
+
+    for (int start = 0; start < n; ++start) {
+        if (color[start] != -1) continue;  // already visited
+
+        // BFS from this component.
+        std::queue<int> q;
+        q.push(start);
+        color[start] = 0;
+
+        while (!q.empty()) {
+            int u = q.front();
+            q.pop();
+            for (int v : adj[u]) {
+                if (color[v] == -1) {
+                    color[v] = color[u] ^ 1;  // flip color
+                    q.push(v);
+                } else if (color[v] == color[u]) {
+                    return false;  // same color = not bipartite
+                }
+            }
+        }
+    }
+    return true;
+}
+\end{lstlisting}
+
+\textbf{Applications:} Graph 2-coloring, checking if a graph is a tree (always bipartite), matching problems (maximum bipartite matching), scheduling problems where items fall into two categories (jobs and machines, courses and time slots), and detecting odd cycles in social networks.
+
+\section{Sliding Window Maximum (Deque Approach)}
+
+The \textbf{sliding window maximum} problem asks: given an array $A[0 \ldots n-1]$ and a window size $k$, find the maximum in every contiguous window $A[i \ldots i+k-1]$ for $i = 0, 1, \ldots, n-k$. A naive approach scans each window in $O(k)$, giving $O(nk)$ total. The deque-based solution achieves $O(n)$.
+
+\subsection{Key Idea}
+
+Maintain a \emph{monotonic deque} (double-ended queue) of \emph{indices}. The deque stores indices of elements in \textbf{decreasing order of value}---the front always holds the index of the current window maximum. Two invariants are maintained:
+
+\begin{enumerate}
+\item \textbf{Monotonicity:} For any two indices $i < j$ in the deque, $A[i] \ge A[j]$. Before pushing index $j$, pop from the back all indices whose values are $\le A[j]$---they can never be the maximum while $j$ is in the window.
+\item \textbf{Freshness:} The front index must lie within the current window. Before reading the maximum, pop from the front any index $i$ where $i \le \text{current\_left} - 1$ (i.e., it has slid out of the window).
+\end{enumerate}
+
+\subsection{Worked Trace}
+
+Consider $A = [2, 1, 5, 3, 6, 4, 8, 7]$ with $k = 3$. We process each element (index shown in parentheses):
+
+\begin{verbatim}
+Step  Element  Action                          Deque (indices)   Max
+  1     2     push 0                            [0]              --
+  2     1     push 1 (1 < A[0]=2, stays)        [0, 1]           --
+  3     5     pop back 1, pop back 0; push 2    [2]              A[2]=5
+  4     3     push 3 (3 < A[2]=5, stays)        [2, 3]           A[2]=5
+  5     6     pop back 3, pop back 2; push 4    [4]              A[4]=6
+  6     4     push 5 (4 < A[4]=6, stays)        [4, 5]           A[4]=6
+  7     8     pop back 5, pop back 4; push 6    [6]              A[6]=8
+  8     7     push 7 (7 < A[8]=8, stays)        [6, 7]           A[6]=8
+\end{verbatim}
+
+Windows and results:
+\begin{verbatim}
+Window [2, 1, 5]  -->  max = 5
+Window [1, 5, 3]  -->  max = 5
+Window [5, 3, 6]  -->  max = 6
+Window [3, 6, 4]  -->  max = 6
+Window [6, 4, 8]  -->  max = 8
+Window [4, 8, 7]  -->  max = 8
+\end{verbatim}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+#include <vector>
+#include <deque>
+
+// Returns the maximum of each sliding window of size k in A.
+// Time: O(n), Space: O(k)
+std::vector<int> slidingWindowMax(const std::vector<int>& A, int k) {
+    std::deque<int> dq;   // stores indices, values decreasing
+    std::vector<int> result;
+
+    for (int i = 0; i < (int)A.size(); i++) {
+        // 1. Remove indices that fell out of the window
+        while (!dq.empty() && dq.front() <= i - k)
+            dq.pop_front();
+
+        // 2. Remove back indices with values <= A[i]
+        while (!dq.empty() && A[dq.back()] <= A[i])
+            dq.pop_back();
+
+        // 3. Push current index
+        dq.push_back(i);
+
+        // 4. Record max once we have a full window
+        if (i >= k - 1)
+            result.push_back(A[dq.front()]);
+    }
+    return result;
+}
+
+int main() {
+    std::vector<int> A = {2, 1, 5, 3, 6, 4, 8, 7};
+    int k = 3;
+    std::vector<int> ans = slidingWindowMax(A, k);
+
+    std::cout << "Array:  ";
+    for (int x : A) std::cout << x << " ";
+    std::cout << "\nk = " << k << "\nMaxima: ";
+    for (int x : ans) std::cout << x << " ";
+    std::cout << std::endl;
+    return 0;
+}
+\end{lstlisting}
+
+\textbf{Why $O(n)$?} Each index is pushed onto the deque exactly once and popped at most once (from the front or the back). Therefore the total number of deque operations across all $n$ iterations is at most $2n$, giving linear time.
+
+\section{Level Order Traversal Variants}
+
+Standard level-order (BFS) traversal of a binary tree visits nodes level by level, left to right. Two important variants modify the visitation order while keeping the same $O(n)$ BFS framework.
+
+\subsection{Zigzag Level Order}
+
+Visit alternating levels in opposite directions---left-to-right on even levels, right-to-left on odd levels. The simplest implementation uses a boolean flag to reverse the output of each level.
+
+\begin{lstlisting}[language=C++]
+struct TreeNode {
+    int val;
+    TreeNode *left, *right;
+    TreeNode(int v) : val(v), left(nullptr), right(nullptr) {}
+};
+
+vector<vector<int>> zigzagLevelOrder(TreeNode* root) {
+    vector<vector<int>> result;
+    if (!root) return result;
+
+    queue<TreeNode*> q;
+    q.push(root);
+    bool leftToRight = true;
+
+    while (!q.empty()) {
+        int levelSize = q.size();
+        vector<int> level(levelSize);
+
+        for (int i = 0; i < levelSize; i++) {
+            TreeNode* node = q.front();
+            q.pop();
+
+            // Place node at correct position based on direction
+            int idx = leftToRight ? i : levelSize - 1 - i;
+            level[idx] = node->val;
+
+            if (node->left)  q.push(node->left);
+            if (node->right) q.push(node->right);
+        }
+        leftToRight = !leftToRight;
+        result.push_back(level);
+    }
+    return result;
+}
+\end{lstlisting}
+
+For the tree below, zigzag order is: $[1] \to [3, 2] \to [4, 5, 6, 7]$.
+\begin{verbatim}
+        1
+       / \
+      2   3
+     / \ / \
+    4  5 6  7
+\end{verbatim}
+
+\subsection{Right Side View}
+
+The \textbf{right side view} of a binary tree returns the values visible when looking from the right side---that is, the \emph{last} node visited at each level.
+
+\begin{lstlisting}[language=C++]
+vector<int> rightSideView(TreeNode* root) {
+    vector<int> result;
+    if (!root) return result;
+
+    queue<TreeNode*> q;
+    q.push(root);
+
+    while (!q.empty()) {
+        int levelSize = q.size();
+        for (int i = 0; i < levelSize; i++) {
+            TreeNode* node = q.front();
+            q.pop();
+
+            // Last node of this level is the right-side view node
+            if (i == levelSize - 1)
+                result.push_back(node->val);
+
+            if (node->left)  q.push(node->left);
+            if (node->right) q.push(node->right);
+        }
+    }
+    return result;
+}
+\end{lstlisting}
+
+For the same tree above, the right side view is $[1, 3, 7]$. The left side view (first node per level) would be $[1, 2, 4]$---simply change the condition to \texttt{i == 0}.
+
+\textbf{Complexity:} Both variants run in $O(n)$ time and $O(w)$ space where $w$ is the maximum tree width (the largest queue size at any level).
+
+\section{Common Bugs and Pitfalls}
+
+\begin{itemize}
+\item \textbf{Confusing front() and back()} — in FIFO, \texttt{front()} returns the oldest element (first to be removed) while \texttt{back()} returns the most recently added. The naming is reversed from a stack perspective and causes bugs in production.
+\item \textbf{Circular buffer index arithmetic} — \texttt{(front\_ + size\_) \% capacity\_} is correct for insertion, but \texttt{(front\_ + 1) \% capacity\_} for pop is only correct when size\_ > 0. Off-by-one errors here cause silent memory corruption.
+\item \textbf{Queue in concurrent code without synchronization} — our examples use \texttt{std::mutex} and \texttt{std::condition\_variable}. A bare \texttt{std::queue} shared across threads is a data race. Always synchronize or use \texttt{tbb::concurrent\_queue}.
+\item \textbf{Message queue backpressure} — if producers outpace consumers, the queue grows unbounded, consuming all memory. Production systems (Kafka, RabbitMQ) enforce limits: max queue size, TTL, or drop policies.
+\item \textbf{Linked queue memory fragmentation} — each enqueue allocates a node on the heap. For high-throughput systems, this causes cache misses and allocator contention. A circular buffer avoids per-element allocation.
+\end{itemize}
+
+\section{Summary}
+
+\begin{enumerate}
+\item A \textbf{queue} is a FIFO structure — insertions at the rear, deletions from the front.
+\item \textbf{Circular buffers} implement array-based queues with O(1) amortized operations.
+\item \textbf{Linked queues} use a singly linked list with front and rear pointers.
+\item A \textbf{deque} generalizes push/pop to both ends with O(1) operations.
+\item Industrial applications include message brokers (Kafka, SQS), web crawling (Googlebot), and thread pools (NGINX, uWSGI).
+\item \texttt{std::queue} and \texttt{std::deque} provide production-ready implementations.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Implement a circular buffer (ring buffer) queue with fixed capacity.}
+
+\textbf{Q:} ``Why do real-world ring buffers waste one slot instead of tracking a count, and how do you replace modulo with a bitmask?''
+
+\textbf{A:} Wasting one slot lets you distinguish ``full'' from ``empty'' using only head/tail indices --- if head == tail, empty; if (tail+1)\%n == head, full. Tracking a count adds an extra variable and an extra write per operation. The bitmask trick: if the buffer size is a power of 2, replace \texttt{i \% n} with \texttt{i \& (n-1)} --- bitwise AND is faster than modulo on most hardware. Single-producer/single-consumer ring buffers avoid locks entirely with memory ordering (acquire/release semantics on head/tail). The LMAX Disruptor goes further: power-of-2 buffer with sequence numbers instead of head/tail, enabling lock-free multi-producer/multi-consumer with cache-line padding between indices.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class ring_buffer {
+    std::vector<T> buf_;
+    size_t head_ = 0, tail_ = 0, size_ = 0;
+public:
+    explicit ring_buffer(size_t cap) : buf_(cap) {}
+    void push(const T& v) {
+        if (size_ == buf_.size()) throw std::overflow_error("full");
+        buf_[tail_] = v;
+        tail_ = (tail_ + 1) % buf_.size();
+        ++size_;
+    }
+    T pop() {
+        if (size_ == 0) throw std::underflow_error("empty");
+        T v = buf_[head_];
+        head_ = (head_ + 1) % buf_.size();
+        --size_;
+        return v;
+    }
+};
+\end{lstlisting}
+
+Used in: OS I/O buffers, audio streaming, producer-consumer pipelines, lock-free queues.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Implement a stack using two queues.}
+
+\textbf{Q:} ``When would you use a work-stealing deque instead of a shared queue in a thread pool?''
+
+\textbf{A:} In a thread pool, each worker thread has its own deque of tasks. The owner pushes and pops from the LIFO end (cache-friendly for recently-created tasks, which likely share data). Other threads steal from the FIFO end (oldest tasks, which are more likely to be independent). This is the Chase-Lev deque: lock-free, grows dynamically, and avoids the contention of a shared queue. Cilk, Intel TBB, and Folly all use work-stealing deques. The key insight: LIFO for the owner preserves cache locality (recent tasks touch the same data), while FIFO for thieves provides fairness (oldest tasks are least likely to create new work).
+
+\begin{lstlisting}[language=C++]
+class stack_two_queues {
+    std::queue<int> q1_, q2_;
+public:
+    void push(int x) {
+        q2_.push(x);
+        while (!q1_.empty()) { q2_.push(q1_.front()); q1_.pop(); }
+        std::swap(q1_, q2_);
+    }
+    int pop() { int x = q1_.front(); q1_.pop(); return x; }
+    int top() { return q1_.front(); }
+};
+\end{lstlisting}
+
+\textit{Variant:} ``Make push O(1) and pop O(n)'' -- enqueue to $q1$, on pop transfer all but last from $q1$ to $q2$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does BFS use a queue and what is the time complexity?}
+
+\textbf{Q:} ``Why does BFS guarantee shortest paths in unweighted graphs, and why can't it do so for weighted graphs?''
+
+\textbf{A:} BFS uses a FIFO queue, which processes all nodes at distance $d$ before any at distance $d+1$. This means the first time a node is discovered, it's at the minimum distance from the source --- no shorter path can exist because all paths of length $< d$ have already been explored. For weighted graphs, this breaks because a longer path with cheaper edges can beat a shorter path with expensive edges. FIFO ordering doesn't account for edge weights --- you need a priority queue (Dijkstra) to process nodes in order of increasing total cost. The invariant: ``when a node is dequeued, its distance is final'' holds for BFS only when all edges have equal weight.
+
+\textit{Applications:} Shortest path in unconnected graphs, level-order tree traversal, web crawling, garbage collection (Cheney's algorithm).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between a queue and a deque? When would you use each?}
+
+A queue is FIFO: enqueue at back, dequeue from front only. A deque (double-ended queue) allows O(1) push/pop at both ends. Use a queue for strict FIFO ordering (task scheduling, BFS). Use a deque when you need to add/remove from both ends (sliding window maximum, work-stealing schedulers, browser history). \texttt{std::deque} also supports O(1) random access, unlike \texttt{std::queue}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a bounded blocking queue for a producer-consumer system.}
+
+Use a circular buffer with three synchronization primitives: a mutex for exclusive access, a condition variable for ``not full'' (producers wait), and a condition variable for ``not empty'' (consumers wait). Producers lock, wait while full, insert, notify consumers. Consumers lock, wait while empty, remove, notify producers.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class blocking_queue {
+    std::queue<T> q_;
+    size_t cap_;
+    mutable std::mutex mtx_;
+    std::condition_variable not_full_, not_empty_;
+public:
+    explicit blocking_queue(size_t cap) : cap_(cap) {}
+    void push(T item) {
+        std::unique_lock lock(mtx_);
+        not_full_.wait(lock, [&]{ return q_.size() < cap_; });
+        q_.push(std::move(item));
+        not_empty_.notify_one();
+    }
+    T pop() {
+        std::unique_lock lock(mtx_);
+        not_empty_.wait(lock, [&]{ return !q_.size(); });
+        T item = std::move(q_.front()); q_.pop();
+        not_full_.notify_one();
+        return item;
+    }
+};
+\end{lstlisting}
+
+Used in: thread pools, message queues, async I/O pipelines.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does \texttt{std::deque} achieve O(1) push at both ends?}
+
+\texttt{std::deque} uses a sequence of fixed-size blocks (typically 512 bytes) tracked by a central map (array of pointers). Pushing at the front allocates a new block at the front of the map; pushing at the back allocates at the end. Individual block operations are O(1). The map itself is resized infrequently (doubles when full). This gives O(1) amortized push at both ends with better cache behavior than a linked list.
+
+\textit{Interview trap:} ``Is \texttt{std::deque} contiguous memory?'' No — it's a sequence of blocks. \texttt{\&vec[0]} and \texttt{\&vec[N]} may not be in the same block.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is a monotonic deque and how is it used?}
+
+A monotonic deque maintains elements in sorted order (increasing or decreasing) by popping elements that violate the monotonic property during insertion. Used to solve the sliding window maximum/minimum problem in O(n): for each new element, pop smaller elements from the back (maintaining decreasing order), then the front always holds the window maximum. Time O(n) total (each element is pushed and popped at most once).
+
+\begin{lstlisting}[language=C++]
+std::vector<int> sliding_window_max(const std::vector<int>& nums, int k) {
+    std::deque<int> dq;  // indices, decreasing values
+    std::vector<int> result;
+    for (int i = 0; i < (int)nums.size(); ++i) {
+        while (!dq.empty() && dq.front() <= i - k) dq.pop_front();
+        while (!dq.empty() && nums[dq.back()] < nums[i]) dq.pop_back();
+        dq.push_back(i);
+        if (i >= k - 1) result.push_back(nums[dq.front()]);
+    }
+    return result;
+}
+\end{lstlisting}
+
+\textit{Applications:} Sliding window maximum (LeetCode 239), largest rectangle in histogram.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the time complexity of \texttt{std::queue::size()}?}
+
+\textbf{Q:} ``Why does C++ not guarantee O(1) size() for all containers, and when does this matter in practice?''
+
+\textbf{A:} \texttt{std::forward\_list} doesn't track size because the overhead of maintaining a counter isn't always worth it --- in high-throughput systems, avoiding an atomic counter (in concurrent contexts) can improve performance. \texttt{std::list} tracks size but \texttt{std::forward\_list} doesn't because forward lists are designed for minimal overhead. In practice, if you need O(1) size on a queue, use \texttt{std::deque} as the underlying container (default for \texttt{std::queue}). The deeper lesson: C++ containers make different tradeoffs between time, space, and API completeness --- \texttt{std::forward\_list} chose minimal overhead over convenience.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a queue that supports efficient \texttt{getMin()} in O(1).}
+
+Maintain a main queue and a deque of minimums. On \texttt{push(x)}, pop from the back of the min-deque while its back $> x$, then push $x$. On \texttt{pop}, if the front of the min-deque equals the popped element, pop from the min-deque. The front of the min-deque is always the current minimum. Time: O(1) amortized per operation. Space: O(n).
+
+\begin{lstlisting}[language=C++]
+class min_queue {
+    std::queue<int> q_;
+    std::deque<int> min_dq_;
+public:
+    void push(int x) {
+        q_.push(x);
+        while (!min_dq_.empty() && min_dq_.back() > x) min_dq_.pop_back();
+        min_dq_.push_back(x);
+    }
+    int pop() {
+        int x = q_.front(); q_.pop();
+        if (x == min_dq_.front()) min_dq_.pop_front();
+        return x;
+    }
+    int getMin() const { return min_dq_.front(); }
+};
+\end{lstlisting}
+
+\textit{This is a variant of the monotonic deque technique applied to queues.}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When would you use a linked queue over a circular buffer?}
+
+Use a linked queue when: (a) the maximum size is unknown and may grow without bound, (b) you need stable pointers/references to enqueued elements, or (c) memory is fragmented and large contiguous allocations fail. Use a circular buffer when: (a) the maximum size is bounded, (b) you need O(1) memory overhead (no per-node allocation), and (c) cache performance matters. Message brokers (Kafka) use contiguous log-based buffers; OS schedulers use linked queues.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item Trace the state of a circular-buffer queue (capacity = 4) after each operation:
+\end{enumerate}
+   \texttt{enqueue(K), en(V), deq(), en(Q), en(W), en(E), deq(), en(R), en(T), deq()}
+   Show the front and rear pointers after each step.
+
+\begin{enumerate}
+\item In a web server thread pool with 8 workers and a queue of 100 pending requests, what happens when:
+\end{enumerate}
+   a) A 9th worker is requested but none is free?
+   b) The queue grows to 10,000 requests?
+   c) A worker crashes while holding a task?
+
+\begin{enumerate}
+\item A Kafka topic partition has 3 consumers in the same consumer group. Messages arrive as: [A, B, C, D, E]. Show which consumer receives each message. What happens if consumer 2 crashes after receiving message B?
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the worst-case time complexity of:
+\end{enumerate}
+   a) Circular-buffer enqueue/dequeue
+   b) Linked-list enqueue/dequeue
+   c) Deque push\_front/push\_back
+   How does each perform under cache misses?
+
+\begin{enumerate}
+\item A message queue has a maximum size of 1000. Producers enqueue 100 msg/s. Consumers process at 80 msg/s. After how many seconds does the queue fill up? What strategies can prevent this?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Kafka-like partitioned message queue.} Implement a \texttt{partitioned\_queue} that distributes messages across N partitions using round-robin or key-based hashing. Each partition is an independent queue. Support \texttt{publish(key, message)} and \texttt{consume(partition\_id)}. Simulate 3 consumers, 4 partitions, and 10,000 messages. Measure the load balance across consumers.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Sliding window rate limiter (deque).} Cloudflare's rate limiting uses a sliding window counter. Implement a rate limiter using a deque of timestamps. Each request adds the current time; requests older than 1 second are popped from the front. The window size is the deque length. Test with a burst of 100 requests in 100ms — how many pass if the limit is 10 req/s?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Web crawler politeness queue.} Extend the BFS web crawler to respect \texttt{robots.txt} crawl delays. Each domain has a "next allowed crawl time." Maintain a priority queue of (next\_crawl\_time, url). Only dequeue URLs whose next\_crawl\_time has passed. Test on a list of 1000 URLs across 50 domains. Show that no domain is crawled more than once per 5 seconds.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Thread pool with work stealing.} Implement a thread pool where each worker has its own task deque (instead of a shared queue). When a worker's deque is empty, it steals from another worker's deque (from the opposite end — the back). Compare throughput with the shared-queue approach for 10$^{6}$ fine-grained tasks. Explain why work stealing outperforms on cache-bound workloads.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{NGINX-style event queue.} NGINX processes events through a queue: accept connections, read requests, write responses. Implement an event-driven server using a single-threaded event loop with a queue of (fd, event\_type) pairs. Support EPOLLIN and EPOLLOUT. Benchmark against a thread-per-connection model for 10,000 concurrent connections.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Consumer group rebalancing.} In Kafka, when a consumer joins or leaves, the group rebalances — partitions are reassigned. Implement a simple rebalancer: given N partitions and M consumers, assign partitions to consumers using range or sticky strategy. Simulate adding/removing consumers and show the reassignment. Measure the "movement" (fraction of partitions that change owners).
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Blockmap deque)} \texttt{std::deque} uses a sequence of fixed-size blocks. What is the advantage over a single circular buffer? Implement a simplified blockmap deque with block size 64. Measure random-access performance vs \texttt{std::deque} and \texttt{std::vector}. When does the deque outperform vector for random access?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Chase-Lev work-stealing deque)} The Chase-Lev deque is the standard for work-stealing thread pools. Implement it with atomic operations. Compare its throughput with a mutex-guarded deque on 4, 8, and 16 threads. Why is the Chase-Lev design faster for the "owner" thread?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Disruptor)} Read about the LMAX Disruptor — a lock-free inter-thread queue that achieves 100M ops/sec. Implement a simplified single-producer, single-consumer ring buffer without locks. Compare its throughput with a mutex-guarded \texttt{std::queue} and a \texttt{tbb::concurrent\_queue}. What design choices make the Disruptor faster?
+\end{enumerate}
+
+\subsection{Additional Drill}
+
+\begin{enumerate}
+\setcounter{enumi}{5}
+\item Implement the circular queue from Section "Circular Queue: Full Implementation" with a \texttt{count\_} variable instead of the wasted-slot technique. Verify that all operations work correctly and that both \texttt{is\_full()} and \texttt{is\_empty()} are correct.
+\end{enumerate}
+
+\begin{enumerate}
+\item Trace the two-stack queue with the following sequence: push(1), push(2), pop(), push(3), push(4), pop(), pop(), pop(). Show the contents of both stacks after each operation and identify which stack is the "active" output stack at each step.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a circular array deque of capacity 8, execute: push\_back(A), push\_back(B), push\_front(Z), pop\_front(), push\_back(C), push\_front(Y), pop\_back(), push\_front(X). Draw the array contents and the front/index positions at the end.
+\end{enumerate}
+
+\begin{enumerate}
+\item Build the following graph and run BFS from vertex 0. List the BFS order and the shortest-path distances:
+\begin{verbatim}
+0 -- 1, 0 -- 2
+1 -- 3, 1 -- 4
+2 -- 5
+3 -- 5
+4 -- 5
+\end{verbatim}
+Is this graph bipartite? Justify your answer.
+\end{enumerate}
+
+\begin{enumerate}
+\item For the word ladder problem, what is the shortest ladder from \texttt{HIT} to \texttt{COG}, dictionary = \{\texttt{HOT}, \texttt{DOT}, \texttt{DOG}, \texttt{LOT}, \texttt{LOG}, \texttt{COG}\}? Trace the BFS levels and show the search tree.
+\end{enumerate}
+
+\subsection{Additional Application}
+
+\begin{enumerate}
+\setcounter{enumi}{6}
+\item \textbf{Implement a deque using a single fixed-size circular array.} Your class should support push\_front, push\_back, pop\_front, pop\_back, and operator[] all in O(1). Use a count variable to distinguish full from empty. Write a test that performs 1000 random deque operations and verifies correctness against a \texttt{std::deque}.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Level-order tree traversal using two queues.} Implement level-order (BFS) traversal of a binary tree using exactly two queues (no \texttt{nullptr} sentinels, no \texttt{std::pair}). Print each level on a separate line. Then modify it to use a single queue plus a \texttt{level\_size} counter.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Priority queue merge.} Given $k$ sorted arrays of total $N$ elements, merge them into a single sorted array using a min-priority queue. Push the first element of each array into the PQ, then repeatedly pop the minimum and push the next element from the same array. Analyze time complexity in terms of $N$ and $k$.
+\end{enumerate}
+
+\subsection{Additional Research}
+
+\begin{enumerate}
+\setcounter{enumi}{3}
+\item \textbf{(Circular buffer for I/O buffering)} Implement a circular byte buffer that wraps around a \texttt{char array}. Simulate an audio stream: the producer writes PCM samples at 44100 Hz and the consumer reads them at the same rate, but with occasional jitter (random delays). Measure the number of buffer underruns over a 10-second simulation. How does increasing the buffer size affect underruns vs latency?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(BFS on implicit graph: sliding puzzle)} The 8-puzzle (3x3 grid with 8 tiles and one blank) can be modeled as a BFS problem on an implicit graph where each state is a grid configuration. Implement BFS to find the shortest solution from a given starting configuration. Count the number of states visited. How does this scale to the 15-puzzle (4x4)?
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Donald E. Knuth, \textit{The Art of Computer Programming}, Volume 1: Fundamental Algorithms. Section 2.2.2.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Sections 10.1, 22.2.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Sections 1.3, 4.1.
+\item David Chase and Yossi Lev, "Dynamic Circular Work-Stealing Deque" — SPAA 2005.
+\end{itemize}
+

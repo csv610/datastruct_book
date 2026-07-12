@@ -1,0 +1,5 @@
+V(i, c) = 
+  V(i-1, c)                          if w$_{i}$ > c (cannot take item i)
+  max(V(i-1, c), v$_{i}$ + V(i-1, c-w$_{i}$)) otherwise
+V(0, c) = 0
+V(i, 0) = 0

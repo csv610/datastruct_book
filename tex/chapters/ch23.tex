@@ -1,0 +1,823 @@
+\chapter{Data Structures at Scale: How Industry Builds on Classical Foundations}
+
+\section{Introduction}
+
+Classical data structures---red-black trees, hash tables, B-trees, skip lists---form
+the theoretical backbone of every software system.  A textbook treatment typically
+assumes that data fits in memory and that operations run on a single machine.  In
+practice, companies like Google, Amazon, Facebook, and Netflix operate systems that
+serve billions of requests per second across thousands of nodes.  At that scale,
+the gap between a clean $O(\log n)$ analysis and a production-grade system is
+enormous.
+
+Two forces drive the gap.  First, hardware is not uniform: SSDs favour sequential I/O,
+DRAM is scarce relative to data size, and multi-core NUMA machines make cache
+locality a first-order concern.  Second, distribution introduces partial failure:
+nodes crash, networks partition, and consistency guarantees must be negotiated
+explicitly.  Classical data structures were not designed with these constraints in
+mind.
+
+This chapter bridges the gap.  We study six systems---LSM trees, consistent hashing,
+column-family storage, Bloom filter variants, copy-on-write semantics, and
+hardware-aware design---that illustrate how industry adapts classical ideas.  Each
+section includes a C++ code sketch, a complexity discussion, and pointers to the
+papers and open-source projects that made these ideas real.  By the end, you will
+have a practical vocabulary for choosing and tuning data structures when the dataset
+no longer fits on one machine or in one disk.
+
+\section{Log-Structured Merge Trees --- The Engine Behind Modern Databases}
+
+\subsection{Motivation}
+
+Write-heavy workloads---event logging, time-series ingestion, IoT telemetry---stress
+traditional B-tree databases because every insertion may trigger a random disk write
+to maintain sorted order.  Log-Structured Merge (LSM) trees trade read performance
+for write throughput by batching writes in memory and flushing them sequentially to
+disk.
+
+\subsection{Architecture}
+
+An LSM tree consists of three components:
+\begin{enumerate}
+    \item \textbf{Memtable:} an in-memory sorted structure (typically a red-black
+    tree or skip list) that absorbs all writes.
+    \item \textbf{SSTables (Sorted String Tables):} immutable, sorted files on disk,
+    each containing a sequence of key-value pairs together with an index block and
+    optional Bloom filters.
+    \item \textbf{Compaction process:} a background thread that merges adjacent
+    SSTables to reclaim space and reduce the number of files that reads must examine.
+\end{enumerate}
+
+\subsection{Write Path}
+
+Every write enters the memtable first.  Once the memtable reaches a size threshold
+(typically 4--64\,MB), it is flushed to disk as a new SSTable.  The flush is
+sequential, so even on spinning disks it is fast.  The amortized write cost is
+$O(1)$ for the memtable insertion plus the amortized cost of background compaction.
+
+\begin{lstlisting}[language=C++]
+#include <map>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <algorithm>
+
+struct SSTable {
+    std::vector<std::pair<std::string, std::string>> data;
+
+    void writeToFile(const std::string& path) const {
+        std::ofstream out(path);
+        for (const auto& [key, value] : data) {
+            out << key << "\t" << value << "\n";
+        }
+    }
+
+    static SSTable merge(const SSTable& a, const SSTable& b) {
+        SSTable result;
+        std::merge(a.data.begin(), a.data.end(),
+                   b.data.begin(), b.data.end(),
+                   std::back_inserter(result.data));
+        return result;
+    }
+};
+
+class LSMTree {
+    std::map<std::string, std::string> memtable;
+    std::vector<SSTable> levels[4];
+    size_t memtableLimit = 1000;
+
+public:
+    void put(const std::string& key, const std::string& value) {
+        memtable[key] = value;
+        if (memtable.size() >= memtableLimit) {
+            flushMemtable();
+        }
+    }
+
+    std::string get(const std::string& key) {
+        if (memtable.count(key)) return memtable[key];
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = levels[i].size() - 1; j >= 0; --j) {
+                auto& table = levels[i][j];
+                auto it = std::lower_bound(
+                    table.data.begin(), table.data.end(),
+                    std::make_pair(key, std::string()),
+                    [](const auto& a, const auto& b) {
+                        return a.first < b.first;
+                    });
+                if (it != table.data.end() && it->first == key) {
+                    return it->second;
+                }
+            }
+        }
+        return "";
+    }
+
+private:
+    void flushMemtable() {
+        SSTable sst;
+        for (const auto& [k, v] : memtable) {
+            sst.data.emplace_back(k, v);
+        }
+        levels[0].push_back(sst);
+        memtable.clear();
+        compact(0);
+    }
+
+    void compact(int level) {
+        if (levels[level].size() < 4) return;
+        SSTable merged = levels[level][0];
+        for (size_t i = 1; i < levels[level].size(); ++i) {
+            merged = SSTable::merge(merged, levels[level][i]);
+        }
+        levels[level].clear();
+        levels[level + 1].push_back(merged);
+    }
+};
+\end{lstlisting}
+
+\subsection{Read Path}
+
+A read checks the memtable first, then SSTables from newest to oldest.  Without
+auxiliary structures this is $O(k \cdot \log m)$ where $k$ is the number of SSTables
+and $m$ is the size of each.  Bloom filters attached to each SSTable reduce the
+expected number of disk probes to close to $1$ for point queries.
+
+\subsection{Compaction Strategies}
+
+Two dominant strategies exist.  \emph{Size-tiered compaction} (used by Cassandra
+and HBase) groups SSTables of similar size and merges them when a threshold is
+reached.  \emph{Leveled compaction} (used by LevelDB and RocksDB) organises SSTables
+into levels with a size ratio of 10:1 and merges individual SSTables from level $i$
+into level $i+1$.  Levelled compaction uses more I/O but produces fewer tombstones
+and gives more predictable read performance.
+
+\subsection{Real-World Implementations}
+
+Google's Bigtable (2006) was the first production LSM tree at scale.  LevelDB
+(2011) made the design accessible as an embeddable library, and RocksDB (2013,
+Facebook) extended it with compression, transactions, and column families.  As of
+2024, RocksDB is the storage engine behind MySQL (MyRocks), Kafka Streams, and
+CockroachDB.
+
+\subsection{LSM vs.\ B-tree: A Comparison}
+
+B-trees provide $O(\log n)$ reads with a single disk seek because keys live at a
+known location in a single sorted tree.  LSM trees defer sorting to compaction, so
+writes are sequential and batching reduces the total I/O volume.  On SSDs, the
+sequential-write advantage is smaller but still meaningful because SSD garbage
+collection prefers contiguous data.  LSM trees generally win when the
+write-to-read ratio exceeds 10:1; B-trees win for read-heavy or latency-sensitive
+workloads.
+
+\section{Consistent Hashing --- Distributing Data Without Central Control}
+
+\subsection{The Problem}
+
+Suppose you have $N$ cache servers and you distribute keys with $h(k) \bmod N$.
+When a server is added or removed, $N$ changes and nearly every key maps to a
+different server, causing a thundering-restore of cached data.
+
+\subsection{The Ring}
+
+Consistent hashing (Karger et al., 1997) hashes both keys and server identifiers
+onto a ring with positions $[0, 2^{32})$.  A key is assigned to the next server
+clockwise from its hash position.  When a server joins, only the keys in the arc
+between it and its predecessor need to be remapped.
+
+\begin{lstlisting}[language=C++]
+#include <map>
+#include <string>
+#include <vector>
+#include <functional>
+#include <algorithm>
+#include <numeric>
+
+class ConsistentHashRing {
+    std::map<size_t, std::string> ring;
+    std::hash<std::string> hasher;
+    int virtualNodes;
+
+public:
+    explicit ConsistentHashRing(int vnodes = 150)
+        : virtualNodes(vnodes) {}
+
+    void addNode(const std::string& node) {
+        for (int i = 0; i < virtualNodes; ++i) {
+            std::string vkey = node + "#" + std::to_string(i);
+            ring[hasher(vkey)] = node;
+        }
+    }
+
+    void removeNode(const std::string& node) {
+        for (int i = 0; i < virtualNodes; ++i) {
+            std::string vkey = node + "#" + std::to_string(i);
+            ring.erase(hasher(vkey));
+        }
+    }
+
+    std::string getNode(const std::string& key) const {
+        size_t h = hasher(key);
+        auto it = ring.lower_bound(h);
+        if (it == ring.end()) it = ring.begin();
+        return it->second;
+    }
+
+    std::vector<std::string> getReplicas(
+            const std::string& key, int count) const {
+        std::vector<std::string> replicas;
+        size_t h = hasher(key);
+        auto it = ring.lower_bound(h);
+        std::set<std::string> seen;
+        while (replicas.size() < count) {
+            if (it == ring.end()) it = ring.begin();
+            if (seen.insert(it->second).second) {
+                replicas.push_back(it->second);
+            }
+            ++it;
+        }
+        return replicas;
+    }
+};
+\end{lstlisting}
+
+\subsection{Virtual Nodes}
+
+With only one hash per physical server, the arc lengths on the ring follow an
+exponential distribution, causing severe imbalance.  Virtual nodes (vnodes) assign
+each physical server multiple positions on the ring.  With 150 vnodes per server,
+the standard deviation of load drops below 5\% in practice.
+
+\subsection{Production Use}
+
+Amazon's DynamoDB paper (DeCandia et al., 2007) introduced consistent hashing to
+a wide audience.  Today the technique underpins Cassandra's partitioner, Memcached's
+ketama algorithm, Netflix's EVCache, and Uber's Ringpop library.
+
+\section{Column-Family Storage --- Wide Columns at Scale}
+
+\subsection{Data Model}
+
+A column-family store generalises the relational model.  Data is indexed by a row
+key, then a column family, then a column qualifier, and optionally a timestamp:
+
+\[
+    \text{Row Key} \to \text{Column Family} \to \text{Column Qualifier}
+    \to \text{Timestamp} \to \text{Value}
+\]
+
+This model is \emph{sparse}: rows need not store every column, and storage cost is
+proportional to the data actually written, not to a schema-wide column count.
+
+\subsection{Bigtable and Its Descendants}
+
+Google's Bigtable paper (Chang et al., 2006) described a distributed storage system
+built on GFS that used this model.  HBase (Apache, 2008) brought the design to
+Hadoop, and Cassandra (Facebook, 2008) combined the wide-column model with
+consistent hashing for peer-to-peer replication.
+
+\begin{lstlisting}[language=C++]
+#include <map>
+#include <string>
+#include <vector>
+#include <cstdint>
+
+struct Cell {
+    std::string columnQualifier;
+    int64_t timestamp;
+    std::string value;
+};
+
+using ColumnFamily = std::map<std::string, std::vector<Cell>>;
+using RowKey = std::string;
+
+class ColumnFamilyStore {
+    std::map<RowKey,
+        std::map<std::string, std::vector<Cell>>> table;
+
+public:
+    void put(const RowKey& row, const std::string& cf,
+             const std::string& col, const std::string& val) {
+        int64_t ts = currentTimestamp();
+        table[row][cf].push_back({col, ts, val});
+    }
+
+    std::string get(const RowKey& row, const std::string& cf,
+                    const std::string& col) const {
+        auto rowIt = table.find(row);
+        if (rowIt == table.end()) return "";
+
+        auto cfIt = rowIt->second.find(cf);
+        if (cfIt == rowIt->second.end()) return "";
+
+        const auto& cells = cfIt->second;
+        for (auto it = cells.rbegin(); it != cells.rend(); ++it) {
+            if (it->columnQualifier == col) return it->value;
+        }
+        return "";
+    }
+
+    std::vector<std::pair<std::string, std::string>>
+    scan(const RowKey& row, const std::string& cf) const {
+        std::vector<std::pair<std::string, std::string>> result;
+        auto rowIt = table.find(row);
+        if (rowIt == table.end()) return result;
+
+        auto cfIt = rowIt->second.find(cf);
+        if (cfIt == rowIt->second.end()) return result;
+
+        for (const auto& cell : cfIt->second) {
+            result.emplace_back(cell.columnQualifier, cell.value);
+        }
+        return result;
+    }
+
+private:
+    int64_t currentTimestamp() const {
+        return std::chrono::steady_clock::now().time_since_epoch()
+            .count();
+    }
+};
+\end{lstlisting}
+
+\subsection{Why Column Families Win for Analytics}
+
+Column families enable \emph{column pruning}: a query over three columns reads only
+those three columns, not entire rows.  Adjacent values in a column family compress
+well because they share data types and value ranges.  For time-series workloads,
+a typical query reads one row key (a sensor ID) and a single column family (the
+metric), achieving $O(\log n)$ lookup followed by sequential reads within the column
+family.
+
+\section{Bloom Filters in Production}
+
+\subsection{Recap}
+
+A Bloom filter is a probabilistic set that answers \emph{``Is $x$ in the set?''}
+with no false negatives and a tunable false-positive rate $\varepsilon$.  Given $m$
+bits and $k$ hash functions, $\varepsilon \approx (1 - e^{-kn/m})^k$.
+
+\subsection{At Scale}
+
+Google uses Bloom filters throughout its storage stack.  Bigtable attaches a Bloom
+filter to each SSTable to avoid reading files that provably do not contain a queried
+key.  Reported reductions in disk reads range from 100x to 1000x for random lookups.
+Netflix uses Bloom filters to deduplicate content recommendations across its
+recommendation engine, reducing redundant API calls.
+
+\subsection{Alternatives}
+
+Cuckoo filters support deletion (impossible with standard Bloom filters) and offer
+better cache locality because they store fingerprints in buckets rather than
+scattering them across a bit array.  Quotient filters achieve similar benefits with
+a compact, cache-friendly layout.  Both have become popular in production systems
+where the data set evolves and items must be removed.
+
+\section{Copy-on-Write and Versioned Storage}
+
+\subsection{Persistent Data Structures via CoW}
+
+Copy-on-write (CoW) allows a structure to be shared among multiple readers while
+each writer sees its own version.  The key insight is to copy only the path from the
+root to the modified node, reusing the rest.
+
+Git is the most widely deployed CoW data structure.  Each commit object points to a
+tree of blobs; unchanged subtrees are shared between commits.  File systems like ZFS
+and Btrfs use CoW at the block level to provide atomic snapshots and crash
+consistency.
+
+\begin{lstlisting}[language=C++]
+#include <memory>
+#include <vector>
+#include <string>
+
+template <typename T>
+class CowPtr {
+    std::shared_ptr<const T> data;
+
+public:
+    explicit CowPtr(std::shared_ptr<const T> d)
+        : data(std::move(d)) {}
+
+    const T& read() const { return *data; }
+
+    CowPtr clone() const {
+        return CowPtr(std::make_shared<T>(*data));
+    }
+
+    CowPtr write(auto&& modifier) const {
+        auto copy = std::make_shared<T>(*data);
+        modifier(*copy);
+        return CowPtr(std::move(copy));
+    }
+};
+
+struct Config {
+    std::string dbPath;
+    int maxConnections;
+    bool enableCompression;
+
+    Config() : dbPath("/data/db"),
+               maxConnections(64),
+               enableCompression(true) {}
+};
+
+void versionedConfig() {
+    CowPtr<Config> v1(std::make_shared<Config>());
+    CowPtr<Config> v2 = v1.write([](Config& c) {
+        c.maxConnections = 128;
+    });
+    CowPtr<Config> v3 = v2.write([](Config& c) {
+        c.enableCompression = false;
+    });
+    std::cout << v1.read().maxConnections << "\n";
+    std::cout << v3.read().enableCompression << "\n";
+}
+\end{lstlisting}
+
+\subsection{Production Systems}
+
+Cassandra's commit log and memtable together form a shadow-copy system: the commit
+log is append-only, and the memtable is an in-memory snapshot that can be replaced
+atomically.  This design gives Cassandra write-ahead-log durability without the
+write amplification of a B-tree.
+
+\section{Priority Queues and Scheduling at Scale}
+
+\subsection{Kafka and Message Priorities}
+
+Apache Kafka traditionally orders messages by offset within a partition.  When
+priority ordering is needed, operators maintain separate topics per priority level
+and use a priority consumer that drains higher-priority partitions first.  At scale,
+this is effectively a distributed priority queue implemented with partition
+assignment.
+
+\subsection{Redis Sorted Sets}
+
+Redis sorted sets store a member with an associated score and use a skip list
+combined with a hash table internally.  The skip list provides $O(\log n)$ insert,
+delete, and rank queries, while the hash table gives $O(1)$ membership lookups.
+Redis's in-memory nature makes this a natural choice for leaderboards, job queues,
+and scheduling in game servers.
+
+\begin{lstlisting}[language=C++]
+#include <queue>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <functional>
+
+struct Job {
+    int priority;
+    std::string taskId;
+    bool operator<(const Job& o) const {
+        return priority < o.priority;
+    }
+};
+
+class DiskSpillPQ {
+    std::priority_queue<Job> inMemory;
+    std::vector<std::string> spillFiles;
+    size_t memoryLimit = 10000;
+    size_t currentSize = 0;
+    int fileCounter = 0;
+
+public:
+    void push(const Job& job) {
+        if (currentSize >= memoryLimit) {
+            spillToDisk();
+        }
+        inMemory.push(job);
+        ++currentSize;
+    }
+
+    bool pop(Job& result) {
+        if (inMemory.empty()) {
+            if (spillFiles.empty()) return false;
+            loadFromDisk();
+        }
+        result = inMemory.top();
+        inMemory.pop();
+        --currentSize;
+        return true;
+    }
+
+private:
+    void spillToDisk() {
+        std::string path = "/tmp/pq_spill_" +
+            std::to_string(fileCounter++) + ".bin";
+        std::ofstream out(path, std::ios::binary);
+        while (!inMemory.empty()) {
+            Job j = inMemory.top();
+            inMemory.pop();
+            out.write(reinterpret_cast<const char*>(&j.priority),
+                      sizeof(int));
+            size_t len = j.taskId.size();
+            out.write(reinterpret_cast<const char*>(&len),
+                      sizeof(size_t));
+            out.write(j.taskId.data(), len);
+        }
+        spillFiles.push_back(path);
+        currentSize = 0;
+    }
+
+    void loadFromDisk() {
+        std::string path = spillFiles.back();
+        spillFiles.pop_back();
+        std::ifstream in(path, std::ios::binary);
+        while (in.peek() != EOF) {
+            Job j;
+            in.read(reinterpret_cast<char*>(&j.priority),
+                    sizeof(int));
+            size_t len;
+            in.read(reinterpret_cast<char*>(&len), sizeof(size_t));
+            j.taskId.resize(len);
+            in.read(j.taskId.data(), len);
+            inMemory.push(j);
+            ++currentSize;
+        }
+        std::remove(path.c_str());
+    }
+};
+\end{lstlisting}
+
+\section{Graph Data Structures in Social Networks}
+
+\subsection{The Social Graph}
+
+Facebook's TAO (The Associations and Objects) paper (Bronson et al., 2013) describes
+a distributed graph store serving over a billion users.  TAO stores a directed
+multigraph where vertices represent users, pages, and posts, and edges represent
+likes, follows, and comments.  Queries are expressed as graph traversals with
+pagination.
+
+\subsection{Property Graph Model}
+
+A property graph associates typed properties with both vertices and edges.  This
+model underpins Neo4j, Amazon Neptune, and TigerGraph.  The key design question is
+how to store edges efficiently: as adjacency lists (good for traversals from one
+vertex) or as compressed sparse row/column (CSR/CSC) formats (good for bulk
+analysis and memory density).
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <algorithm>
+
+struct Edge {
+    int target;
+    std::string label;
+};
+
+class CompressedGraph {
+    std::vector<int> rowPtr;
+    std::vector<int> colIdx;
+    std::vector<Edge> edges;
+    std::vector<std::string> vertexProps;
+    int numVertices;
+
+public:
+    explicit CompressedGraph(int n)
+        : numVertices(n), rowPtr(n + 1, 0) {}
+
+    void addEdge(int from, int to,
+                 const std::string& label) {
+        edges.push_back({to, label});
+        rowPtr[from + 1]++;
+    }
+
+    void buildIndex() {
+        for (int i = 1; i <= numVertices; ++i) {
+            rowPtr[i] += rowPtr[i - 1];
+        }
+        std::vector<int> offsets = rowPtr;
+        std::vector<Edge> sorted(edges.size());
+        for (const auto& e : edges) {
+            int pos = offsets[0]++;
+            sorted[pos] = e;
+        }
+        edges = std::move(sorted);
+        colIdx.resize(edges.size());
+        for (size_t i = 0; i < edges.size(); ++i) {
+            colIdx[i] = edges[i].target;
+        }
+    }
+
+    std::vector<int> neighbors(int vertex) const {
+        int start = rowPtr[vertex];
+        int end = rowPtr[vertex + 1];
+        return std::vector<int>(
+            colIdx.begin() + start,
+            colIdx.begin() + end);
+    }
+
+    int degree(int vertex) const {
+        return rowPtr[vertex + 1] - rowPtr[vertex];
+    }
+};
+\end{lstlisting}
+
+\subsection{Graph Partitioning}
+
+Distributing a graph across machines requires partitioning.  Hash-based partitioning
+is simple ($\text{partition}(v) = h(v) \bmod k$) but cuts many edges, increasing
+cross-machine traversals.  METIS and power-law-aware algorithms cluster high-degree
+vertices near the graph centre, reducing the edge cut at the expense of some load
+imbalance.  TAO uses a two-level scheme: vertex IDs encode the shard, and edges are
+co-located with their source vertex.
+
+\section{Hardware-Aware Data Structure Design}
+
+\subsection{Cache Line Awareness}
+
+A modern x86 cache line is 64 bytes.  Two threads writing to different fields of
+the same struct that share a cache line cause \emph{false sharing}, degrading
+performance by orders of magnitude.  Aligning frequently written fields to cache
+line boundaries eliminates this:
+
+\begin{lstlisting}[language=C++]
+#include <new>
+#include <cstdint>
+#include <cstdlib>
+
+struct alignas(64) CacheLinePadded {
+    int64_t counter;
+    char padding[64 - sizeof(int64_t)];
+};
+
+struct ThreadLocalCounters {
+    CacheLinePadded perThread[64];
+    int64_t sum() const {
+        int64_t total = 0;
+        for (int i = 0; i < 64; ++i) {
+            total += perThread[i].counter;
+        }
+        return total;
+    }
+};
+
+void* allocateAligned(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    posix_memalign(&ptr, alignment, size);
+    return ptr;
+}
+
+struct alignas(64) GraphNode {
+    int vertexId;
+    int64_t distance;
+    int parentIndex;
+    int edgeStart;
+    int edgeCount;
+    char pad[64 - 5 * sizeof(int)];
+};
+\end{lstlisting}
+
+\subsection{NUMA-Aware Allocation}
+
+On multi-socket systems, memory attached to a remote socket costs 2--3x more in
+latency.  The first-touch policy assigns pages to the NUMA node of the thread that
+first writes to them.  Spreading initialisation across threads on all sockets (or
+using \texttt{mbind} with interleave policy) avoids hot-spotting a single socket.
+
+\subsection{SOA vs AOS}
+
+Array-of-Structs (AOS) stores all fields of each element contiguously.
+Structure-of-Arrays (SOA) stores each field in a separate contiguous array.
+For SIMD vectorisation or queries that touch one field, SOA avoids loading
+irrelevant data into vector registers.  A graph's adjacency list, for instance,
+benefits from SOA when only the target vertex IDs are needed for a breadth-first
+search.
+
+\section{Comparison Table and Design Decisions}
+
+\begin{center}
+\begin{tabular}{@{} l l l l @{}}
+\toprule
+\textbf{Structure} & \textbf{Write} & \textbf{Read} & \textbf{Best For} \\
+\midrule
+LSM Tree & $O(1)$ amort. & $O(\log n)$ with Bloom & Write-heavy, time-series \\
+B-Tree & $O(\log n)$ & $O(\log n)$ single-seek & Read-heavy, transactions \\
+Hash Index & $O(1)$ amort. & $O(1)$ expected & Point lookups, caches \\
+Column-Family & $O(\log n)$ & $O(\log n + k)$ & Sparse, wide, analytics \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{@{} l l l l @{}}
+\toprule
+\textbf{Model} & \textbf{Schema} & \textbf{Scaling} & \textbf{Use Case} \\
+\midrule
+Row Store & Fixed, rigid & Vertical / sharding & OLTP, transactions \\
+Column Family & Semi-structured & Horizontal, automatic & IoT, time-series \\
+Document Store & Schema-free & Horizontal, automatic & CMS, user profiles \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\textbf{Decision Flowchart for Data Structure Selection at Scale}
+\end{center}
+
+Start with the access pattern.  If the workload is write-dominant
+(write:read $> 10$:1) and point queries suffice, an LSM tree is the default choice.
+If reads dominate and latency is critical, prefer a B-tree.  If the data is
+schema-free and document-shaped, a document store is natural.  For wide, sparse
+time-series data, column families with compaction tuned for your read/write ratio
+are optimal.  If the data is a graph with dense traversals, a native graph store
+outperforms relational joins.  Finally, if keys must be distributed across an
+elastic set of servers, always use consistent hashing with virtual nodes rather than
+modulo partitioning.
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+    \item An LSM tree has 3 levels with a size ratio of 10.  If the memtable is
+    4\,MB and each level holds $10^i \times 4$\,MB, what is the total on-disk
+    capacity before compaction to the next level?  How many SSTables are examined
+    per point query without Bloom filters?
+
+    \item A consistent hash ring has 10 physical nodes, each with 150 virtual
+    nodes.  What is the expected number of virtual nodes on the ring?  If a new
+    node is added, approximately what fraction of keys are remapped?
+
+    \item A Bloom filter has 10 million bits and 7 hash functions for a set of
+    1 million elements.  Calculate the false-positive probability.  How many bits
+    per element is this?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+    \item Implement the LSM tree from Section~23.2 and benchmark insertion of
+    10 million random key-value pairs with and without Bloom filters on SSTables.
+    Measure both write throughput and point-query latency.  Plot the results as a
+    function of the number of SSTables.
+
+    \item Build a column-family store using the API from Section~23.4.  Ingest a
+    synthetic time-series dataset (1000 sensors, 86400 readings each).  Compare
+    the scan time of reading all readings for one sensor against reading all
+    sensors for one timestamp.  Explain the performance difference in terms of
+    column-family layout.
+
+    \item Implement the disk-spilling priority queue from Section~23.7 with a
+    threshold of 1000 in-memory jobs.  Push 1 million jobs and then pop them all.
+    Measure the time spent spilling and reloading compared to a pure in-memory
+    priority queue.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+    \item Read the RocksDB Wiki section on compaction strategies.  Implement a
+    simple size-tiered compaction simulator that models write amplification, space
+    amplification, and read amplification as functions of the number of levels and
+    the size ratio.  Compare your model's predictions against empirical benchmarks
+    published in the RocksDB documentation.
+
+    \item The Facebook TAO paper describes a two-level caching architecture with
+    a global cache backed by MySQL.  Read the paper (Bronson et al., 2013) and
+    sketch an LRU cache implementation in C++ that supports batched reads to
+    minimise round-trip overhead.  Analyse the amortised cost per lookup under
+    varying cache-hit rates.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+    \item Chang, F., Dean, J., Ghemawat, S., et al.\ (2006).  Bigtable: A
+    Distributed Storage System for Structured Data.  \emph{Proc.\ OSDI}.
+
+    \item DeCandia, G., Hastorun, D., Jampani, M., et al.\ (2007).  Dynamo:
+    Amazon's Highly Available Key-value Store.  \emph{Proc.\ SOSP}.
+
+    \item Bronson, N., Amsden, Z., Cabral, G., et al.\ (2013).  TAO:
+    Facebook's Distributed Data Store for the Social Graph.  \emph{Proc.\ ATC}.
+
+    \item O'Neil, P., Cheng, E., Gawlick, D., and O'Neil, E.\ (1996).
+    The Log-Structured Merge-Tree (LSM-Tree).  \emph{Acta Informatica}, 33(4),
+    351--385.
+
+    \item Karger, D., Sherman, A., Berkheimer, A., et al.\ (1997).  Consistent
+    Hashing and Random Trees: Distributed Caching Protocols for Relieving Hot
+    Spots on the World Wide Web.  \emph{Proc.\ STOC}.
+
+    \item Kreps, J., Narkhede, N., and Rao, J.\ (2011).  Kafka: A Distributed
+    Messaging System for Log Processing.  \emph{Proc.\ NetDB}.
+
+    \item Lakshman, A.\ and Malik, P.\ (2010).  Cassandra: A Decentralized
+    Structured Storage System.  \emph{ACM SIGOPS Operating Systems Review}, 44(2),
+    35--40.
+
+    \item RocksDB Wiki.  \url{https://github.com/facebook/rocksdb/wiki}
+
+    \item Melnik, S.\ and Gubarev, A.\ (2010).  Dremel: Interactive Analysis of
+    Web-Scale Datasets.  \emph{Proc.\ VLDB}, 3, 330--339.
+
+    \item Conchon, S.\ and Filliâtre, J.-C.\ (2008).  A Persistent
+    Union-Find Data Structure.  \emph{Proc.\ ML Workshop on ML}, 37--46.
+\end{itemize}

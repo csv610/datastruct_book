@@ -1,0 +1,13 @@
+Root: reduce rows (subtract min from each):
+  [0, 0, 5, 10] after subtracting [0, 0, 10, 10, 15, 20] -> row mins: 0, 10, 15, 20
+  Actually: row mins are 0, 10, 15, 20. Sum of reductions = 0+10+15+20 = 45.
+  Lower bound = 45.
+
+Explore A->B (cost 10):
+  Remaining matrix reduced. Bound = 45 + 10 + (reductions of submatrix) = 65.
+  
+Explore A->C (cost 15):
+  Bound = 45 + 15 + (reductions) = 75.
+
+Since 65 < 75, explore A->B first. Eventually find optimal = 80.
+Prune branches where bound >= 80 (current best).

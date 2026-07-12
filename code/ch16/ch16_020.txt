@@ -1,0 +1,39 @@
+Split at median (x=4.5):
+  Left:  P1(1,1) P2(2,3) P3(3,4) P4(4,1)
+  Right: P5(5,5) P6(6,2) P7(7,3) P8(8,6)
+
+Recurse on Left half:
+  Split at x=2.5:
+    Left-Left:  P1(1,1)
+    Left-Right: P2(2,3) P3(3,4) P4(4,1)
+    d_LL = infinity (one point)
+    d_LR = min(dist(P2,P3), dist(P2,P4), dist(P3,P4))
+         = min(1.414, 2.236, 3.162) = 1.414  [P2-P3]
+    d_L = 1.414
+
+Recurse on Right half:
+  Split at x=6.5:
+    Right-Left:  P5(5,5) P6(6,2) P7(7,3)
+    Right-Right: P8(8,6)
+    d_RL = min(dist(P5,P6), dist(P5,P7), dist(P6,P7))
+         = min(3.606, 2.828, 1.414) = 1.414  [P6-P7]
+    d_RR = infinity (one point)
+    d_R = 1.414
+
+d = min(d_L, d_R) = 1.414
+
+Build strip (points within d=1.414 of x=4.5):
+  Strip: P3(3,4), P4(4,1), P5(5,5), P6(6,2), P7(7,3)
+  (P2 at x=2 is 2.5 away -- outside strip)
+
+Sort strip by y: P4(4,1), P6(6,2), P7(7,3), P3(3,4), P5(5,5)
+
+Check pairs in strip:
+  P4(4,1) vs P6(6,2): dist = 2.236 > d.
+  P4(4,1) vs P7(7,3): dy=2 > d. Move on.
+  P6(6,2) vs P7(7,3): dist = 1.414 = d. Tie, no improvement.
+  P7(7,3) vs P3(3,4): dy=1, but dx=4 > d. Skip.
+  P3(3,4) vs P5(5,5): dist = 2.236 > d.
+
+No closer pair found. d = 1.414.
+Closest pairs: (P2,P3) and (P6,P7), both at distance sqrt(2) ~ 1.414.

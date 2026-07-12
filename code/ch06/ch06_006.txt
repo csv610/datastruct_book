@@ -1,0 +1,6 @@
+'3'  ->  push: [3]
+'4'  ->  push: [3, 4]
+'+'  ->  pop 4, pop 3  ->  push 7: [7]
+'5'  ->  push: [7, 5]
+'*'  ->  pop 5, pop 7  ->  push 35: [35]
+Result: 35

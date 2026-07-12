@@ -1,0 +1,4 @@
+int fib(int n) {
+    if (n <= 1) return n;           // base case: 1 operation
+    return fib(n - 1) + fib(n - 2); // two recursive calls
+}

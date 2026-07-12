@@ -1,0 +1,4 @@
+Undirected:    Directed:
+   A--B          A -> B
+   |\           ||
+   C--D          C -> D

@@ -1,0 +1,2130 @@
+\chapter{Priority Queues}\label{ch10:priority-queues}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The Priority Queue ADT}
+
+A \textbf{priority queue} is a collection where each element has a \textbf{priority}, and the element with the highest (or lowest) priority is always removed first.
+
+\subsection{Operations}
+
+\begin{itemize}
+\item \textbf{push(value)} — insert with given priority
+\item \textbf{pop()} — remove the highest-priority element
+\item \textbf{top()} — return the highest-priority element without removing
+\item \textbf{empty()}, \textbf{size()}
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Scheduling} — CPU task scheduling, print queues by priority
+\item \textbf{Event-driven simulation} — process events in chronological order
+\item \textbf{Dijkstra's shortest path} — extract the vertex with smallest distance
+\item \textbf{Huffman coding} — repeatedly combine the two smallest frequencies
+\item \textbf{Median finding} — maintain two heaps
+\item \textbf{A* search} — open set ordered by f-cost
+\end{itemize}
+
+\section{Heaps}
+
+A \textbf{max-heap} is a complete binary tree where every node's value is $\ge $ the values of its children. A \textbf{min-heap} is the symmetric case ($\le $).
+
+\begin{lstlisting}[language=Java]
+Max-Heap:
+          [90]
+        /     \
+      [80]    [70]
+     /   \    /
+   [30] [20] [50]
+
+Array representation: [90, 80, 70, 30, 20, 50]
+\end{lstlisting}
+
+\subsection{Array Storage}
+
+Since a heap is a \textbf{complete binary tree}, we store it in an array:
+
+\begin{lstlisting}[language=Java]
+Position i (0-indexed):
+  left child:  2i + 1
+  right child: 2i + 2
+  parent:      (i - 1) / 2
+\end{lstlisting}
+
+\subsection{Max-Heap Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+class max_heap {
+public:
+    max_heap() = default;
+
+    void push(const T& value) {
+        data_.push_back(value);
+        sift_up(data_.size() - 1);
+    }
+
+    void push(T&& value) {
+        data_.push_back(std::move(value));
+        sift_up(data_.size() - 1);
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        data_[0] = std::move(data_.back());
+        data_.pop_back();
+        if (!empty()) sift_down(0);
+    }
+
+    const T& top() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        return data_[0];
+    }
+
+    bool empty() const noexcept { return data_.empty(); }
+    size_t size() const noexcept { return data_.size(); }
+
+private:
+    void sift_up(size_t i) {
+        while (i > 0) {
+            size_t parent = (i - 1) / 2;
+            if (!compare_(data_[parent], data_[i])) break;
+            std::swap(data_[i], data_[parent]);
+            i = parent;
+        }
+    }
+
+    void sift_down(size_t i) {
+        size_t n = data_.size();
+        while (true) {
+            size_t largest = i;
+            size_t left = 2 * i + 1;
+            size_t right = 2 * i + 2;
+
+            if (left < n && compare_(data_[largest], data_[left]))
+                largest = left;
+            if (right < n && compare_(data_[largest], data_[right]))
+                largest = right;
+            if (largest == i) break;
+            std::swap(data_[i], data_[largest]);
+            i = largest;
+        }
+    }
+
+    std::vector<T> data_;
+    Compare compare_;  // less<T>  ->  max-heap
+};
+\end{lstlisting}
+
+\subsection{Push Walkthrough}
+
+Insert 85 into heap [90, 80, 70, 30, 20, 50]:
+
+\begin{lstlisting}[language=Java]
+Step 1: Append 85  ->  [90, 80, 70, 30, 20, 50, 85]
+Step 2: Compare 85 with parent 70  ->  85 > 70  ->  swap
+        [90, 80, 85, 30, 20, 50, 70]
+Step 3: Compare 85 with parent 90  ->  85  <=  90  ->  stop
+\end{lstlisting}
+
+\subsection{Pop Walkthrough}
+
+Remove top (90) from [90, 80, 70, 30, 20, 50]:
+
+\begin{lstlisting}[language=Java]
+Step 1: Move last to root  ->  [50, 80, 70, 30, 20]
+Step 2: Sift down 50:
+  Compare with children 80 and 70  ->  80 is largest  ->  swap
+  [80, 50, 70, 30, 20]
+Step 3: Compare 50 with children 30 and 20  ->  50 is largest  ->  stop
+\end{lstlisting}
+
+\section{Heap Initialization (Heapify)}
+
+Building a heap from an unsorted array: O(n).
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+void heapify(std::vector<T>& data, Compare compare = {}) {
+    int n = data.size();
+    for (int i = n / 2 - 1; i >= 0; --i) {
+        sift_down(data, i, n, compare);
+    }
+}
+\end{lstlisting}
+
+Why O(n)? Most nodes are near the bottom and sift down takes few steps. The total work is $\Sigma $ (height of node) over all nodes = O(n).
+
+\section{Heap Sort}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+void heap_sort(std::span<T> data) {
+    // Build max-heap
+    int n = data.size();
+    for (int i = n / 2 - 1; i >= 0; --i) {
+        // sift_down
+        int current = i;
+        while (true) {
+            int largest = current;
+            int left = 2 * current + 1;
+            int right = 2 * current + 2;
+            if (left < n && data[left] > data[largest]) largest = left;
+            if (right < n && data[right] > data[largest]) largest = right;
+            if (largest == current) break;
+            std::swap(data[current], data[largest]);
+            current = largest;
+        }
+    }
+
+    // Extract elements in sorted order
+    for (int i = n - 1; i > 0; --i) {
+        std::swap(data[0], data[i]);
+        // sift_down on reduced heap
+        int current = 0;
+        int heap_size = i;
+        while (true) {
+            int largest = current;
+            int left = 2 * current + 1;
+            int right = 2 * current + 2;
+            if (left < heap_size && data[left] > data[largest]) largest = left;
+            if (right < heap_size && data[right] > data[largest]) largest = right;
+            if (largest == current) break;
+            std::swap(data[current], data[largest]);
+            current = largest;
+        }
+    }
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) worst case. \textbf{In-place} — O(1) extra space.
+
+\section{Min-Heaps}
+
+A min-heap is the same structure with the order reversed. Use \texttt{std::greater<T>} as the comparator to make our \texttt{max\_heap} behave as a min-heap.
+
+C++ \texttt{std::priority\_queue} provides \texttt{std::less<T>} for max-heap and \texttt{std::greater<T>} for min-heap:
+
+\begin{lstlisting}[language=C++]
+std::priority_queue<int> max_pq;                    // max-heap
+std::priority_queue<int, std::vector<int>,
+                    std::greater<int>> min_pq;      // min-heap
+\end{lstlisting}
+
+\section{Leftist Trees (Mergeable Heaps)}
+
+A \textbf{leftist tree} is a binary tree that supports O(log n) merge. This is useful when we need to merge two priority queues frequently.
+
+\textbf{Property:} The \textbf{null path length} (npl) of a node is the length of the shortest path to a null child. A leftist tree maintains the invariant: npl(left) $\ge $ npl(right) for every node.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+struct leftist_node {
+    T data;
+    std::unique_ptr<leftist_node> left;
+    std::unique_ptr<leftist_node> right;
+    int npl = 0;  // null path length
+
+    explicit leftist_node(const T& value) : data(value) {}
+};
+
+template <typename T>
+std::unique_ptr<leftist_node<T>> merge(
+    std::unique_ptr<leftist_node<T>> a,
+    std::unique_ptr<leftist_node<T>> b) {
+    if (!a) return b;
+    if (!b) return a;
+
+    // Ensure a has the smaller root
+    if (a->data > b->data) std::swap(a, b);
+
+    // Recursively merge with right child
+    a->right = merge(std::move(a->right), std::move(b));
+
+    // Maintain leftist property
+    if (!a->left || (a->left->npl < a->right->npl)) {
+        std::swap(a->left, a->right);
+    }
+
+    // Update null path length
+    a->npl = (a->right ? a->right->npl : 0) + 1;
+
+    return a;
+}
+\end{lstlisting}
+
+\section{Fibonacci Heap}
+
+A \textbf{Fibonacci heap} is a collection of heap-ordered trees that achieves O(1) amortized time for insert and decrease-key, and O(log n) amortized for extract-min. This makes it the optimal priority queue for Dijkstra's shortest path algorithm.
+
+\subsection{Structure}
+
+A Fibonacci heap is a lazy data structure: insertions and decrease-key operations simply add nodes without restructuring. The trees are linked together in a circular root list.
+
+\begin{lstlisting}[language=Java]
+Fibonacci heap after inserting 3, 1, 7, 5, 2, 8:
+Root list:  [1] -- [3] -- [7] -- [5] -- [2] -- [8]
+(min pointer -> 1)
+
+After extract-min (remove 1, merge children into root list, consolidate):
+Consolidate: link trees of same degree until all roots have distinct degrees.
+Result: one tree with root 2
+  [2]
+  /|\
+ [3][5][8]
+   / \
+  [7] (nil)
+\end{lstlisting}
+
+\subsection{Core Operations}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class fibonacci_heap {
+    struct node {
+        T key;
+        node *left, *right, *parent, *child;
+        int degree = 0;
+        bool marked = false;  // for cascading cut
+    };
+
+    node* min_ = nullptr;
+    int size_ = 0;
+
+public:
+    // Insert: O(1) amortized
+    void insert(const T& key) {
+        auto* n = new node{key, nullptr, nullptr, nullptr, nullptr, 0, false};
+        if (!min_) {
+            min_ = n;
+            n->left = n->right = n;  // circular list
+        } else {
+            // Add to root list
+            n->left = min_;
+            n->right = min_->right;
+            min_->right->left = n;
+            min_->right = n;
+            if (key < min_->key) min_ = n;
+        }
+        ++size_;
+    }
+
+    // Decrease-key: O(1) amortized
+    void decrease_key(node* x, const T& new_key) {
+        x->key = new_key;
+        node* y = x->parent;
+        if (y && x->key < y->key) {
+            cut(x, y);       // cut x from parent, add to root list
+            cascading_cut(y); // possibly cut grandparent, etc.
+        }
+        if (x->key < min_->key) min_ = x;
+    }
+
+    // Extract-min: O(log n) amortized
+    T extract_min() {
+        T result = min_->key;
+        // Add all children of min to root list
+        if (min_->child) {
+            node* child = min_->child;
+            do {
+                node* next = child->right;
+                child->left = min_;
+                child->right = min_->right;
+                min_->right->left = child;
+                min_->right = child;
+                child->parent = nullptr;
+                child = next;
+            } while (child != min_->child);
+        }
+        // Remove min from root list
+        min_->left->right = min_->right;
+        min_->right->left = min_->left;
+        if (min_ == min_->right) {
+            delete min_;
+            min_ = nullptr;
+        } else {
+            node* old_min = min_;
+            min_ = min_->right;  // temporary
+            consolidate();
+            delete old_min;
+        }
+        --size_;
+        return result;
+    }
+
+private:
+    void cut(node* x, node* y) {
+        // Remove x from child list of y
+        x->left->right = x->right;
+        x->right->left = x->left;
+        if (y->degree == 1) y->child = nullptr;
+        --y->degree;
+        // Add x to root list
+        x->left = min_;
+        x->right = min_->right;
+        min_->right->left = x;
+        min_->right = x;
+        x->parent = nullptr;
+        x->marked = false;
+    }
+
+    void cascading_cut(node* y) {
+        node* z = y->parent;
+        if (z) {
+            if (!y->marked) y->marked = true;
+            else { cut(y, z); cascading_cut(z); }
+        }
+    }
+
+    void consolidate() {
+        int max_degree = 4 * static_cast<int>(std::log2(size_));
+        std::vector<node*> A(max_degree + 1, nullptr);
+
+        // Collect all roots
+        std::vector<node*> roots;
+        node* current = min_;
+        do {
+            roots.push_back(current);
+            current = current->right;
+        } while (current != min_);
+
+        for (node* w : roots) {
+            node* x = w;
+            int d = x->degree;
+            while (d < max_degree && A[d]) {
+                node* y = A[d];
+                if (x->key > y->key) std::swap(x, y);
+                link(y, x);  // make y a child of x
+                A[d] = nullptr;
+                ++d;
+            }
+            A[d] = x;
+        }
+
+        // Rebuild root list
+        min_ = nullptr;
+        for (node* n : A) {
+            if (n) {
+                if (!min_) {
+                    min_ = n;
+                    n->left = n->right = n;
+                } else {
+                    n->left = min_;
+                    n->right = min_->right;
+                    min_->right->left = n;
+                    min_->right = n;
+                    if (n->key < min_->key) min_ = n;
+                }
+            }
+        }
+    }
+
+    void link(node* y, node* x) {
+        y->left->right = y->right;
+        y->right->left = y->left;
+        y->parent = x;
+        if (x->child) {
+            y->left = x->child;
+            y->right = x->child->right;
+            x->child->right->left = y;
+            x->child->right = y;
+        } else {
+            x->child = y;
+            y->left = y->right = y;
+        }
+        ++x->degree;
+        y->marked = false;
+    }
+};
+\end{lstlisting}
+
+\subsection{Amortized Analysis}
+
+The potential function $\Phi = t + 2m$ where $t$ = number of trees in root list, $m$ = number of marked nodes.
+
+\begin{itemize}
+\item \textbf{Insert:} O(1) real cost + O(1) potential change = O(1) amortized
+\item \textbf{Decrease-key:} O(1) real cost + O(1) potential change = O(1) amortized
+\item \textbf{Extract-min:} O(log n) real cost + O(log n) potential change = O(log n) amortized
+\end{itemize}
+
+\subsection{Dijkstra's with Fibonacci Heap}
+
+With a Fibonacci heap, Dijkstra's runs in O(V log V + E) — optimal for dense graphs:
+
+\begin{lstlisting}[language=C++]
+void dijkstra_fib(const graph& g, int source, std::vector<int>& dist) {
+    int n = g.num_vertices();
+    dist.assign(n, INT_MAX);
+    fibonacci_heap<int> pq;
+    std::vector<fibonacci_heap<int>::node*> handles(n);
+
+    dist[source] = 0;
+    for (int i = 0; i < n; ++i) {
+        handles[i] = pq.insert(i);  // insert vertex indices
+    }
+
+    while (!pq.empty()) {
+        int u = pq.extract_min();
+        for (auto [v, weight] : g.neighbors(u)) {
+            if (dist[u] + weight < dist[v]) {
+                dist[v] = dist[u] + weight;
+                pq.decrease_key(handles[v], dist[v]);
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+The key advantage: decrease-key is O(1) amortized instead of O(log n), giving O(V log V + E) total instead of O((V + E) log V).
+
+\section{Pairing Heap}
+
+A \textbf{pairing heap} is a simpler alternative to Fibonacci heaps with similar practical performance. It supports merge in O(1) and uses less memory.
+
+\subsection{Structure}
+
+A pairing heap is a heap-ordered tree (typically a single tree, not a forest). Each node has at most one child pointer, and siblings are linked in a circular doubly-linked list.
+
+\begin{lstlisting}[language=Java]
+Pairing heap:
+       [1]  (root, minimum)
+      / | \
+    [3] [5] [2]  (children of root, in circular list)
+    / \
+  [7] [8]
+
+Merge: just link roots (O(1))
+Decrease-key: cut and merge (O(log n) amortized)
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class pairing_heap {
+    struct node {
+        T key;
+        node *left = nullptr, *next = nullptr, *prev = nullptr;
+    };
+
+    node* root_ = nullptr;
+    int size_ = 0;
+
+public:
+    // Merge two pairing heaps: O(1)
+    static pairing_heap merge(pairing_heap&& a, pairing_heap&& b) {
+        if (!a.root_) return std::move(b);
+        if (!b.root_) return std::move(a);
+        link_roots(a.root_, b.root_);
+        if (b.root_->key < a.root_->key)
+            a.root_ = b.root_;
+        a.size_ += b.size_;
+        b.root_ = nullptr;
+        return std::move(a);
+    }
+
+    // Insert: O(1) amortized
+    node* insert(const T& key) {
+        auto* n = new node{key};
+        if (!root_) {
+            root_ = n;
+        } else {
+            link_roots(n, root_);
+            if (key < root_->key) root_ = n;
+        }
+        ++size_;
+        return n;
+    }
+
+    // Decrease-key: O(log n) amortized
+    void decrease_key(node* x, const T& new_key) {
+        x->key = new_key;
+        if (x == root_) return;
+        // Cut x from its parent
+        if (x->prev) x->prev->next = x->next;
+        if (x->next) x->next->prev = x->prev;
+        if (x == x->prev->next)  // was first child
+            x->prev->next = x->next;
+        x->next = x->prev = nullptr;
+        // Merge cut subtree with root
+        link_roots(x, root_);
+        if (x->key < root_->key) root_ = x;
+    }
+
+    // Extract-min: O(log n) amortized
+    T extract_min() {
+        T result = root_->key;
+        // Collect children
+        node* first_child = root_->left;
+        // Two-pass pairing
+        std::vector<node*> trees;
+        node* curr = first_child;
+        while (curr) {
+            node* next = curr->next;
+            curr->next = curr->prev = nullptr;
+            trees.push_back(curr);
+            curr = next;
+        }
+        // Pair from right to left
+        root_ = nullptr;
+        for (int i = static_cast<int>(trees.size()) - 1; i >= 0; --i) {
+            if (!root_) {
+                root_ = trees[i];
+            } else {
+                link_roots(trees[i], root_);
+                if (trees[i]->key < root_->key) root_ = trees[i];
+            }
+        }
+        --size_;
+        return result;
+    }
+
+    bool empty() const { return size_ == 0; }
+
+private:
+    static void link_roots(node* a, node* b) {
+        // Make a a child of b (or vice versa)
+        a->next = b->left;
+        if (b->left) b->left->prev = a;
+        b->left = a;
+        a->prev = b;
+    }
+};
+\end{lstlisting}
+
+\section{Binomial Heap}
+
+A \textbf{binomial heap} is a collection of heap-ordered \textbf{binomial trees} that supports merge (meld) in $O(\log n)$ time. This makes it a \textbf{mergeable heap}, unlike binary heaps which require $O(n)$ to merge. Binomial heaps are used in network flow algorithms and parallel computing where efficient merging is essential.
+
+\subsection{Binomial Trees}
+
+A binomial tree $B_k$ is defined recursively:
+\begin{itemize}
+\item $B_0$ is a single node.
+\item $B_k$ is formed by linking two $B_{k-1}$ trees: one becomes the leftmost child of the other.
+\end{itemize}
+
+$B_k$ has $2^k$ nodes and height $k$. The root of $B_k$ has $k$ children, which are the roots of $B_{k-1}, B_{k-2}, \ldots, B_0$ (from left to right).
+
+\begin{lstlisting}[language=Java]
+Binomial trees:
+
+B0:   (1)             -- 1 node
+
+B1:   (2)             -- 2 nodes
+      |
+     (1)
+
+B2:   (3)             -- 4 nodes
+      |
+     (2) -- (1)
+      |
+     (1)
+
+B3:   (4)             -- 8 nodes
+      |
+     (3) -- (2) -- (1)
+      |      |      |
+     (1)    (1)    (0)
+      |
+     (0)
+\end{lstlisting}
+
+\subsection{Heap Structure}
+
+A binomial heap of $n$ nodes contains the binomial trees $B_k$ for each set bit $k$ in the binary representation of $n$. For example, $n = 13 = 1101_2 = B_3 + B_2 + B_0$.
+
+\begin{lstlisting}[language=Java]
+Binomial heap with 13 nodes: 13 = 8 + 4 + 1 = B3 + B2 + B0
+
+B3 (8 nodes):    B2 (4 nodes):    B0 (1 node):
+    [4]              [3]             [5]
+    /|\             / \
+  [3][2][1]       [2] [1]
+  /| |  |         |
+[1][1][0][0]     [1]
+
+All roots form the root list, linked left-to-right.
+Minimum element is the smallest root: [3] from B2.
+\end{lstlisting}
+
+Each node stores: its key, its degree (number of children), and pointers to its parent, leftmost child, and immediate right sibling.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+class binomial_heap {
+    struct node {
+        T key;
+        int degree = 0;
+        node *parent = nullptr, *child = nullptr, *sibling = nullptr;
+    };
+
+    node* root_ = nullptr;
+    int size_ = 0;
+    Compare comp_;
+
+    // Link tree y under tree x (same degree): O(1)
+    static void merge_trees(node* y, node* x) {
+        y->parent = x;
+        y->sibling = x->child;
+        x->child = y;
+        ++x->degree;
+    }
+
+public:
+    binomial_heap() = default;
+
+    // Merge two binomial heaps: O(log n)
+    static binomial_heap merge(binomial_heap&& a, binomial_heap&& b) {
+        binomial_heap result;
+        result.root_ = merge_root_lists(a.root_, b.root_);
+        if (!result.root_) return result;
+        // Link roots of equal degree
+        node *prev = nullptr, *x = result.root_, *next = x->sibling;
+        while (next) {
+            if (x->degree != next->degree ||
+                (next->sibling && next->sibling->degree == x->degree)) {
+                prev = x;
+                x = next;
+            } else {
+                if (comp_(next->key, x->key)) {
+                    x->sibling = next->sibling;
+                    merge_trees(x, next);
+                    x = next;
+                } else {
+                    next->sibling = x->sibling;
+                    merge_trees(next, x);
+                }
+            }
+            next = x->sibling;
+        }
+        result.size_ = a.size_ + b.size_;
+        a.root_ = nullptr;
+        b.root_ = nullptr;
+        return result;
+    }
+
+    // Insert: O(log n)
+    void insert(const T& key) {
+        binomial_heap temp;
+        temp.root_ = new node{key};
+        temp.size_ = 1;
+        *this = merge(std::move(*this), std::move(temp));
+    }
+
+    // Extract-min: O(log n)
+    T extract_min() {
+        if (!root_) throw std::underflow_error("heap is empty");
+        // Find the root with minimum key
+        node *best_prev = nullptr, *best = root_;
+        node *prev = nullptr, *curr = root_;
+        while (curr) {
+            if (comp_(curr->key, best->key)) {
+                best = curr;
+                best_prev = prev;
+            }
+            prev = curr;
+            curr = curr->sibling;
+        }
+        // Remove best from root list
+        if (best_prev)
+            best_prev->sibling = best->sibling;
+        else
+            root_ = best->sibling;
+        // Reverse the child list to form a new heap
+        binomial_heap child_heap;
+        node* rev = nullptr;
+        node* c = best->child;
+        while (c) {
+            node* next = c->sibling;
+            c->sibling = rev;
+            c->parent = nullptr;
+            rev = c;
+            c = next;
+        }
+        child_heap.root_ = rev;
+        child_heap.size_ = (1 << best->degree) - 1;
+        T result = best->key;
+        delete best;
+        --size_;
+        *this = merge(std::move(*this), std::move(child_heap));
+        return result;
+    }
+
+    // Decrease-key: O(log n)
+    void decrease_key(node* x, const T& new_key) {
+        x->key = new_key;
+        node* y = x;
+        while (y->parent && comp_(y->key, y->parent->key)) {
+            std::swap(y->key, y->parent->key);
+            y = y->parent;
+        }
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    int size() const noexcept { return size_; }
+
+private:
+    static node* merge_root_lists(node* a, node* b) {
+        if (!a) return b;
+        if (!b) return a;
+        node* result = nullptr;
+        node** tail = &result;
+        while (a && b) {
+            if (a->degree <= b->degree) {
+                *tail = a;
+                a = a->sibling;
+            } else {
+                *tail = b;
+                b = b->sibling;
+            }
+            tail = &((*tail)->sibling);
+        }
+        *tail = a ? a : b;
+        return result;
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{Operation} & \textbf{Worst Case} \\
+\hline
+Insert          & $O(\log n)$ \\
+Extract-min     & $O(\log n)$ \\
+Merge           & $O(\log n)$ \\
+Decrease-key    & $O(\log n)$ \\
+Delete          & $O(\log n)$ \\
+Find-min        & $O(\log n)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Binary Heap vs.\ Binomial Heap}
+
+Binary heaps are simpler and have better cache locality (array-based), making them faster in practice for single-threaded workloads. Binomial heaps shine when \textbf{merge} is a frequent operation, since merging two binary heaps requires $O(n)$ while merging two binomial heaps costs only $O(\log n)$. In practice, pairing heaps or Fibonacci heaps often outperform both due to better amortized bounds for decrease-key.
+
+\section{D-ary Heap}
+
+A \textbf{$d$-ary heap} generalizes the binary heap: each node has up to $d$ children instead of 2. The tree is shallower ($\log_d n$ vs $\log_2 n$), which means decrease-key requires fewer levels of upward traversal. With $d = 4$, a 4-ary heap is commonly used in Dijkstra's algorithm and other applications with frequent decrease-key calls.
+
+\subsection{Structure}
+
+A 4-ary heap is stored in an array just like a binary heap, but the child/parent index formulas change:
+
+\begin{lstlisting}[language=Java]
+4-ary heap (d = 4):
+
+               [1]
+          / / |  \
+        [3] [5] [7] [9]
+       /|\  |
+    [12][8][15][2] [6]
+
+Array: [1, 3, 5, 7, 9, 12, 8, 15, 2, 6]
+
+For d-ary heap at index i (0-indexed):
+  Parent:     (i - 1) / d
+  k-th child: d * i + k + 1   (for k = 0, 1, ..., d-1)
+\end{lstlisting}
+
+The height is $\lceil \log_d n \rceil$, so the tree is shallower than a binary heap. Each level has $d$ times more nodes, so sift-down does more work per level, but sift-up (used by decrease-key) does less.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, int D = 4, typename Compare = std::less<T>>
+class d_ary_heap {
+    std::vector<T> data_;
+    Compare comp_;
+
+    int parent(int i) const { return (i - 1) / D; }
+    int child(int i, int k) const { return D * i + k + 1; }
+
+    void sift_up(int i) {
+        while (i > 0) {
+            int p = parent(i);
+            if (!comp_(data_[p], data_[i])) break;
+            std::swap(data_[i], data_[p]);
+            i = p;
+        }
+    }
+
+    void sift_down(int i) {
+        int n = static_cast<int>(data_.size());
+        while (true) {
+            int smallest = i;
+            for (int k = 0; k < D; ++k) {
+                int c = child(i, k);
+                if (c < n && comp_(data_[smallest], data_[c]))
+                    smallest = c;
+            }
+            if (smallest == i) break;
+            std::swap(data_[i], data_[smallest]);
+            i = smallest;
+        }
+    }
+
+public:
+    d_ary_heap() = default;
+
+    void push(const T& value) {
+        data_.push_back(value);
+        sift_up(static_cast<int>(data_.size()) - 1);
+    }
+
+    void push(T&& value) {
+        data_.push_back(std::move(value));
+        sift_up(static_cast<int>(data_.size()) - 1);
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        data_[0] = std::move(data_.back());
+        data_.pop_back();
+        if (!empty()) sift_down(0);
+    }
+
+    const T& top() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        return data_[0];
+    }
+
+    // Decrease-key: O(log_d n)
+    void decrease_key(int i, const T& new_key) {
+        data_[i] = new_key;
+        sift_up(i);
+    }
+
+    bool empty() const noexcept { return data_.empty(); }
+    int size() const noexcept { return static_cast<int>(data_.size()); }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+\textbf{Operation} & \textbf{Binary ($d=2$)} & \textbf{4-ary ($d=4$)} & \textbf{$d$-ary} \\
+\hline
+Insert       & $O(\log_2 n)$ & $O(\log_4 n)$ & $O(\log_d n)$ \\
+Extract-min  & $O(\log_2 n)$ & $O(d \log_4 n)$ & $O(d \log_d n)$ \\
+Decrease-key & $O(\log_2 n)$ & $O(\log_4 n)$ & $O(\log_d n)$ \\
+Space        & $O(n)$ & $O(n)$ & $O(n)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Note that sift-down costs $O(d \log_d n)$ in a $d$-ary heap because each level examines $d$ children. However, $\log_d n = \log_2 n / \log_2 d$, so the total work per level is offset by the reduced height. For $d = 4$, sift-down does $\approx 2 \log_2 n$ comparisons (same as binary), but sift-up (decrease-key) does only $\frac{1}{2} \log_2 n$ comparisons.
+
+\subsection{When to Use}
+
+For applications like Dijkstra's algorithm where decrease-key is called much more often than extract-min, a 4-ary heap often outperforms a binary heap. The $O(\log_4 n)$ decrease-key is half the cost of the $O(\log_2 n)$ version, while extract-min remains comparable. For $d > 4$, the sift-down overhead grows and the benefit diminishes. In practice, $d = 4$ is the sweet spot for most priority queue workloads.
+
+\section{Min-Max Heap}
+
+A \textbf{min-max heap} is a complete binary tree that supports both find-min and find-max in $O(1)$, along with insert and delete in $O(\log n)$. Levels alternate between \textbf{min levels} and \textbf{max levels}: the root is at a min level, its children at a max level, their children at a min level, and so on. At a min level, the node is smaller than all descendants; at a max level, the node is larger than all descendants. This structure is useful when we need fast access to both extremes, such as in a double-ended priority queue for job scheduling or CPU load balancing.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Min-max heap (levels alternate min/max):
+
+Level 0 (min):           [2]               <-- min of all
+                        /   \
+Level 1 (max):      [9]     [8]             <-- max of descendants
+                    / \     / \
+Level 2 (min):  [4]  [7] [5]  [3]           <-- min of descendants
+                / \   |
+Level 3 (max): [6][5] [12]
+
+Parent-child ordering:
+  Min-level node v:  v < all descendants
+  Max-level node v:  v > all descendants
+  Grandchild shortcut: min-level node also < all grandchildren
+                       max-level node also > all grandchildren
+\end{lstlisting}
+
+The grandchild optimization allows skipping the intermediate level during sift operations, cutting the number of comparisons roughly in half compared to a naive alternation of min-heap and max-heap sifts.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+class min_max_heap {
+    std::vector<T> data_;
+    Compare comp_;
+
+    bool is_min_level(int i) const {
+        int level = 0;
+        int temp = i;
+        while (temp > 0) { temp = (temp - 1) / 2; ++level; }
+        return level % 2 == 0;
+    }
+
+    // Sift up within a min level (compare with grandchildren)
+    void sift_up_min(int i) {
+        while (i > 0) {
+            int grandparent = ((i - 1) / 2 - 1) / 2;
+            if (grandparent >= 0 && comp_(data_[i], data_[grandparent])) {
+                std::swap(data_[i], data_[grandparent]);
+                i = grandparent;
+            } else {
+                break;
+            }
+        }
+        // Final check with parent (opposite level)
+        if (i > 0) {
+            int p = (i - 1) / 2;
+            if (comp_(data_[i], data_[p]))
+                std::swap(data_[i], data_[p]);
+        }
+    }
+
+    // Sift up within a max level (compare with grandchildren)
+    void sift_up_max(int i) {
+        while (i > 0) {
+            int grandparent = ((i - 1) / 2 - 1) / 2;
+            if (grandparent >= 0 && comp_(data_[grandparent], data_[i])) {
+                std::swap(data_[i], data_[grandparent]);
+                i = grandparent;
+            } else {
+                break;
+            }
+        }
+        if (i > 0) {
+            int p = (i - 1) / 2;
+            if (comp_(data_[p], data_[i]))
+                std::swap(data_[i], data_[p]);
+        }
+    }
+
+    void sift_up(int i) {
+        if (i == 0) return;
+        int p = (i - 1) / 2;
+        if (is_min_level(i)) {
+            if (comp_(data_[i], data_[p])) {
+                std::swap(data_[i], data_[p]);
+                sift_up_max(p);
+            } else {
+                sift_up_min(i);
+            }
+        } else {
+            if (comp_(data_[p], data_[i])) {
+                std::swap(data_[i], data_[p]);
+                sift_up_min(p);
+            } else {
+                sift_up_max(i);
+            }
+        }
+    }
+
+    void sift_down_min(int i) {
+        int n = static_cast<int>(data_.size());
+        while (true) {
+            int smallest = i;
+            // Check children
+            int left = 2 * i + 1, right = 2 * i + 2;
+            if (left < n && comp_(data_[left], data_[smallest]))
+                smallest = left;
+            if (right < n && comp_(data_[right], data_[smallest]))
+                smallest = right;
+            // Check grandchildren (shortcut)
+            int gc = 2 * left + 1;
+            for (int k = 0; k < 4 && gc + k < n; ++k) {
+                if (comp_(data_[gc + k], data_[smallest]))
+                    smallest = gc + k;
+            }
+            if (smallest == i) break;
+            int p = (smallest - 1) / 2;
+            std::swap(data_[i], data_[smallest]);
+            // If we swapped with a grandchild, may need to fix parent
+            if (p != i && comp_(data_[smallest], data_[p]))
+                std::swap(data_[smallest], data_[p]);
+            i = smallest;
+        }
+    }
+
+    void sift_down_max(int i) {
+        int n = static_cast<int>(data_.size());
+        while (true) {
+            int largest = i;
+            int left = 2 * i + 1, right = 2 * i + 2;
+            if (left < n && comp_(data_[largest], data_[left]))
+                largest = left;
+            if (right < n && comp_(data_[largest], data_[right]))
+                largest = right;
+            int gc = 2 * left + 1;
+            for (int k = 0; k < 4 && gc + k < n; ++k) {
+                if (comp_(data_[largest], data_[gc + k]))
+                    largest = gc + k;
+            }
+            if (largest == i) break;
+            int p = (largest - 1) / 2;
+            std::swap(data_[i], data_[largest]);
+            if (p != i && comp_(data_[p], data_[largest]))
+                std::swap(data_[largest], data_[p]);
+            i = largest;
+        }
+    }
+
+public:
+    min_max_heap() = default;
+
+    void push(const T& value) {
+        data_.push_back(value);
+        sift_up(static_cast<int>(data_.size()) - 1);
+    }
+
+    void push(T&& value) {
+        data_.push_back(std::move(value));
+        sift_up(static_cast<int>(data_.size()) - 1);
+    }
+
+    const T& find_min() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        return data_[0];
+    }
+
+    const T& find_max() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        if (data_.size() == 1) return data_[0];
+        int left = 1, right = 2;
+        int n = static_cast<int>(data_.size());
+        int best = left;
+        if (right < n && comp_(data_[left], data_[right]))
+            best = right;
+        return data_[best];
+    }
+
+    T pop_min() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        T result = std::move(data_[0]);
+        data_[0] = std::move(data_.back());
+        data_.pop_back();
+        if (!empty()) sift_down_min(0);
+        return result;
+    }
+
+    T pop_max() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        int left = 1, right = 2;
+        int n = static_cast<int>(data_.size());
+        int best = left;
+        if (right < n && comp_(data_[left], data_[right]))
+            best = right;
+        T result = std::move(data_[best]);
+        data_[best] = std::move(data_.back());
+        data_.pop_back();
+        if (best < static_cast<int>(data_.size()))
+            sift_down_max(best);
+        return result;
+    }
+
+    bool empty() const noexcept { return data_.empty(); }
+    int size() const noexcept { return static_cast<int>(data_.size()); }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{Operation} & \textbf{Worst Case} \\
+\hline
+Insert          & $O(\log n)$ \\
+Find-min        & $O(1)$ \\
+Find-max        & $O(1)$ \\
+Delete-min      & $O(\log n)$ \\
+Delete-max      & $O(\log n)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+The grandchild shortcut reduces the average number of comparisons during sift operations. Each sift-down visits at most $2 \log_2 n$ nodes (skipping levels), giving $O(\log n)$ with a smaller constant than maintaining separate min-heaps and max-heaps. For a doubly-ended priority queue, min-max heaps are simpler and more space-efficient than a pair of binary heaps.
+
+\section{Weak Heap}
+
+A \textbf{weak heap} is a mergeable heap where each node has at most one child---a right-child tree. The ordering constraint is weaker than a standard heap: each node must be $\le $ its \emph{right child} (not necessarily all descendants). A \textbf{reverse bit} per node tracks whether its left subtree has been reversed, which allows the structure to represent any heap-ordered tree. Weak heaps are the basis for \textbf{smoothsort}, Leonardo de Vois's efficient in-place heapsort variant.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Weak heap (right-child tree with reverse bits):
+
+         [2]-----r=0
+                  |
+         [5]-----r=0
+                  |
+         [3]-----r=1  (left subtree reversed)
+                /
+         [7]   [4]
+
+Right-child chain: 2 -> 5 -> 3
+Left children hang off nodes where r=1
+
+Weak heap property:
+  For every node n:  n->data <= n->right->data
+  The reverse bit determines the structure of left subtrees.
+\end{lstlisting}
+
+The key insight is that any complete binary tree can be represented as a weak heap, making it possible to perform in-place heapsort with $O(n \log n)$ worst case and excellent cache behavior. The right-child chain ensures the minimum is always at the root.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+class weak_heap {
+    struct node {
+        T data;
+        node* right = nullptr;
+        bool reverse = false;
+
+        explicit node(const T& value) : data(value) {}
+    };
+
+    node* root_ = nullptr;
+    node* last_ = nullptr;
+    int size_ = 0;
+    Compare comp_;
+
+    node* left_child(node* n) const {
+        if (!n || !n->right) return nullptr;
+        // The left child is the parent of the right child in
+        // the original complete binary tree (found via reverse bits)
+        return nullptr;  // simplified; real impl uses parent pointers
+    }
+
+    // Merge two weak heaps: O(1)
+    static node* merge(node* a, node* b, const Compare& comp) {
+        if (!a) return b;
+        if (!b) return a;
+        // Make the smaller root the new root
+        if (comp(b->data, a->data)) std::swap(a, b);
+        // Attach b as the right child of a
+        a->right = merge(a->right, b, comp);
+        return a;
+    }
+
+    // Sift down from root: O(log n)
+    void sift_down(node* n) {
+        if (!n) return;
+        while (true) {
+            node* child = n->right;
+            if (!child) break;
+
+            // Find the smallest child considering reverse bit
+            node* smallest = child;
+            node* lc = nullptr;
+            if (n->reverse) {
+                // Left child is accessible via right chain
+                lc = child->right;
+            }
+            // (simplified comparison; full version tracks left child)
+            if (lc && comp(lc->data, smallest->data))
+                smallest = lc;
+
+            if (comp(smallest->data, n->data)) {
+                std::swap(n->data, smallest->data);
+                n = smallest;
+            } else {
+                break;
+            }
+        }
+    }
+
+public:
+    weak_heap() = default;
+
+    // Insert: O(log n) amortized
+    void push(const T& value) {
+        auto* n = new node(value);
+        root_ = merge(root_, n, comp_);
+        ++size_;
+    }
+
+    // Delete-min: O(log n)
+    T pop() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        T result = std::move(root_->data);
+        node* old_root = root_;
+        root_ = merge(root_->right, nullptr, comp_);
+        // In full implementation, detach left subtree and merge
+        delete old_root;
+        --size_;
+        return result;
+    }
+
+    const T& top() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        return root_->data;
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    int size() const noexcept { return size_; }
+
+    ~weak_heap() {
+        // Cleanup (simplified)
+        while (!empty()) pop();
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{Operation} & \textbf{Amortized} \\
+\hline
+Insert          & $O(\log n)$ \\
+Delete-min      & $O(\log n)$ \\
+Find-min        & $O(1)$ \\
+Merge           & $O(\log n)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Weak heaps have a simpler structure than binomial or Fibonacci heaps---each node stores only a data value, a right pointer, and a single reverse bit. In smoothsort, the weak heap structure is maintained in-place during the sort, giving $O(n \log n)$ worst-case with $O(1)$ extra space and excellent performance on nearly-sorted data.
+
+\section{Skew Heap}
+
+A \textbf{skew heap} is a self-adjusting mergeable heap---simpler than a Fibonacci heap but with the same amortized $O(\log n)$ bounds for all operations. Like leftist trees, it is a collection of heap-ordered binary trees, but it uses a different balancing strategy: after every merge, the left and right \textbf{spines} (paths to the rightmost and leftmost null pointers) are \textbf{swapped}. This eliminates the need for any rank or balance information.
+
+\subsection{Structure}
+
+\begin{lstlisting}[language=Java]
+Before merge: swap left/right spines
+
+Leftist tree merge (only right spine merges):
+
+  [2]          [5]           [2]
+  / \    +     /      -->   / \
+ 3   4        6            4   [5]
+                                /
+                               6
+
+Skew heap merge (swap spines after merge):
+
+  [2]          [5]           [2]
+  / \    +     /      -->   / \
+ 3   4        6            3  [5]   <-- spines swapped
+                                /
+                               [4]
+                                \
+                                 6
+
+After every merge, every node on the merged path swaps
+its left and right children. This amortized restructuring
+keeps the tree balanced without explicit rank information.
+\end{lstlisting}
+
+The spine swap is the key operation: it is applied to every node on the merge path, turning heavy right paths into left paths. While this may seem expensive, the potential function argument shows the total work is $O(\log n)$ amortized per merge.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+class skew_heap {
+    struct node {
+        T data;
+        node *left = nullptr, *right = nullptr;
+        explicit node(const T& value) : data(value) {}
+    };
+
+    node* root_ = nullptr;
+    int size_ = 0;
+    Compare comp_;
+
+    // Merge two skew heaps: O(log n) amortized
+    static node* merge(node* a, node* b, const Compare& comp) {
+        if (!a) return b;
+        if (!b) return a;
+
+        // Ensure a has the smaller root
+        if (comp(b->data, a->data)) std::swap(a, b);
+
+        // Merge along the right spine of a
+        node *curr = a, *prev = nullptr;
+        while (curr) {
+            if (comp(b->data, curr->data)) {
+                // b should be above curr on the right spine
+                // Swap spines: b takes curr's left subtree
+                // as its right, and curr becomes b's right
+                node* temp = curr->right;
+                curr->right = b;
+                b = curr;
+                curr = temp;
+            }
+            prev = curr;
+            if (curr) curr = curr->right;
+        }
+        // Swap left and right children on the merge path
+        curr = a;
+        while (curr && curr != b) {
+            std::swap(curr->left, curr->right);
+            curr = curr->right;
+        }
+        return b;
+    }
+
+public:
+    skew_heap() = default;
+
+    void push(const T& value) {
+        auto* n = new node(value);
+        root_ = merge(root_, n, comp_);
+        ++size_;
+    }
+
+    void push(T&& value) {
+        auto* n = new node(std::move(value));
+        root_ = merge(root_, n, comp_);
+        ++size_;
+    }
+
+    // Merge two skew heaps: O(log n) amortized
+    static skew_heap merge(skew_heap&& a, skew_heap&& b) {
+        skew_heap result;
+        result.root_ = merge(a.root_, b.root_, a.comp_);
+        result.size_ = a.size_ + b.size_;
+        a.root_ = nullptr;
+        b.root_ = nullptr;
+        return result;
+    }
+
+    T pop() {
+        if (empty()) throw std::underflow_error("heap is empty");
+        T result = std::move(root_->data);
+        node* old_root = root_;
+        root_ = merge(root_->left, root_->right, comp_);
+        delete old_root;
+        --size_;
+        return result;
+    }
+
+    const T& top() const {
+        if (empty()) throw std::underflow_error("heap is empty");
+        return root_->data;
+    }
+
+    bool empty() const noexcept { return size_ == 0; }
+    int size() const noexcept { return size_; }
+
+    ~skew_heap() {
+        while (!empty()) pop();
+    }
+};
+\end{lstlisting}
+
+\subsection{Amortized Analysis}
+
+The potential function is $\Phi = \sum_v s(v)$ where $s(v)$ is the number of right-heavy nodes in the right spine from $v$ to the deepest node. A node is \textbf{right-heavy} if its right subtree has more nodes than its left subtree.
+
+\begin{itemize}
+\item \textbf{Merge:} Each merge traverses the right spine of $a$ and swaps left/right at every node. The real cost is proportional to the path length, but the potential decreases by at least the same amount. Amortized cost: $O(\log n)$.
+\item \textbf{Insert:} Implemented as merge with a single-node heap. Amortized $O(\log n)$.
+\item \textbf{Delete-min:} Merge left and right subtrees of root. Amortized $O(\log n)$.
+\end{itemize}
+
+\subsection{Skew Heap vs.\ Leftist Tree}
+
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+\textbf{Property} & \textbf{Skew Heap} & \textbf{Leftist Tree} \\
+\hline
+Merge           & $O(\log n)$ amort. & $O(\log n)$ worst \\
+Insert          & $O(\log n)$ amort. & $O(\log n)$ worst \\
+Delete-min      & $O(\log n)$ amort. & $O(\log n)$ worst \\
+Node overhead   & 2 pointers & 2 pointers + npl \\
+Extra info      & none & null path length \\
+Cache behavior  & poor (pointer chasing) & poor (pointer chasing) \\
+Implementation  & simpler & slightly more bookkeeping \\
+\hline
+\end{tabular}
+\end{center}
+
+Skew heaps are preferred when amortized bounds suffice and simplicity is valued. Leftist trees are preferred when worst-case guarantees are required (e.g., real-time systems). Both share the disadvantage of poor cache locality due to pointer-based structures, which is why array-based heaps are faster in practice for single-threaded workloads.
+
+\section{Bottom-Up Heap Construction}
+
+Building a heap by repeated insertion takes O(n log n): each of the $n$ insertions performs an O(log n) sift-up. \textbf{Floyd's algorithm} builds the heap in O(n) by starting from the last non-leaf node and sifting down each node.
+
+\subsection{Why O(n)? Most Work Is at the Bottom}
+
+A complete binary tree with $n$ nodes has $\lceil n/2 \rceil$ leaves (no sift needed) and $\lfloor n/2 \rfloor$ internal nodes. Nodes near the bottom are numerous but require very little sift-down work; nodes near the root are few but require more. The total work is dominated by the abundant bottom-level nodes doing almost nothing.
+
+\subsection{Potential Analysis}
+
+Define the \textbf{potential} $\Phi$ as the total number of children that could still be swapped during all pending sift-down operations. Each sift-down of a node at height $h$ performs at most $h$ swaps, reducing the potential by at least $h$. When a swap occurs, the potential decreases by exactly 1 per swap. The sum of all heights in a complete binary tree is:
+\[
+  \sum_{i=0}^{n-1} \lfloor \log_2(i+1) \rfloor \;=\; n \lfloor \log_2 n \rfloor \;-\; 2^{\lfloor \log_2 n \rfloor + 1} \;+\; 2 \;=\; O(n)
+\]
+Since the total work equals the total decrease in potential, the overall cost is O(n). The initial potential is O(n) and it only decreases, so the amortized cost per sift-down is O(1) when charged to the total.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T, typename Compare = std::less<T>>
+void build_heap(std::vector<T>& data, Compare comp = {}) {
+    int n = static_cast<int>(data.size());
+    // Start from last non-leaf node, sift down to root
+    for (int i = n / 2 - 1; i >= 0; --i) {
+        int current = i;
+        while (true) {
+            int largest = current;
+            int left  = 2 * current + 1;
+            int right = 2 * current + 2;
+            if (left < n && comp(data[largest], data[left]))
+                largest = left;
+            if (right < n && comp(data[largest], data[right]))
+                largest = right;
+            if (largest == current) break;
+            std::swap(data[current], data[largest]);
+            current = largest;
+        }
+    }
+}
+\end{lstlisting}
+
+\subsection{Worked Trace (15 Elements)}
+
+Build a max-heap from [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 7, 8, 2, 0]:
+
+\begin{lstlisting}[language=Java]
+Array (1-indexed for clarity):
+
+Index:  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+Value: [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 7, 8, 2, 0]
+
+Tree structure (heights labeled):
+                [3]              h=3
+              /     \
+           [1]       [4]         h=2
+          /   \     /   \
+        [1]   [5] [9]   [2]     h=1
+       / \   / \  / \   / \
+     [6] [5][3][5][7][8][2][0]   h=0
+
+Last non-leaf: index 7 (value 2).
+Process nodes 7, 6, 5, 4, 3, 2, 1 (right to left).
+
+Step 1: Sift down node 7 (value 2, height 1)
+  Children: 14 (value 2), 15 (value 0)
+  2 >= 2 and 2 >= 0  ->  no swap needed.
+  Array unchanged.
+
+Step 2: Sift down node 6 (value 9, height 1)
+  Children: 12 (value 7), 13 (value 8)
+  9 >= 7 and 9 >= 8  ->  no swap needed.
+
+Step 3: Sift down node 5 (value 5, height 1)
+  Children: 10 (value 3), 11 (value 5)
+  5 >= 3 and 5 >= 5  ->  no swap needed.
+
+Step 4: Sift down node 4 (value 1, height 1)
+  Children: 8 (value 6), 9 (value 5)
+  1 < 6  ->  swap with 6.
+  [3, 1, 4, 6, 5, 9, 2, 1, 5, 3, 5, 7, 8, 2, 0]
+  Node 8 (value 1) is a leaf  ->  done.
+
+Step 5: Sift down node 3 (value 4, height 2)
+  Children: 6 (value 9), 7 (value 2)
+  4 < 9  ->  swap with 9.
+  [3, 1, 9, 6, 5, 4, 2, 1, 5, 3, 5, 7, 8, 2, 0]
+  Now at index 6. Children: 12 (7), 13 (8)
+  4 < 8  ->  swap with 8.
+  [3, 1, 9, 6, 5, 8, 2, 1, 5, 3, 5, 7, 4, 2, 0]
+  Index 12 has no children  ->  done.
+
+Step 6: Sift down node 2 (value 1, height 3)
+  Children: 4 (value 6), 5 (value 5)
+  1 < 6  ->  swap with 6.
+  [3, 6, 9, 1, 5, 8, 2, 1, 5, 3, 5, 7, 4, 2, 0]
+  Now at index 4. Children: 8 (1), 9 (5)
+  1 < 5  ->  swap with 5.
+  [3, 6, 9, 5, 1, 8, 2, 1, 3, 5, 5, 7, 4, 2, 0]
+  Index 8 is a leaf  ->  done.
+
+Step 7: Sift down node 1 (value 3, height 3)
+  Children: 2 (value 6), 3 (value 9)
+  3 < 9  ->  swap with 9.
+  [9, 6, 3, 5, 1, 8, 2, 1, 3, 5, 5, 7, 4, 2, 0]
+  Now at index 3. Children: 6 (8), 7 (2)
+  3 < 8  ->  swap with 8.
+  [9, 6, 8, 5, 1, 3, 2, 1, 3, 5, 5, 7, 4, 2, 0]
+  Index 6 is a leaf  ->  done.
+
+Final max-heap:
+
+          [9]
+        /     \
+      [6]     [8]
+     /  \    /  \
+   [5]  [1][3]  [2]
+   /\   /\ /\   /\
+ [1][3][5][5][7][4][2][0]
+\end{lstlisting}
+
+\textbf{Comparison count:} Total sift-down comparisons = 0 + 0 + 0 + 1 + 2 + 2 + 2 = 7. A naive repeated-insertion approach would require 15 $\times$ O(log 15) $\approx$ 58 comparisons. Floyd's algorithm is roughly $8\times$ faster on this example.
+
+\subsection{Complexity Summary}
+
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+\textbf{Method} & \textbf{Time} & \textbf{Space} \\
+\hline
+Repeated insert (top-down) & $O(n \log n)$ & $O(n)$ \\
+Floyd's bottom-up heapify & $O(n)$ & $O(1)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Floyd's algorithm is \textbf{optimal}: any comparison-based heap construction algorithm must examine every node, giving a lower bound of $\Omega(n)$. The O(n) cost comes from the fact that most nodes are near the leaves and require little work, while the few deep nodes that need more sift-down steps are compensated by their scarcity.
+
+\section{Heap Select (kth Smallest)}
+
+A \textbf{heap} provides an efficient way to find the $k$-th smallest (or largest) element without fully sorting the data. The approach depends on whether we want the $k$-th smallest or $k$-th largest, and whether we value worst-case or average-case guarantees.
+
+\subsection{Min-Heap Approach: kth Smallest}
+
+Build a min-heap of all $n$ elements (O(n) with Floyd's algorithm). Extract the minimum $k$ times (O(k log n)). The $k$-th extraction gives the $k$-th smallest.
+
+\begin{lstlisting}[language=C++]
+int kth_smallest_minheap(std::vector<int> data, int k) {
+    // Floyd's O(n) build
+    std::make_heap(data.begin(), data.end(), std::greater<int>{});
+    for (int i = 0; i < k - 1; ++i) {
+        std::pop_heap(data.begin(), data.end(), std::greater<int>{});
+        data.pop_back();
+    }
+    return data.front();  // kth smallest
+}
+\end{lstlisting}
+
+Time: O(n + k log n). Space: O(1) in-place. This is ideal when $k \ll n$.
+
+\subsection{Max-Heap Approach: kth Largest}
+
+For the $k$-th \emph{largest}, use a max-heap of size $k$: insert the first $k$ elements, then for each remaining element, if it is smaller than the root, replace the root and sift down. The root of the final heap is the $k$-th largest.
+
+\begin{lstlisting}[language=C++]
+int kth_largest_maxheap(std::span<int> data, int k) {
+    // Build max-heap of first k elements
+    std::vector<int> heap(data.begin(), data.begin() + k);
+    std::make_heap(heap.begin(), heap.end());
+
+    for (int i = k; i < static_cast<int>(data.size()); ++i) {
+        if (data[i] < heap.front()) {
+            heap.front() = data[i];
+            std::sift_down_heap(heap.begin(), heap.end());
+        }
+    }
+    return heap.front();  // kth largest
+}
+\end{lstlisting}
+
+Time: O(n log k). Space: O(k). This is best when $k \ll n$ and memory is constrained.
+
+\subsection{Comparison with Quickselect}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+\textbf{Method} & \textbf{Average} & \textbf{Worst} & \textbf{Space} \\
+\hline
+Min-heap (kth smallest) & $O(n + k \log n)$ & $O(n + k \log n)$ & $O(1)$ \\
+Max-heap (kth largest)  & $O(n \log k)$     & $O(n \log k)$     & $O(k)$ \\
+Quickselect              & $O(n)$            & $O(n^2)$          & $O(1)$ \\
+Median-of-medians        & $O(n)$            & $O(n)$            & $O(1)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Quickselect is faster on average (O(n) vs O(n log k)) but has O(n$^2$) worst-case. The max-heap approach is preferred when: (a) $k$ is small, (b) the data arrives as a stream (online), or (c) worst-case O(n log k) is more predictable than quickselect's quadratic worst case. The min-heap approach is cleanest when you already have a heapified array and want the $k$-th smallest in O(k log n) additional work.
+
+\section{Application: Event-Driven Simulation}
+
+Simulate a bank with multiple tellers:
+
+\begin{lstlisting}[language=C++]
+struct event {
+    double time;
+    enum { ARRIVAL, DEPARTURE } type;
+    int customer_id;
+    int teller_id;
+
+    bool operator>(const event& other) const {
+        return time > other.time;
+    }
+};
+
+void bank_simulation(int num_tellers, double arrival_rate, double duration) {
+    // Min-heap of events
+    std::priority_queue<event, std::vector<event>, std::greater<event>> events;
+    std::vector<int> teller_available_time(num_tellers, 0);
+
+    // First arrival
+    events.push({0.0, event::ARRIVAL, 0, -1});
+
+    int customer_count = 0;
+    double total_wait = 0.0;
+
+    while (!events.empty()) {
+        event e = events.top(); events.pop();
+        if (e.time > duration) break;
+
+        if (e.type == event::ARRIVAL) {
+            ++customer_count;
+            // Schedule next arrival
+            double interarrival = -std::log(1.0 - std::rand() / RAND_MAX) / arrival_rate;
+            events.push({e.time + interarrival, event::ARRIVAL, customer_count, -1});
+
+            // Find free teller
+            int best_teller = 0;
+            for (int t = 1; t < num_tellers; ++t) {
+                if (teller_available_time[t] < teller_available_time[best_teller])
+                    best_teller = t;
+            }
+
+            double start = std::max(e.time, double(teller_available_time[best_teller]));
+            double wait = start - e.time;
+            total_wait += wait;
+
+            double service_time = 1.0 + std::rand() / RAND_MAX * 4.0;  // 1-5 min
+            teller_available_time[best_teller] = start + service_time;
+            events.push({start + service_time, event::DEPARTURE, customer_count, best_teller});
+        }
+    }
+
+    std::cout << "Customers served: " << customer_count << '\n'
+              << "Average wait: " << total_wait / customer_count << '\n';
+}
+\end{lstlisting}
+
+\section{Application: Median Maintenance}
+
+Maintain the median of a stream of numbers:
+
+\begin{lstlisting}[language=C++]
+class median_tracker {
+public:
+    void add_number(int x) {
+        if (max_heap_.empty() || x <= max_heap_.top()) {
+            max_heap_.push(x);
+        } else {
+            min_heap_.push(x);
+        }
+
+        // Rebalance
+        if (max_heap_.size() > min_heap_.size() + 1) {
+            min_heap_.push(max_heap_.top());
+            max_heap_.pop();
+        } else if (min_heap_.size() > max_heap_.size()) {
+            max_heap_.push(min_heap_.top());
+            min_heap_.pop();
+        }
+    }
+
+    double median() const {
+        if (max_heap_.size() == min_heap_.size()) {
+            return (max_heap_.top() + min_heap_.top()) / 2.0;
+        }
+        return max_heap_.top();
+    }
+
+private:
+    std::priority_queue<int> max_heap_;                // lower half
+    std::priority_queue<int, std::vector<int>,
+                        std::greater<int>> min_heap_;  // upper half
+};
+\end{lstlisting}
+
+\section{STL Connection: std::priority\_queue}
+
+\begin{lstlisting}[language=C++]
+std::priority_queue<int> pq;  // max-heap
+pq.push(30);
+pq.push(10);
+pq.push(50);
+std::cout << pq.top();  // 50
+pq.pop();               // removes 50
+std::cout << pq.top();  // 30
+\end{lstlisting}
+
+\texttt{std::priority\_queue} uses \texttt{std::vector} by default and provides the standard heap operations.
+
+For direct heap manipulation on arbitrary vectors:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v = {30, 10, 50, 20, 40};
+std::make_heap(v.begin(), v.end());         // O(n)
+std::pop_heap(v.begin(), v.end());          // move max to end, O(log n)
+v.pop_back();
+std::push_heap(v.begin(), v.end());         // after push_back, O(log n)
+std::sort_heap(v.begin(), v.end());         // O(n log n)
+\end{lstlisting}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Confusing min-heap vs max-heap comparator & Wrong element at top, incorrect algorithm & \texttt{std::priority\_queue<T>} uses \texttt{std::less} $\to $ max-heap \\
+Forgetting \texttt{sift\_down} after replacing the root & Heap property violated & Always restore heap after modification \\
+Modifying priority of an element already in the heap & Heap property violated, wrong top & Remove and re-insert, or use a mutable heap \\
+Off-by-one in child index formulas (2i vs 2i+1) & Access wrong node & Left child = 2i+1, right = 2i+2 (0-indexed) \\
+Using \texttt{std::make\_heap} but never \texttt{std::push\_heap}/\texttt{std::pop\_heap} & Not maintaining heap property after push/pop & Use the full \texttt{std::push\_heap}/\texttt{std::pop\_heap} pair \\
+Passing the wrong comparator to \texttt{std::priority\_queue} & Opposite ordering than expected & Test with \texttt{top()} after a single push to verify order \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Heaps} implement priority queues with O(log n) push/pop and O(n) heapify.
+\item \textbf{Array storage} exploits the complete binary tree structure with simple index arithmetic.
+\item \textbf{Heap sort} is an O(n log n) in-place sorting algorithm.
+\item \textbf{Leftist trees} support O(log n) merge of two priority queues.
+\item \textbf{Fibonacci heaps} achieve O(1) amortized insert and decrease-key, O(log n) extract-min — optimal for Dijkstra's.
+\item \textbf{Pairing heaps} offer similar practical performance with simpler implementation.
+\item \texttt{std::priority\_queue} is the production priority queue.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{How does \texttt{heapify} build a heap in O(n) instead of O(n log n)?}
+
+Floyd's bottom-up approach: start from the last non-leaf node (index $\lfloor n/2 \rfloor - 1$) and sift down each node. Nodes at height $h$ require O(h) sift-down operations. Total work: $\sum_{h=0}^{\log n} \lceil n/2^{h+1} \rceil \cdot h = O(n)$. This is provably optimal -- you cannot build a heap faster than O(n). Inserting elements one by one is O(n log n) because each insert is O(log n).
+
+\begin{lstlisting}[language=C++]
+void sift_down(std::vector<int>& h, int n, int i) {
+    while (true) {
+        int smallest = i, l = 2*i+1, r = 2*i+2;
+        if (l < n && h[l] < h[smallest]) smallest = l;
+        if (r < n && h[r] < h[smallest]) smallest = r;
+        if (smallest == i) break;
+        std::swap(h[i], h[smallest]);
+        i = smallest;
+    }
+}
+
+void heapify(std::vector<int>& h) {
+    int n = (int)h.size();
+    for (int i = n/2 - 1; i >= 0; --i)
+        sift_down(h, n, i);
+}
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Find the $k$-th largest element in an unsorted array.}
+
+Approach 1: Build a min-heap of size $k$. For each remaining element, if it's larger than the heap root, replace the root and sift down. The root of the final heap is the $k$-th largest. Time O(n log k), space O(k).
+
+\begin{lstlisting}[language=C++]
+int kth_largest(const std::vector<int>& a, int k) {
+    std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
+    for (int x : a) {
+        pq.push(x);
+        if ((int)pq.size() > k) pq.pop();
+    }
+    return pq.top();
+}
+\end{lstlisting}
+
+Approach 2: Quickselect (average O(n), worst O(n$^{2}$)). Partition around a random pivot; recurse into the side containing the $k$-th element.
+
+Approach 3: Build a max-heap, extract the max $k$ times. Time O(n + k log n).
+
+\textit{Interviewers typically expect Approach 1 or 2.}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a data structure that supports insert, delete, and getMin in O(1).}
+
+Use two heaps: a min-heap for insert and getMin, and a ``deletion'' heap. On \texttt{delete(x)}, push $x$ to the deletion heap. On \texttt{getMin}, peek both heaps and skip elements that appear in both (lazy deletion). Periodically rebuild the min-heap when the deletion heap grows too large. This is used in Dijkstra's algorithm with Fibonacci heaps.
+
+\textit{Variant:} ``Decrease-key in O(1)'' — Fibonacci heap. Insert: O(1) amortized. Extract-min: O(log n) amortized.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between a max-heap and a min-heap? When would you use each?}
+
+\textbf{Q:} ``Why does Dijkstra's algorithm need a min-heap with decrease-key, and what happens if you use a max-heap or skip decrease-key?''
+
+\textbf{A:} Dijkstra processes nodes in order of increasing distance --- a min-heap gives O(log n) extract-min. Without decrease-key, you insert duplicates and lazily skip stale entries (worse asymptotic but often faster in practice due to simpler implementation). A max-heap would give the \emph{farthest} node, which is the opposite of what Dijkstra needs. The decrease-key optimization avoids duplicates by updating existing entries --- but implementing decrease-key efficiently requires an index map (heap position per element), which adds complexity. In practice, the ``lazy'' approach (insert duplicates, skip stale) is preferred because the simpler code and better cache behavior outweigh the theoretical cost.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Implement a priority queue using a sorted array. What are the trade-offs?}
+
+Sorted array (ascending): insert is O(n) (shift elements), delete-max is O(1) (remove from end). Sorted array (descending): insert is O(n), delete-max is O(n) (shift). Unsorted array: insert is O(1), delete-max is O(n) (scan for max). Binary heap: both insert and delete-max are O(log n). The heap wins for mixed workloads; the unsorted array wins if you only insert then extract all.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you merge $k$ sorted linked lists efficiently?}
+
+Use a min-heap of size $k$: insert the head of each list. Extract the minimum, append it to the result, and push the next element from the same list. Time O(n log k) where $n$ is the total number of elements. Space O(k) for the heap.
+
+\begin{lstlisting}[language=C++]
+node* merge_k_sorted(std::vector<node*>& lists) {
+    auto cmp = [](node* a, node* b) { return a->data > b->data; };
+    std::priority_queue<node*, std::vector<node*>, decltype(cmp)> pq(cmp);
+    for (node* h : lists) if (h) pq.push(h);
+    node dummy(0);
+    node* tail = &dummy;
+    while (!pq.empty()) {
+        node* cur = pq.top(); pq.pop();
+        tail->next = cur;
+        tail = tail->next;
+        if (cur->next) pq.push(cur->next);
+    }
+    return dummy.next;
+}
+\end{lstlisting}
+
+\textit{Variant:} ``Merge $k$ sorted arrays'' -- same approach, or divide-and-conquer pairwise merging.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is a leftist tree and why is it useful?}
+
+A leftist tree is a mergeable heap: the merge of two leftist trees is O(log n), compared to O(n) for binary heaps. Each node stores a ``null path length'' (npl): the shortest path to a null child. The left child always has npl $\geq$ right child. This ensures the right spine is short, making merge efficient by recursively merging along the right spine. Used in event-driven simulations and parallel priority queues.
+
+\textit{Follow-up:} ``What is a skew heap?'' A self-adjusting leftist tree that swaps children during merge. O(log n) amortized, simpler implementation, but no worst-case guarantee.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the median of a data stream?}
+
+Maintain two heaps: a max-heap for the lower half and a min-heap for the upper half. The max-heap stores elements $\leq$ median; the min-heap stores elements $\geq$ median. Keep their sizes equal (or max-heap one larger). The median is the max-heap's root. Insert O(log n), getMedian O(1).
+
+\begin{lstlisting}[language=C++]
+class median_tracker {
+    std::priority_queue<int> lo;                          // max-heap
+    std::priority_queue<int, std::vector<int>, std::greater<int>> hi;  // min-heap
+public:
+    void add(int num) {
+        lo.push(num);
+        hi.push(lo.top()); lo.pop();
+        if (hi.size() > lo.size()) { lo.push(hi.top()); hi.pop(); }
+    }
+    double median() {
+        return lo.size() > hi.size() ? lo.top() : (lo.top() + hi.top()) / 2.0;
+    }
+};
+\end{lstlisting}
+
+\textit{This is LeetCode 295 — a very common interview question.}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is heap sort not used in practice despite O(n log n) time?}
+
+Heap sort has poor cache locality: the parent-child index relationship ($2i+1$, $2i+2$) jumps across the array, causing cache misses. Quicksort, despite O(n$^{2}$) worst-case, is faster in practice due to sequential memory access patterns. Additionally, heap sort is not stable (equal elements may be reordered). Introsort (quicksort + heapsort fallback) combines the best of both: quicksort's cache performance with heapsort's O(n log n) guarantee.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between \texttt{std::priority\_queue} and a raw heap?}
+
+\texttt{std::priority\_queue} is an adapter over \texttt{std::vector} using \texttt{std::make\_heap}, \texttt{std::push\_heap}, \texttt{std::pop\_heap}. The raw heap functions operate on random-access iterators directly. Use \texttt{std::priority\_queue} for simplicity; use raw heap functions when you need: (a) access to the underlying vector, (b) custom comparison with iterators, (c) building a heap in-place without copying. Both use the same O(log n) operations internally.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item Show the array representation of a max-heap after each insertion of: [10, 20, 5, 30, 15, 25]. Use the array indices 1..n (1-indexed) for clarity. Draw the tree at each step.
+\end{enumerate}
+
+\begin{enumerate}
+\item Show the array after each step of heapify on [5, 3, 17, 10, 84, 19, 6, 22, 9] (a max-heap). Start from the last non-leaf node.
+\end{enumerate}
+
+\begin{enumerate}
+\item How many comparisons are needed to build a heap of size n using heapify? Prove your answer.
+\end{enumerate}
+
+\begin{enumerate}
+\item Trace heap sort on [3, 1, 4, 1, 5, 9, 2, 6]. Show the array after each \texttt{extract\_max} and after each \texttt{sift\_down}.
+\end{enumerate}
+
+\begin{enumerate}
+\item For a min-heap, what is the complexity of:
+\end{enumerate}
+   a) Finding the minimum element
+   b) Inserting a new element
+   c) Deleting the minimum
+   d) Merging two heaps of size n and m (without using any special mergeable structure)
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Implement a min-heap using \texttt{std::greater} as the comparator. Verify correctness against \texttt{std::priority\_queue<int, std::vector<int>, std::greater<int>>}.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement heap sort in-place. Benchmark against \texttt{std::sort} for n = 10$^{3}$, 10$^{4}$, 10$^{5}$, 10$^{6}$ on random, sorted, and reverse-sorted data. Explain why \texttt{std::sort} is faster despite both being O(n log n).
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \textbf{k-way merge}: merge k sorted arrays into one sorted array using a min-heap. Compare its performance with repeated 2-way merges for k = 4, 8, 16 at total n = 10$^{5}$.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a priority queue with \textbf{decrease-key} — needed for Dijkstra's algorithm. Store each element's position in the heap using a hash map. Verify correctness with Dijkstra on a small graph.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \texttt{is\_heap} that checks if a vector satisfies the heap property. Use it to validate your heap implementations on random vectors.
+\end{enumerate}
+
+\begin{enumerate}
+\item Use two heaps (a max-heap for the lower half, a min-heap for the upper half) to implement a \texttt{median\_tracker} that finds the running median of a stream. Process 10$^{6}$ numbers and report the median after each 100,000 elements.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \textbf{sliding window median}: given an array and window size k, output the median of each window. Use the two-heap approach from exercise 11.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{Prim's MST algorithm} using a priority queue with decrease-key. Compare its runtime with the version that does not use decrease-key (inserts duplicates instead).
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Binomial heaps)} Implement a binomial heap — a forest of binomial trees that supports O(log n) merge. Compare merge performance with the std::priority\_queue vs your binomial heap. When does the merge capability matter?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Fibonacci heaps)} Read about Fibonacci heaps (Fredman and Tarjan, 1987). Implement decrease-key with O(1) amortized time. Compare its performance with the standard binary heap for Dijkstra's algorithm on large sparse graphs.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Priority queue STL choice)} The C++ standard requires \texttt{std::priority\_queue} to use \texttt{std::vector} by default. Why not \texttt{std::deque}? What are the performance implications? Read the committee discussions.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(d-ary heaps)} Implement a 4-ary heap (each node has up to 4 children). Compare its performance with the binary heap. How does the choice of d affect the number of comparisons vs the number of swaps?
+\end{enumerate}
+
+%% ============================================================
+%% ADVANCED HEAP TOPICS (Brass coverage)
+%% ============================================================
+
+\section{Optimal Heap Complexity}
+\label{sec:optimal-heap}
+
+The Fibonacci heap achieves $O(1)$ amortised insert and decrease-key, and $O(\log n)$ amortised delete-min. But is this the best possible? The answer is yes, up to constant factors.
+
+\subsection{Lower Bounds}
+
+Any comparison-based priority queue must perform $\Omega(1)$ amortised time per operation. For decrease-key, the lower bound is $\Omega(1)$ amortised, which the Fibonacci heap matches. For delete-min, the lower bound is $\Omega(\log n)$ amortised, which Fibonacci heaps also match.
+
+However, the Fibonacci heap's $O(1)$ insert and decrease-key come with high constant factors and poor cache performance. In practice, pairing heaps and skew heaps are faster despite having $O(\log n)$ amortised decrease-key.
+
+\subsection{Strict Fibonacci Heaps}
+
+The strict Fibonacci heap (Brodal, Lagogiannis, and Tarjan, 2002) achieves $O(1)$ worst-case insert, $O(1)$ worst-case decrease-key, and $O(\log n)$ worst-case delete. This is optimal in the comparison model. However, the implementation is extremely complex and has large constant factors, making it purely theoretical.
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Structure & Insert & Find-Min & Delete-Min & Decrease-Key \\
+\midrule
+Binary heap & $O(1)$ & $O(1)$ & $O(\log n)$ & $O(\log n)$ \\
+Binomial heap & $O(1)$ am. & $O(1)$ & $O(\log n)$ am. & $O(\log n)$ am. \\
+Fibonacci heap & $O(1)$ am. & $O(1)$ & $O(\log n)$ am. & $O(1)$ am. \\
+Pairing heap & $O(1)$ am. & $O(1)$ & $O(\log n)$ am. & $O(\log n)$ am. \\
+Strict Fib. heap & $O(1)$ & $O(1)$ & $O(\log n)$ & $O(1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{BST-as-Heap: Tree-Oriented Heaps}
+\label{sec:bst-as-heap}
+
+Several heap implementations use BST structures as the underlying container, combining heap ordering with BST ordering to achieve efficient merge, split, and priority queue operations.
+
+\subsection{Treap as Priority Queue}
+
+A treap (tree + heap) assigns random priorities to BST nodes. The BST property holds on keys, and the heap property holds on priorities. This gives:
+\begin{itemize}
+    \item Insert: $O(\log n)$ expected
+    \item Delete-min: $O(\log n)$ expected (by key or priority)
+    \item Merge: $O(\log n)$ expected (when all keys in one tree are less than the other)
+    \item Split: $O(\log n)$ expected
+\end{itemize}
+
+The treap is the simplest data structure that simultaneously supports BST operations and priority queue operations with good expected performance.
+
+\subsection{Interval Heap}
+
+An \textbf{interval heap} stores intervals $[a, b]$ where $a \leq b$. It maintains a min-heap on the left endpoints and a max-heap on the right endpoints. This enables:
+\begin{itemize}
+    \item Insert interval: $O(\log n)$
+    \item Find interval containing a point: $O(\log n)$
+    \item Delete interval: $O(\log n)$
+\end{itemize}
+
+Interval heaps are useful for scheduling, calendar systems, and interval management.
+
+\subsection{Leaf-to-Root Operations}
+
+In some heap variants (e.g., skew heaps, leftist trees), operations propagate from leaves toward the root. This ``leaf-to-root'' pattern is the dual of the more common ``root-to-leaf'' pattern used in BSTs and array heaps.
+
+\begin{lstlisting}[language=C++]
+// Leaf-to-root merge in a skew heap
+SkewHeap merge(SkewHeap a, SkewHeap b) {
+    if (!a.root) return b;
+    if (!b.root) return a;
+    if (a.root->priority > b.root->priority)
+        std::swap(a, b);
+    // Merge b into a's right subtree
+    a.root->right = merge(a.root->right, b);
+    // Swap children (the skew heap trick)
+    std::swap(a.root->left, a.root->right);
+    return a;
+}
+\end{lstlisting}
+
+The swap step ensures amortised $O(\log n)$ time by making the long path become the right spine, which is where future merges will attach.
+
+\section{Heaps and the Pointer Machine}
+\label{sec:heaps-pointer-machine}
+
+The \textbf{pointer machine} model counts only pointer operations (dereference, assignment) and ignores arithmetic. In this model, comparison-based pointer-machine heaps require $\Omega(\log n)$ per operation for any combination of insert, delete-min, and decrease-key (with at least one operation being non-constant).
+
+Fibonacci heaps achieve this bound: $O(1)$ for insert and decrease-key, $O(\log n)$ for delete-min. The key insight is that the heap structure is maintained through pointer manipulation rather than array indexing, enabling $O(1)$ merge and decrease-key.
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Donald E. Knuth, \textit{The Art of Computer Programming}, Volume 3: Sorting and Searching. Section 5.2.3.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapter 6.
+\item Robert W. Floyd, "Algorithm 245: Treesort" — CACM, 1964.
+\item J. W. J. Williams, "Algorithm 232: Heapsort" — CACM, 1964.
+\item Jean Vuillemin, "A Data Structure for Manipulating Priority Queues" — CACM, 1978.
+\item Michael L. Fredman and Robert E. Tarjan, "Fibonacci Heaps and Their Uses in Improved Network Optimization Algorithms" — JACM, 1987.
+\item Michael L. Fredman, Robert Sedgewick, Daniel D. Sleator, and Robert E. Tarjan, "The Pairing Heap: A New Form of Self-Adjusting Heap" — Algorithmica, 1986.
+\end{itemize}
+

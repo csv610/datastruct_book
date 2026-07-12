@@ -1,0 +1,12 @@
+Fibonacci heap after inserting 3, 1, 7, 5, 2, 8:
+Root list:  [1] -- [3] -- [7] -- [5] -- [2] -- [8]
+(min pointer -> 1)
+
+After extract-min (remove 1, merge children into root list, consolidate):
+Consolidate: link trees of same degree until all roots have distinct degrees.
+Result: one tree with root 2
+  [2]
+  /|\
+ [3][5][8]
+   / \
+  [7] (nil)

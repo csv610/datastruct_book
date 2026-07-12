@@ -1,0 +1,14 @@
++-----------------------+
+         |           |           |
+         |    NW     |    NE     |
+         |           |           |
+         |      +----+----+      |
+         |      |  . (root)|      |
+         +------+----+----+------+
+         |      |         |      |
+         |    SW |    .    |  SE |
+         |      |         |      |
+         +-----------------------+
+
+  Root splits space into 4 quadrants.
+  Each quadrant is subdivided independently.

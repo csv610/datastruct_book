@@ -1,0 +1,6 @@
+1. Initialize solution = empty
+2. While a solution has not been found:
+   a. Select the next best candidate (locally optimal)
+   b. If the candidate is feasible, add it to the solution
+   c. If the candidate is not feasible, discard it
+3. Return solution

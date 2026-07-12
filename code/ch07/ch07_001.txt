@@ -1,0 +1,6 @@
+Initial: [_, _, _, _]   front=0, rear=0
+push 10: [10, _, _, _]  front=0, rear=1
+push 20: [10, 20, _, _] front=0, rear=2
+pop:     [_, 20, _, _]  front=1, rear=2   (returns 10)
+push 30: [_, 20, 30, _] front=1, rear=3
+push 40: [_, 20, 30, 40] front=1, rear=0  (wraps around!)

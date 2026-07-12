@@ -1,0 +1,2 @@
+m[i][j] = min over k in [i, j-1] of:
+    m[i][k] + m[k+1][j] + p[i-1] * p[k] * p[j]

@@ -1,0 +1,5 @@
+push(1): q2=[1] -> q1=[1]
+push(2): q2=[2,1] -> q1=[2,1]      (front is 2, LIFO)
+push(3): q2=[3,2,1] -> q1=[3,2,1]  (front is 3)
+pop():   removes 3, q1=[2,1]
+top():   returns 2

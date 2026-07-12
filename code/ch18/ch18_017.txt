@@ -1,0 +1,4 @@
+Method                        Nodes visited    Time
+Basic backtracking            ~5,000,000       1.2s
+Bitmask backtracking          ~5,000,000       0.15s
+Bitmask + symmetry breaking   ~2,500,000       0.08s

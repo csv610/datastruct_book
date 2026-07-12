@@ -1,0 +1,7 @@
+Standard:  root  ->  a  ->  p  ->  p  ->  l  ->  e  ->  *
+                                     |
+                                    s  ->  *
+                                    
+Compressed: root  ->  "appl"  ->  "e"  ->  *
+                             |
+                            "s"  ->  *

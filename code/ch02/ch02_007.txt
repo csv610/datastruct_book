@@ -1,0 +1,6 @@
+n                  <-  level 0, 1 node
+        /   \
+      n/2   n/2              <-  level 1, 2 nodes
+     /  \   /  \
+    n/4 n/4 n/4 n/4          <-  level 2, 4 nodes
+   ...  ...  ...  ...

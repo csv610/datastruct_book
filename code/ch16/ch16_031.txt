@@ -1,0 +1,7 @@
+Level 0: 1 call  of size 8  -> 7 mults of size 4
+Level 1: 7 calls of size 4  -> 7*7 = 49 mults of size 2
+Level 2: 49 calls of size 2 -> 49*7 = 343 mults of size 1 (base case)
+
+Total 1x1 multiplications: 7^3 = 343
+Naive would require: 8^3 = 512 multiplications.
+Speedup ratio: 512/343 = 1.49x at size 8.

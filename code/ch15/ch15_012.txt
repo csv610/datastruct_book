@@ -1,0 +1,19 @@
+frequencies: A:45, B:13, C:12, D:16, E:9, F:5
+
+Step 1: Combine F(5) + E(9) = FE(14)
+Step 2: Combine C(12) + D(16) = CD(28)
+Step 3: Combine B(13) + FE(14) = BFE(27)
+Step 4: Combine BFE(27) + CD(28) = BFECD(55)
+Step 5: Combine A(45) + BFECD(55) = root(100)
+
+Huffman codes:
+A: 0       (1 bit)
+B: 100     (3 bits)
+C: 110     (3 bits)
+D: 111     (3 bits)
+E: 1010    (4 bits)
+F: 1011    (4 bits)
+
+Total bits = 45*1 + 13*3 + 12*3 + 16*3 + 9*4 + 5*4 = 224
+vs fixed 3-bit code = 100*3 = 300
+Savings: 25%

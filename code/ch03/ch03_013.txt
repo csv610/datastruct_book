@@ -1,0 +1,4 @@
+1,234,567,890      cycles
+     987,654,321      instructions
+      12,345,678      cache-references
+       1,234,567      cache-misses    # 10.0% miss rate

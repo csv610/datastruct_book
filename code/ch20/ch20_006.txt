@@ -1,0 +1,10 @@
+Flow network:
+s -> A(1), s -> B(1), s -> C(1)
+A -> X(1), A -> Y(1), B -> Y(1), C -> Z(1)
+X -> t(1), Y -> t(1), Z -> t(1)
+
+Augmenting path s->A->X->t: flow 1. Match: A-X.
+Augmenting path s->B->Y->t: flow 1. Match: B-Y.
+Augmenting path s->C->Z->t: flow 1. Match: C-Z.
+
+Max flow = 3. Maximum matching: {A-X, B-Y, C-Z}. All 3 left vertices matched.

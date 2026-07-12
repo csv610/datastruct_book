@@ -1,0 +1,37 @@
+Qualifications (applicant -> qualified jobs):
+  A -> J1, J2
+  B -> J2, J3
+  C -> J1, J3, J4
+  D -> J3, J4
+
+Flow network (8 vertices + s + t = 10 vertices):
+  s -> A(1), s -> B(1), s -> C(1), s -> D(1)
+  A -> J1(1), A -> J2(1)
+  B -> J2(1), B -> J3(1)
+  C -> J1(1), C -> J3(1), C -> J4(1)
+  D -> J3(1), D -> J4(1)
+  J1 -> t(1), J2 -> t(1), J3 -> t(1), J4 -> t(1)
+
+--------------------------------------------------------------
+Round 1: BFS path s -> A -> J1 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1}.
+  Saturated: s->A, A->J1, J1->t.
+
+Round 2: BFS path s -> B -> J2 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1, B-J2}.
+  Saturated: s->B, B->J2, J2->t.
+
+Round 3: BFS path s -> C -> J3 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1, B-J2, C-J3}.
+  Saturated: s->C, C->J3, J3->t.
+
+Round 4: BFS from s: s->D is available.
+  D -> J4 -> t is open. Path: s -> D -> J4 -> t.
+  Bottleneck = 1. Push flow.
+  Match: {A-J1, B-J2, C-J3, D-J4}.
+
+Round 5: BFS from s: s->A(0), s->B(0), s->C(0), s->D(0).
+  All source edges saturated. No augmenting path. Done.
+
+MAXIMUM MATCHING = 4 (all applicants assigned).
+--------------------------------------------------------------

@@ -1,0 +1,8 @@
+ED[i][j] = edit distance between A[0..i-1] and B[0..j-1]
+
+ED[i][j] = i                                       if j = 0
+           j                                       if i = 0
+           ED[i-1][j-1]                            if A[i-1] = B[j-1]
+           min(ED[i-1][j] + 1,     // delete
+               ED[i][j-1] + 1,     // insert
+               ED[i-1][j-1] + 1)   // substitute

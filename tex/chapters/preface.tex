@@ -1,0 +1,120 @@
+\chapter{Preface}\label{preface:preface}
+
+The study of data structures and algorithms is fundamental to computer science and engineering. A mastery of these areas is essential for developing computer programs that utilize machine resources in an effective manner. Consequently, every computer science and engineering curriculum includes one or more courses devoted to these subjects.
+
+\textit{Data Structures, Algorithms, and Applications in C++}, Third Edition, has been developed for use in programs that cover this material in a unified course as well as in programs that spread the study over two or more courses.
+
+\section{What's New in This Edition}
+
+The first edition (2000) helped define how data structures are taught to a generation of computer scientists. The second edition (2004) added STL integration and improved coverage. Twenty-five years later, C++ has evolved substantially — from C++11 through C++14, C++17, and C++20 — and so has the landscape of algorithm engineering.
+
+This Third Edition is a thorough modernization:
+
+\textbf{Modern C++ (C++20).} Every line of code has been rewritten. The previous editions used C++98 with raw \texttt{new} and \texttt{delete}, manual memory management, and no move semantics. This edition uses:
+\begin{itemize}
+\item \textbf{RAII} throughout — resource acquisition is initialization
+\item \textbf{Smart pointers} (\texttt{std::unique\_ptr}, \texttt{std::shared\_ptr}) for all linked structures
+\item \textbf{Concepts} for type-safe generic programming
+\item \textbf{\texttt{std::span} and \texttt{std::string\_view}} for efficient, non-owning views
+\item \textbf{Move semantics} and perfect forwarding for efficient resource transfer
+\item \textbf{Ranges and views} (C++20) for composable data transformations
+\end{itemize}
+
+No raw \texttt{new}/\texttt{delete} appears anywhere in this book.
+
+\textbf{Expanded coverage.} Five new chapters:
+\begin{itemize}
+\item \textbf{Strings and Tries} (Chapter 13): tries (R-way, ternary, compressed), Knuth-Morris-Pratt, Rabin-Karp, suffix arrays, LCP arrays, DC3/Skew suffix array construction, and document retrieval with inverted indices and BM25 scoring
+\item \textbf{Segment Trees, Fenwick Trees, and Union-Find} (Chapter 14): three essential range-query and connectivity structures
+\item \textbf{Probabilistic Data Structures} (Chapter 19): Bloom filters, Count-Min Sketch, HyperLogLog, reservoir sampling
+\item \textbf{Maximum Flow and Matching} (Chapter 20): Ford-Fulkerson, Dinic, min-cut, bipartite matching
+\item \textbf{Spatial Data Structures and Parallel Algorithms} (Chapters 21–22): k-d trees, quadtrees, SIMD, task parallelism, GPU fundamentals
+\end{itemize}
+
+\textbf{Streamlined coverage.} Backtracking and branch and bound (web-only chapters in the 2nd edition) are now consolidated into a single chapter. Skip lists are covered within the hashing discussion. The C++ review chapter has been completely rewritten for C++20. LZW compression is an application example rather than a core section. Simulated pointers and available-space lists have been removed — modern C++ provides better alternatives. Tournament trees and threaded binary trees, which occupied significant space in the 2nd edition, have been removed — they have little relevance in modern practice.
+
+\textbf{Advanced theory (Brass and MIT 6.851 coverage).} This edition incorporates material from the theoretical tradition represented by Peter Brass's \textit{Advanced Data Structures} (Cambridge, 2008) and the MIT 6.851 graduate course (Erik Demaine), filling gaps between practical implementations and the theoretical foundations that underpin them:
+\begin{itemize}
+\item \textbf{Chapter~11 — Balanced Trees:} Weight-balanced trees (BB[$\alpha$] trees), (a,b)-trees, top-down red-black insertion/deletion, finger trees, partial rebuilding, join and split operations, nonunique keys, optimal binary search trees, the dynamic optimality conjecture and Tango trees, van Emde Boas trees, and fusion trees
+\item \textbf{Chapter~12 — Graphs:} Link-cut trees, heavy-light decomposition, Euler tour trees, and fully dynamic connectivity with $O(\lg^2 n)$ amortized operations
+\item \textbf{Chapter~14 — Advanced Data Structures:} Orthogonal range trees with fractional cascading, 3D orthogonal range search, higher-dimensional segment trees, the semigroup model, persistent union-find, list splitting, maintenance of linear order, union of intervals, interval-restricted maximum sum, the level ancestor problem, predecessor lower bounds via the cell probe model, kinetic data structures for moving objects, and planar point location
+\item \textbf{Chapter~21 — Persistence:} Full vs.\ partial persistence, confluent persistence, functional data structures with lazy evaluation, the banker's method, differential files and shadow paging, write-ahead logging, MVCC, retroactive data structures, nonoblivious retroactivity, and data structure decomposition
+\item \textbf{Chapter~10 — Heaps:} Optimal heap complexity bounds, strict Fibonacci heaps, BST-as-heap variants, and the pointer-machine model for heaps
+\item \textbf{Appendix D — External Memory:} The I/O model, external sorting, buffer trees, cache-oblivious algorithms, cache-oblivious priority queues, lazy funnelsort, distribution sweeping, ordered file maintenance, and pointer machine complexity
+\end{itemize}
+
+These additions bring the book's theoretical depth to the level of a first-year graduate course, comparable with MIT 6.851, while maintaining the practical C++ implementation focus that defined the original edition.
+
+\textbf{Industrial Perspectives (Chapter 24).} A comprehensive evaluation of every data structure and algorithm in the book, ranked by industrial relevance on a three-point scale (High/Medium/Low). Includes concrete examples of which companies and systems use each structure, and a decision matrix for career-focused learning.
+
+These additions bring the book's theoretical depth to a level comparable with advanced graduate texts while maintaining the practical C++ implementation focus that defined the original edition.
+
+\section{Organization}
+
+The book is divided into four parts:
+
+\textbf{Part I: Preliminaries} (Chapters 1–3). Reviews the C++20 features used throughout the book, introduces performance analysis and asymptotic notation, and covers performance measurement methodology. These chapters ensure all readers share a common foundation.
+
+\textbf{Part II: Data Structures} (Chapters 4–14). Presents the core data structures in a progression from simple to complex. Each chapter develops one or more C++ implementations, analyzes complexity, applies the structure to real problems, and closes with the STL equivalent. The topics span linear lists (array and linked representations), arrays and matrices, stacks and queues, hashing, trees, priority queues, search trees, graphs, strings, segment trees, and union-find.
+
+\textbf{Part III: Algorithm-Design Methods} (Chapters 15–18). Covers the four major design paradigms: greedy, divide and conquer, dynamic programming, and backtracking with branch and bound. Each chapter presents the general method, proves its correctness conditions, and works through multiple applications.
+
+\textbf{Part IV: Specialized and Applied Topics} (Chapters 19–24). Covers probabilistic data structures for streaming data, maximum flow and matching, persistent data structures, succinct data structures, how industry-scale systems (Bigtable, DynamoDB, RocksDB, Facebook TAO, Kafka) adapt classical data structures to serve billions of users, and a comprehensive industrial perspectives chapter evaluating every topic's real-world relevance.
+
+\textbf{Appendices} provide a C++ STL quick reference, a survey of complexity classes and NP-completeness, and a mathematical review.
+
+\section{Features}
+
+Every chapter follows a consistent structure:
+
+\begin{itemize}
+\item \textbf{Bird's-eye view} — a motivating overview of the chapter's content
+\item \textbf{Complete C++ code} — every data structure and algorithm is presented as a compilable class or function
+\item \textbf{Step-by-step traces} — algorithms are walked through on concrete data
+\item \textbf{Complexity analysis} — precise asymptotic bounds with proofs where appropriate
+\item \textbf{Applications} — one or more real-world problems solved using the chapter's material
+\item \textbf{STL connections} — after developing a hand-crafted implementation, we show the equivalent standard library components
+\item \textbf{Summary} — key points recapped
+\item \textbf{Exercises} — organized into three levels: \textit{Drill} (basic reinforcement), \textit{Application} (implement, modify, benchmark), and \textit{Research} (read classic papers, implement advanced variants, prove theorems)
+\item \textbf{References and further reading} — classic papers and authoritative textbooks
+\end{itemize}
+
+\section{How to Use This Book}
+
+The book supports multiple course structures. Two common approaches:
+
+\textbf{One-semester data structures course} (14 weeks): Cover Chapters 1–3 (review, 1 week), Chapters 4–5 (linear lists, arrays, 2 weeks), Chapters 6–8 (stacks, queues, hashing, 2 weeks), Chapters 9–11 (trees, search trees, 2 weeks), Chapter 12 (graphs, 2 weeks), Chapters 15–16 (greedy, divide and conquer, 2 weeks), Chapter 17 (dynamic programming, 2 weeks), with selected advanced topics as time permits.
+
+\textbf{Two-semester sequence}: The first semester covers Chapters 1–14 (preliminaries, all data structures). The second semester covers Chapters 15–22 (algorithm-design methods and advanced topics).
+
+Instructors should assign programming projects that require students to implement data structures from the code listings and apply them to the application problems. The exercises at the application and research levels make suitable project assignments.
+
+\section{Code and Resources}
+
+All code from this book is available at the companion website (\url{https://github.com/csv610/DataStruct}). The code is organized by chapter and compiles with:
+
+\begin{itemize}
+\item GCC 12+ with \texttt{-std=c++20 -O2 -Wall -Wextra}
+\item Clang 16+ with \texttt{-std=c++20 -O2 -Wall -Wextra}
+\item MSVC 2022 17.6+ with \texttt{/std:c++20 /O2 /W4}
+\end{itemize}
+
+The companion website also provides:
+\begin{itemize}
+\item Complete test harnesses for every implementation
+\item Benchmarking scripts using Google Benchmark
+\item Sample input data for application problems
+\item Slides for instructors
+\item Solutions to selected exercises
+\end{itemize}
+
+\section{Acknowledgments}
+
+Sartaj Sahni's original books shaped the education of countless computer scientists. The first edition of \textit{Data Structures, Algorithms, and Applications in C++} was a landmark text that brought together rigorous theory, complete code, and real applications in a way no book had before. This third edition, updated by Chaman Singh Verma, strives to honor that legacy while bringing the material fully into the twenty-first century.
+
+I am grateful to the many readers, instructors, and students who have provided feedback on earlier editions. Their observations have guided every decision in this revision.
+
+\bigskip
+
+\textit{The only way to learn data structures is to implement them. The only way to learn algorithms is to trace them. This book gives you the code, the examples, and the exercises. The rest is up to you.}
+

@@ -1,0 +1,1222 @@
+\chapter{Modern C++ Review}\label{ch01:modern-c-review}
+
+\section{Introduction}
+
+This chapter reviews the C++20 features we will use throughout the book. If you have programmed in C++ before, much of this will be familiar — but pay attention to the newer features like move semantics, smart pointers, concepts, and ranges, as they are used extensively in our implementations.
+
+Our goal is not to teach C++ from scratch, but to establish a common vocabulary and set of patterns. Readers needing a more thorough introduction should consult the references at the end of this chapter.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Functions and Parameters}
+
+\subsection{Pass by Value, Reference, and Const Reference}
+
+C++ offers three primary ways to pass arguments:
+
+\begin{lstlisting}[language=C++]
+// Pass by value -- a copy is made
+int square(int x) {
+    return x * x;
+}
+
+// Pass by reference -- no copy, can modify
+void increment(int& x) {
+    ++x;
+}
+
+// Pass by const reference -- no copy, read-only
+int sum(const std::vector<int>& values) {
+    int s = 0;
+    for (int v : values) s += v;
+    return s;
+}
+\end{lstlisting}
+
+\textbf{Rule of thumb:} Use pass by value for small types (int, char, pointer\index{pointer}). Use const reference for types larger than a pointer. Use reference only when you need to modify the argument.
+
+\subsection{Default Arguments}
+
+\begin{lstlisting}[language=C++]
+int multiply(int a, int b = 1) {
+    return a * b;
+}
+// multiply(5) == 5, multiply(5, 3) == 15
+\end{lstlisting}
+
+\subsection{Function Overloading}
+
+Multiple functions may share a name as long as their parameter types differ:
+
+\begin{lstlisting}[language=C++]
+int max(int a, int b) { return a > b ? a : b; }
+double max(double a, double b) { return a > b ? a : b; }
+\end{lstlisting}
+
+\subsection{Lambda Expressions}
+
+Lambdas are anonymous function objects. They are essential for generic algorithms:
+
+\begin{lstlisting}[language=C++]
+auto is_positive = [](int x) { return x > 0; };
+auto sum = [](int a, int b) { return a + b; };
+
+// With capture
+int offset = 10;
+auto shifted = [offset](int x) { return x + offset; };
+
+// Mutable lambda (captured variables can be modified)
+auto counter = [count = 0]() mutable { return ++count; };
+
+// Generic lambda (C++14)
+auto add = [](auto a, auto b) { return a + b; };
+
+// Lambda as a comparator
+std::vector<int> v = {3, 1, 4, 1, 5};
+std::sort(v.begin(), v.end(), [](int a, int b) { return a > b; });
+\end{lstlisting}
+
+\section{Dynamic Memory and RAII}
+
+\subsection{The Problem with Raw Pointers}
+
+In C++98, dynamic memory was managed with \texttt{new} and \texttt{delete}:
+
+\begin{lstlisting}[language=C++]
+int* p = new int(5);
+// ... use p ...
+delete p;  // easy to forget
+\end{lstlisting}
+
+Forgetting to \texttt{delete} causes memory leaks. Deleting twice causes undefined behavior. Exception safety is manual and error-prone.
+
+\subsection{Smart Pointers (C++11)}
+
+C++11 introduced smart pointers that automatically free memory when they go out of scope:
+
+\begin{lstlisting}[language=C++]
+#include <memory>
+
+std::unique_ptr<int> p = std::make_unique<int>(5);
+// No delete needed -- freed automatically when p goes out of scope
+\end{lstlisting}
+
+\textbf{\texttt{std::unique\_ptr}} — exclusive ownership. Cannot be copied, only moved.
+
+\begin{lstlisting}[language=C++]
+auto p1 = std::make_unique<int>(5);
+// auto p2 = p1;  // error: cannot copy unique_ptr
+auto p2 = std::move(p1);  // OK: transfer ownership
+// p1 is now null
+\end{lstlisting}
+
+\textbf{\texttt{std::shared\_ptr}} — shared ownership via reference counting.
+
+\begin{lstlisting}[language=C++]
+auto s1 = std::make_shared<int>(5);
+auto s2 = s1;  // OK: both now point to the same int
+// Memory freed when both s1 and s2 go out of scope
+\end{lstlisting}
+
+\textbf{\texttt{std::weak\_ptr}} — non-owning observer that can detect when the object is destroyed.
+
+Throughout this book, we use \texttt{std::unique\_ptr} for owning pointers in linked data structures. We use raw pointers only for non-owning references.
+
+\subsection{RAII (Resource Acquisition Is Initialization)}
+
+RAII is the most important C++ idiom. Resources (memory, file handles, mutexes) are acquired in a constructor and released in the destructor:
+
+\begin{lstlisting}[language=C++]
+class FileHandle {
+    FILE* f_;
+public:
+    FileHandle(const char* name, const char* mode)
+        : f_(fopen(name, mode)) {
+        if (!f_) throw std::runtime_error("Cannot open file");
+    }
+    ~FileHandle() { if (f_) fclose(f_); }
+    
+    // No copy (for simplicity)
+    FileHandle(const FileHandle&) = delete;
+    FileHandle& operator=(const FileHandle&) = delete;
+};
+\end{lstlisting}
+
+Every data structure in this book follows RAII principles.
+
+\section{Templates and Concepts}
+
+\subsection{Function Templates}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+T max_value(T a, T b) {
+    return a > b ? a : b;
+}
+\end{lstlisting}
+
+\subsection{Class Templates}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class Box {
+    T value_;
+public:
+    explicit Box(T value) : value_(std::move(value)) {}
+    const T& get() const { return value_; }
+    void set(const T& value) { value_ = value; }
+};
+\end{lstlisting}
+
+\subsection{Template Template Parameters and Variadic Templates}
+
+\begin{lstlisting}[language=C++]
+template <typename T, template <typename...> class Container = std::vector>
+class MyCollection {
+    Container<T> items_;
+};
+\end{lstlisting}
+
+\subsection{Concepts (C++20)}
+
+Concepts constrain template parameters with compile-time predicates:
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+concept Comparable = requires(T a, T b) {
+    { a < b } -> std::convertible_to<bool>;
+};
+
+template <Comparable T>
+T min_value(T a, T b) {
+    return a < b ? a : b;
+}
+
+// Equivalent abbreviated form:
+auto min_value(Comparable auto a, Comparable auto b) {
+    return a < b ? a : b;
+}
+\end{lstlisting}
+
+Concepts give better error messages and enable overloading based on type properties:
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+concept Arithmetic = std::is_arithmetic_v<T>;
+
+template <Arithmetic T>
+T sum(T a, T b) { return a + b; }
+\end{lstlisting}
+
+Throughout this book, we use concepts to make template interfaces self-documenting.
+
+\section{Move Semantics}
+
+\subsection{Lvalues and Rvalues}
+
+An \textit{lvalue} has an identity and persists beyond a single expression. An \textit{rvalue} is temporary.
+
+\begin{lstlisting}[language=C++]
+int x = 5;      // x is an lvalue, 5 is an rvalue
+int y = x + 2;  // (x + 2) is an rvalue
+\end{lstlisting}
+
+\subsection{Move Constructor and Move Assignment}
+
+Move semantics transfer resources from a temporary object, avoiding expensive copies:
+
+\begin{lstlisting}[language=C++]
+class Buffer {
+    size_t size_;
+    int* data_;
+public:
+    // Constructor
+    explicit Buffer(size_t size) : size_(size), data_(new int[size]) {}
+    
+    // Destructor
+    ~Buffer() { delete[] data_; }
+    
+    // Copy constructor (expensive)
+    Buffer(const Buffer& other) : size_(other.size_), data_(new int[other.size_]) {
+        std::copy(other.data_, other.data_ + size_, data_);
+    }
+    
+    // Move constructor (cheap)
+    Buffer(Buffer&& other) noexcept
+        : size_(other.size_), data_(other.data_) {
+        other.size_ = 0;
+        other.data_ = nullptr;
+    }
+    
+    // Move assignment
+    Buffer& operator=(Buffer&& other) noexcept {
+        if (this != &other) {
+            delete[] data_;
+            size_ = other.size_;
+            data_ = other.data_;
+            other.size_ = 0;
+            other.data_ = nullptr;
+        }
+        return *this;
+    }
+};
+\end{lstlisting}
+
+\subsection{Rule of Five}
+
+If you define any of: destructor, copy constructor, copy assignment, move constructor, or move assignment, you should typically define all five.
+
+In modern C++ with smart pointers, the Rule of Five is rarely needed — the Rule of Zero applies: let the smart pointers manage resources automatically.
+
+\section{std::vector and std::span}
+
+\subsection{std::vector}
+
+\texttt{std::vector} is the most important container in modern C++. It is a dynamic array\index{array}:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v;           // empty
+std::vector<int> v(10);       // 10 elements, default-initialized
+std::vector<int> v = {1,2,3}; // initializer list
+
+v.push_back(4);               // add to end: O(1) amortized
+v.pop_back();                 // remove from end: O(1)
+v[0] = 10;                    // O(1) index
+v.size();                     // number of elements
+v.empty();                    // true if size == 0
+\end{lstlisting}
+
+\subsection{std::span (C++20)}
+
+\texttt{std::span} is a non-owning view over a contiguous sequence:
+
+\begin{lstlisting}[language=C++]
+void process(std::span<int> data) {
+    for (int& x : data) x *= 2;
+}
+
+std::vector<int> v = {1, 2, 3};
+process(v);              // span from vector
+int arr[] = {4, 5, 6};
+process(arr);            // span from C array
+\end{lstlisting}
+
+\texttt{std::span} is ideal for function parameters that need to read or write a contiguous sequence without being tied to a specific container type.
+
+\subsection{std::string\_view (C++17)}
+
+\texttt{std::string\_view} is a non-owning view over a character sequence:
+
+\begin{lstlisting}[language=C++]
+auto len(std::string_view s) -> size_t {
+    return s.size();
+}
+std::string a = "hello";
+len(a);         // from std::string
+len("world");   // from string literal -- no allocation!
+\end{lstlisting}
+
+\section{Ranges and Views (C++20)}
+
+C++20 introduces the Ranges library for composable operations on sequences:
+
+\begin{lstlisting}[language=C++]
+#include <ranges>
+#include <vector>
+#include <iostream>
+
+std::vector<int> v = {1, 2, 3, 4, 5, 6};
+
+// Filter even numbers, square them, take first 2
+auto result = v
+    | std::views::filter([](int n) { return n % 2 == 0; })
+    | std::views::transform([](int n) { return n * n; })
+    | std::views::take(2);
+
+for (int x : result) std::cout << x << ' ';  // prints: 4 16
+\end{lstlisting}
+
+Ranges are used throughout the book where they improve clarity.
+
+\subsection{Zip Containers (C++23)}
+
+A \textbf{zip container} iterates over multiple containers simultaneously, producing tuples of corresponding elements. This is the C++ equivalent of Python's \texttt{zip()}.
+
+\subsubsection{Manual Zip Pattern (Pre-C++23)}
+
+Before C++23, you had to write the loop manually:
+
+\begin{lstlisting}[language=C++]
+std::vector<int> ids = {1, 2, 3};
+std::vector<std::string> names = {"Alice", "Bob", "Charlie"};
+std::vector<double> scores = {95.0, 87.5, 91.0};
+
+// Manual zip: iterate in parallel
+for (int i = 0; i < (int)ids.size(); ++i)
+    std::cout << ids[i] << " " << names[i] << " " << scores[i] << '\n';
+
+// Using structured bindings (C++17)
+for (auto [id, name, score] : ???)  // no clean way without zip
+    std::cout << id << " " << name << " " << score << '\n';
+\end{lstlisting}
+
+\subsubsection{std::ranges::zip\_view (C++23)}
+
+C++23 adds \texttt{std::ranges::zip\_view} which creates a single view over multiple ranges:
+
+\begin{lstlisting}[language=C++]
+#include <ranges>
+#include <vector>
+#include <string>
+#include <iostream>
+
+std::vector<int> ids = {1, 2, 3};
+std::vector<std::string> names = {"Alice", "Bob", "Charlie"};
+std::vector<double> scores = {95.0, 87.5, 91.0};
+
+// zip_view: iterate all three simultaneously
+for (auto [id, name, score] : std::ranges::zip_view(ids, names, scores))
+    std::cout << id << " " << name << " " << score << '\n';
+// 1 Alice 95
+// 2 Bob 87.5
+// 3 Charlie 91
+
+// C++23 shorthand: std::zip
+for (auto [id, name, score] : std::zip(ids, names, scores))
+    std::cout << id << " " << name << " " << score << '\n';
+\end{lstlisting}
+
+\textbf{Key properties:}
+\begin{itemize}
+\item The zip view stops at the shortest range (like Python's \texttt{zip})
+\item Elements are \texttt{std::tuple} references -- structured bindings work naturally
+\item It is a \emph{lazy view} -- no copying, no allocation
+\item Supports all range operations: \texttt{filter}, \texttt{transform}, \texttt{take}, etc.
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+// Combine zip with other views
+auto result = std::ranges::zip_view(ids, scores)
+    | std::views::filter([](auto t) { return std::get<1>(t) > 90.0; })
+    | std::views::transform([](auto t) { return std::get<0>(t); });
+
+for (int id : result) std::cout << id << ' ';  // 1 3
+\end{lstlisting}
+
+\subsubsection{Use Cases}
+
+\begin{itemize}
+\item \textbf{Parallel iteration:} process multiple arrays element-by-element
+\item \textbf{Matrix transpose:} zip rows and columns
+\item \textbf{Interleave:} merge two sequences into pairs
+\item \textbf{Sorting by criteria:} sort one array based on values in another
+\end{itemize}
+
+\begin{lstlisting}[language=C++]
+// Sort names by score (descending)
+std::vector<std::string> names = {"Alice", "Bob", "Charlie"};
+std::vector<double> scores = {95.0, 87.5, 91.0};
+
+auto zipped = std::ranges::zip_view(scores, names);
+std::ranges::sort(zipped, std::ranges::greater{});
+// names is now {"Alice", "Charlie", "Bob"}
+
+// Interleave two vectors
+std::vector<int> a = {1, 3, 5};
+std::vector<int> b = {2, 4, 6};
+for (auto [x, y] : std::ranges::zip_view(a, b)) {
+    std::cout << x << ' ' << y << ' ';  // 1 2 3 4 5 6
+}
+\end{lstlisting}
+
+\subsubsection{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{How do you iterate over multiple arrays simultaneously in C++?}
+
+Pre-C++23: use index-based loops or iterators manually. C++23: use \texttt{std::ranges::zip\_view} or \texttt{std::zip} to create a lazy view over multiple ranges. The zip view produces tuples of corresponding elements and stops at the shortest range. For pre-C++23 code, a simple \texttt{for (int i = 0; i < n; ++i)} loop works.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What happens if the ranges have different sizes?}
+
+The zip view stops at the shortest range. Elements beyond the shortest range are silently ignored. This matches Python's \texttt{zip()} behavior. If you need all elements (padding shorter ranges), use \texttt{std::ranges::zip\_transform\_view} or implement a custom zip with a default value.
+\end{enumerate}
+
+\section{Error Handling}
+
+\subsection{Exceptions}
+
+C++ uses exceptions for error handling:
+
+\begin{lstlisting}[language=C++]
+#include <stdexcept>
+
+int divide(int a, int b) {
+    if (b == 0) throw std::invalid_argument("Division by zero");
+    return a / b;
+}
+\end{lstlisting}
+
+Standard exception classes: \texttt{std::logic\_error}, \texttt{std::invalid\_argument}, \texttt{std::domain\_error}, \texttt{std::length\_error}, \texttt{std::out\_of\_range}, \texttt{std::runtime\_error}, \texttt{std::range\_error}, \texttt{std::overflow\_error}.
+
+\subsection{noexcept}
+
+Functions that cannot throw should be marked \texttt{noexcept}:
+
+\begin{lstlisting}[language=C++]
+void swap(int& a, int& b) noexcept {
+    int t = a; a = b; b = t;
+}
+\end{lstlisting}
+
+Move constructors and move assignments should be \texttt{noexcept} to enable optimal container performance.
+
+\section{Iterators and Ranges}
+
+\subsection{Iterator Categories}
+
+\begin{itemize}
+\item \textbf{Input iterators} — read once, forward (istream\_iterator)
+\item \textbf{Output iterators} — write once, forward (ostream\_iterator)
+\item \textbf{Forward iterators} — read/write, forward (forward\_list)
+\item \textbf{Bidirectional iterators} — forward and backward (list, set, map)
+\item \textbf{Random access iterators} — O(1) index (vector, deque, array)
+\end{itemize}
+
+\subsection{Range-Based for Loop}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v = {1, 2, 3};
+for (int x : v) { /* read */ }
+for (int& x : v) { /* modify */ }
+for (const auto& x : v) { /* read, avoid copy */ }
+\end{lstlisting}
+
+\subsection{Iterator Adapters}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v = {1, 2, 3};
+// Back inserter
+std::fill_n(std::back_inserter(v), 3, 0);  // appends 0, 0, 0
+
+// Stream iterator
+std::copy(v.begin(), v.end(),
+          std::ostream_iterator<int>(std::cout, " "));
+\end{lstlisting}
+
+\section{Type Deduction: auto and decltype}
+
+\begin{lstlisting}[language=C++]
+auto x = 5;          // int
+auto y = 3.14;       // double
+auto z = &x;         // int*
+
+auto& ref = x;       // int&
+const auto& cref = x; // const int&
+
+auto&& universal = x;  // forwarding reference
+\end{lstlisting}
+
+\texttt{decltype} deduces the exact type of an expression:
+
+\begin{lstlisting}[language=C++]
+int x = 5;
+decltype(x) y = 10;  // int
+decltype((x)) z = x; // int&
+\end{lstlisting}
+
+\section{Coroutines (C++20)}
+
+Coroutines enable suspend/resume functions. We use them for lazy generators:
+
+\begin{lstlisting}[language=C++]
+#include <generator>
+#include <ranges>
+
+std::generator<int> fibonacci(int n) {
+    int a = 0, b = 1;
+    for (int i = 0; i < n; ++i) {
+        co_yield a;
+        int next = a + b;
+        a = b;
+        b = next;
+    }
+}
+
+// Usage:
+// for (int f : fibonacci(10)) { ... }
+\end{lstlisting}
+
+(Full coroutine coverage is beyond this chapter; we introduce them where needed in later chapters.)
+
+\section{Common Patterns in This Book}
+
+Throughout the book, we follow these conventions:
+
+\begin{enumerate}
+\item \textbf{Template parameters} named \texttt{T} for the element type.
+\item \textbf{Concepts} used to document template requirements.
+\item \textbf{\texttt{noexcept}} on move operations and swaps.
+\item \textbf{\texttt{explicit}} on single-argument constructors.
+\item \textbf{\texttt{const}} correctness throughout.
+\item \textbf{\texttt{std::unique\_ptr}} for owning pointers in linked structures.
+\item \textbf{\texttt{std::size\_t}} for indices and sizes.
+\item \textbf{Iterators} following STL conventions (begin/end pairs).
+\end{enumerate}
+
+\subsection{Example: A Generic Container Skeleton}
+
+\begin{lstlisting}[language=C++]
+#include <concepts>
+#include <memory>
+#include <cstddef>
+
+template <typename T>
+class simple_vector {
+public:
+    using value_type = T;
+    using size_type = std::size_t;
+    using reference = T&;
+    using const_reference = const T&;
+
+    simple_vector() = default;
+    
+    explicit simple_vector(size_type n)
+        : size_(n), capacity_(n), data_(std::make_unique<T[]>(n)) {}
+    
+    // Rule of Zero -- unique_ptr handles everything
+    
+    T& operator[](size_type i) { return data_[i]; }
+    const T& operator[](size_type i) const { return data_[i]; }
+    
+    size_type size() const noexcept { return size_; }
+    bool empty() const noexcept { return size_ == 0; }
+    
+private:
+    size_type size_ = 0;
+    size_type capacity_ = 0;
+    std::unique_ptr<T[]> data_;
+};
+\end{lstlisting}
+
+\section{Compiler and Build}
+
+All code in this book compiles with:
+
+\begin{itemize}
+\item GCC 12+ with \texttt{-std=c++20}
+\item Clang 16+ with \texttt{-std=c++20}
+\item MSVC 2022 17.6+ with \texttt{/std:c++20}
+\end{itemize}
+
+Recommended build command:
+
+\begin{lstlisting}
+g++ -std=c++20 -O2 -Wall -Wextra -o program program.cpp
+\end{lstlisting}
+
+\section{STL Containers Overview}
+
+The C++ Standard Template Library provides a rich set of containers. The choice of container affects both performance and correctness. The table below summarizes the most commonly used containers.
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Container & Underlying Structure & Access & Insert/Delete & Lookup \\
+\midrule
+\texttt{vector} & Dynamic array & O(1) random & Back O(1)*, Front O(n) & O(n) \\
+\texttt{deque} & Segmented array & O(1) random & Front/Back O(1) & O(n) \\
+\texttt{list} & Doubly-linked list\index{linked list} & O(n) sequential & Anywhere O(1) & O(n) \\
+\texttt{forward\_list} & Singly-linked list & O(n) sequential & O(1) after & O(n) \\
+\texttt{map} & Red-black tree\index{tree} & -- & O(log n) & O(log n) \\
+\texttt{set} & Red-black tree & -- & O(log n) & O(log n) \\
+\texttt{unordered\_map} & Hash table\index{hash table} & -- & O(1) avg & O(1) avg \\
+\texttt{unordered\_set} & Hash table & -- & O(1) avg & O(1) avg \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+*Amortized O(1) for \texttt{push\_back}; worst case O(n) on reallocation.
+
+\textbf{\texttt{std::vector}} is the default container. It stores elements contiguously in memory, providing cache-friendly access and O(1) random access via the index operator.
+
+\begin{lstlisting}[language=C++]
+std::vector<int> v = {1, 2, 3, 4, 5};
+v.push_back(6);          // {1, 2, 3, 4, 5, 6}
+v.pop_back();            // {1, 2, 3, 4, 5}
+int x = v[2];            // x = 3
+v.insert(v.begin(), 0);  // {0, 1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\textbf{\texttt{std::deque}} supports efficient insertion and deletion at both ends. It is implemented as a collection of fixed-size arrays, so random access is O(1) but slightly slower than \texttt{vector} due to an extra indirection.
+
+\begin{lstlisting}[language=C++]
+std::deque<int> dq = {2, 3, 4};
+dq.push_front(1);   // {1, 2, 3, 4}
+dq.push_back(5);    // {1, 2, 3, 4, 5}
+int x = dq[0];      // x = 1
+\end{lstlisting}
+
+\textbf{\texttt{std::list}} is a doubly-linked list. It guarantees O(1) insertion and deletion at any position given an iterator, but does not support random access.
+
+\begin{lstlisting}[language=C++]
+std::list<int> lst = {1, 3, 5};
+auto it = lst.begin();
+std::advance(it, 1);
+lst.insert(it, 2);       // {1, 2, 3, 5}
+lst.erase(it);           // {1, 2, 5}
+\end{lstlisting}
+
+\textbf{\texttt{std::map}} and \textbf{\texttt{std::set}} are ordered associative containers backed by a red-black tree. Elements are kept in sorted order. Lookup, insertion, and deletion are all O(log n).
+
+\begin{lstlisting}[language=C++]
+std::map<std::string, int> ages;
+ages["Alice"] = 30;
+ages["Bob"] = 25;
+auto it = ages.find("Alice");  // O(log n)
+if (it != ages.end()) {
+    // it->second == 30
+}
+
+std::set<int> s = {5, 3, 1, 4, 2};
+// s is {1, 2, 3, 4, 5} -- always sorted
+s.insert(6);   // O(log n)
+s.erase(3);    // O(log n)
+\end{lstlisting}
+
+\textbf{\texttt{std::unordered\_map}} and \textbf{\texttt{std::unordered\_set}} use a hash table. Average-case lookup is O(1), but worst-case (many collisions) is O(n). They do not maintain order.
+
+\begin{lstlisting}[language=C++]
+std::unordered_map<int, std::string> names;
+names[1] = "Alice";
+names[2] = "Bob";
+auto it = names.find(1);  // O(1) average
+\end{lstlisting}
+
+\textbf{When to use which:}
+\begin{itemize}
+\item \textbf{vector:} Default choice. Use when you need fast random access and mostly append at the end.
+\item \textbf{deque:} Use when you need efficient push/pop at both ends.
+\item \textbf{list:} Use when you need stable iterators and frequent insertion/deletion in the middle.
+\item \textbf{map/set:} Use when you need sorted order and guaranteed O(log n) operations.
+\item \textbf{unordered\_map/unordered\_set:} Use when you need the fastest average lookup and do not care about order.
+\end{itemize}
+
+\section{Smart Pointers}
+
+Raw pointers in C++ do not own memory. Forgetting to call \texttt{delete} causes memory leaks, and calling \texttt{delete} twice is undefined behavior. Smart pointers automate lifetime management.
+
+\subsection{std::unique\_ptr}
+
+\texttt{unique\_ptr} is a lightweight, exclusive-ownership pointer. It has zero overhead compared to a raw pointer. The pointed-to object is destroyed when the \texttt{unique\_ptr} goes out of scope or is reset.
+
+\begin{lstlisting}[language=C++]
+#include <memory>
+
+auto p = std::make_unique<int>(42);
+// *p == 42
+
+// Transfer ownership
+auto q = std::move(p);
+// p is now null, q owns the int
+
+q.reset();  // deletes the int
+\end{lstlisting}
+
+\texttt{unique\_ptr} cannot be copied:
+
+\begin{lstlisting}[language=C++]
+auto a = std::make_unique<int>(1);
+// auto b = a;         // error: copy deleted
+auto b = std::move(a); // OK: move
+\end{lstlisting}
+
+Use \texttt{unique\_ptr} as the default owning pointer. It makes ownership semantics explicit and prevents accidental sharing.
+
+\subsection{std::shared\_ptr}
+
+\texttt{shared\_ptr} uses reference counting to allow multiple owners. The object is destroyed when the last \texttt{shared\_ptr} pointing to it is destroyed or reset.
+
+\begin{lstlisting}[language=C++]
+auto s1 = std::make_shared<std::string>("hello");
+auto s2 = s1;  // ref count = 2
+// s1 and s2 both point to "hello"
+s2.reset();    // ref count = 1
+// "hello" still alive (s1 owns it)
+\end{lstlisting}
+
+\texttt{shared\_ptr} has overhead: a control block stores the reference count, which must be updated atomically. Prefer \texttt{unique\_ptr} unless you genuinely need shared ownership.
+
+\subsection{std::weak\_ptr}
+
+\texttt{weak\_ptr} is a non-owning observer of an object managed by \texttt{shared\_ptr}. It does not increment the reference count. Use it to break circular references.
+
+\begin{lstlisting}[language=C++]
+auto shared = std::make_shared<int>(10);
+std::weak_ptr<int> weak = shared;
+
+if (auto locked = weak.lock()) {
+    // locked is a shared_ptr; object is alive
+    // *locked == 10
+}
+shared.reset();  // object destroyed
+// weak.lock() now returns null
+\end{lstlisting}
+
+\textbf{Common pattern:} A cache holds \texttt{weak\_ptr} to cached objects. When the cache is queried, it attempts \texttt{lock()}. If the object is still alive, the cache returns a \texttt{shared\_ptr}; otherwise it re-creates the object.
+
+\subsection{When to Use Each}
+
+\begin{itemize}
+\item \textbf{unique\_ptr:} Single owner. Default choice. Use for class members that own heap objects, factory functions, and ownership transfer.
+\item \textbf{shared\_ptr:} Multiple owners. Use sparingly, for example when an object is genuinely shared between subsystems.
+\item \textbf{weak\_ptr:} Non-owning observation. Use to break circular references in graphs, caches, and callbacks.
+\item \textbf{Raw pointer:} Non-owning access. Use for function parameters that observe but do not own an object.
+\end{itemize}
+
+\section{Lambda Expressions}
+
+A lambda expression creates an anonymous function object. Lambdas are used extensively with STL algorithms, callbacks, and asynchronous code.
+
+\subsection{Basic Syntax}
+
+\begin{lstlisting}[language=C++]
+// [capture](parameters) -> return_type { body }
+auto square = [](int x) { return x * x; };
+int result = square(5);  // 25
+
+// With no parameters
+auto greet = []() { /* ... */ };
+
+// Trailing return type
+auto divide = [](double a, double b) -> double {
+    return a / b;
+};
+\end{lstlisting}
+
+\subsection{Captures}
+
+Lambdas capture surrounding variables to use them in the body.
+
+\begin{lstlisting}[language=C++]
+int offset = 10;
+int factor = 2;
+
+// By value -- copy
+auto by_val = [offset, factor](int x) {
+    return x * factor + offset;
+};
+
+// By reference -- no copy, can modify
+auto by_ref = [&offset, &factor](int x) {
+    factor = 1;
+    return x + offset;
+};
+
+// Capture all by value
+auto all_val = [=](int x) { return x + offset; };
+
+// Capture all by reference
+auto all_ref = [&](int x) { offset += x; };
+
+// Mixed
+auto mixed = [=, &offset](int x) { return x + offset; };
+\end{lstlisting}
+
+\textbf{Capture initializers} allow captured variables to be initialized with a new expression:
+
+\begin{lstlisting}[language=C++]
+auto lambda = [count = 0]() mutable { return ++count; };
+lambda();  // 0
+lambda();  // 1
+\end{lstlisting}
+
+\subsection{Use with STL Algorithms}
+
+Lambdas are the primary way to customize STL algorithms:
+
+\begin{lstlisting}[language=C++]
+#include <algorithm>
+#include <vector>
+#include <numeric>
+
+std::vector<int> v = {5, 3, 1, 4, 2};
+
+// sort with custom comparator
+std::sort(v.begin(), v.end(),
+    [](int a, int b) { return a > b; });
+// v is now {5, 4, 3, 2, 1}
+
+// find_if -- find first even number
+auto it = std::find_if(v.begin(), v.end(),
+    [](int x) { return x % 2 == 0; });
+// *it == 4
+
+// for_each -- print each element
+std::for_each(v.begin(), v.end(),
+    [](int x) { std::cout << x << ' '; });
+
+// count_if -- count positive numbers
+int n = std::count_if(v.begin(), v.end(),
+    [](int x) { return x > 0; });
+
+// accumulate with lambda
+int sum = std::accumulate(v.begin(), v.end(), 0,
+    [](int acc, int x) { return acc + x; });
+\end{lstlisting}
+
+\section{Move Semantics and Rvalue References}
+
+Move semantics avoid copying objects by transferring their internal resources. This is critical for performance when dealing with large objects like vectors, strings, and buffers.
+
+\subsection{Lvalues and Rvalues}
+
+An \textit{lvalue} refers to an object that has a name and persists. An \textit{rvalue} is a temporary that exists only until the end of the expression.
+
+\begin{lstlisting}[language=C++]
+int x = 5;         // x is an lvalue, 5 is an rvalue
+int y = x + 2;     // (x + 2) is an rvalue
+int z = std::move(x); // std::move(x) casts x to an rvalue
+\end{lstlisting}
+
+\subsection{std::move}
+
+\texttt{std::move} does not move anything by itself. It casts its argument to an rvalue reference, enabling move constructors and move assignment operators to be called.
+
+\begin{lstlisting}[language=C++]
+std::string a = "hello";
+std::string b = std::move(a);  // move constructor
+// a is now in a valid but unspecified state
+// b == "hello"
+\end{lstlisting}
+
+\subsection{Move Constructor and Move Assignment}
+
+A move constructor transfers resources from a temporary object without copying:
+
+\begin{lstlisting}[language=C++]
+class Buffer {
+    size_t size_;
+    int* data_;
+public:
+    explicit Buffer(size_t n)
+        : size_(n), data_(new int[n]) {}
+
+    ~Buffer() { delete[] data_; }
+
+    // Move constructor
+    Buffer(Buffer&& other) noexcept
+        : size_(other.size_), data_(other.data_) {
+        other.size_ = 0;
+        other.data_ = nullptr;
+    }
+
+    // Move assignment
+    Buffer& operator=(Buffer&& other) noexcept {
+        if (this != &other) {
+            delete[] data_;
+            size_ = other.size_;
+            data_ = other.data_;
+            other.size_ = 0;
+            other.data_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Disable copying
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
+};
+\end{lstlisting}
+
+The source object (\texttt{other}) is left in a valid but empty state. This guarantees that the destructor of \texttt{other} runs safely.
+
+\subsection{Perfect Forwarding}
+
+Perfect forwarding allows a function template to forward its arguments to another function while preserving their value category (lvalue or rvalue) and const/volatile qualifiers.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+void wrapper(T&& arg) {
+    // arg is a forwarding reference
+    target(std::forward<T>(arg));
+}
+
+void target(int& x)  { /* lvalue path */ }
+void target(int&& x) { /* rvalue path */ }
+
+int x = 5;
+wrapper(x);           // calls target(int&)
+wrapper(10);          // calls target(int&&)
+\end{lstlisting}
+
+\texttt{std::forward<T>} must be used inside templates with forwarding references (\texttt{T\&\&}). Without it, the argument would always be forwarded as an lvalue.
+
+\subsection{Move Semantics in Practice}
+
+Move semantics are critical in data structure implementations. When a \texttt{std::vector} grows, it moves its elements to the new buffer rather than copying them, provided the element type has a \texttt{noexcept} move constructor:
+
+\begin{lstlisting}[language=C++]
+std::vector<Buffer> v;
+v.push_back(Buffer(100));
+// vector may reallocate: elements are moved, not copied
+// This is fast because Buffer has a noexcept move constructor
+\end{lstlisting}
+
+\subsection{constexpr and consteval}
+
+C++11 introduced \texttt{constexpr} to enable compile-time computation. A \texttt{constexpr} function can be evaluated at compile time when its arguments are compile-time constants, and at runtime otherwise:
+
+\begin{lstlisting}[language=C++]
+constexpr int factorial(int n) {
+    return n <= 1 ? 1 : n * factorial(n - 1);
+}
+
+// Compile-time evaluation
+static_assert(factorial(5) == 120);
+
+// Runtime evaluation (n is not constexpr)
+int x = 10;
+int y = factorial(x);  // computed at runtime
+\end{lstlisting}
+
+\texttt{constexpr} variables must be initialized with a constant expression:
+
+\begin{lstlisting}[language=C++]
+constexpr int array_size = 10;
+int arr[array_size];  // OK: compile-time size
+\end{lstlisting}
+
+C++20 adds \texttt{consteval}, which forces compile-time evaluation. A \texttt{consteval} function can never be called at runtime:
+
+\begin{lstlisting}[language=C++]
+consteval int square(int n) {
+    return n * n;
+}
+
+// int x = 5;
+// int y = square(x);  // ERROR: x is not constexpr
+constexpr int y = square(5);  // OK: compile-time
+\end{lstlisting}
+
+Use \texttt{consteval} when the function has no meaningful runtime behavior (e.g., compile-time string processing, template argument computation). Use \texttt{constexpr} when you want both compile-time and runtime evaluation.
+
+\subsection{Structured Bindings (C++17)}
+
+Structured bindings decompose a tuple-like object into named variables:
+
+\begin{lstlisting}[language=C++]
+#include <tuple>
+#include <map>
+#include <string>
+
+// Pairs
+auto [x, y] = std::pair{1, 2.0};  // x is int, y is double
+
+// Tuples
+auto [a, b, c] = std::tuple{1, "hello", 3.14};
+
+// Structs
+struct Point { double x, y; };
+auto [px, py] = Point{1.0, 2.0};
+\end{lstlisting}
+
+They are especially useful with containers that return pairs:
+
+\begin{lstlisting}[language=C++]
+std::map<std::string, int> m = {{"a", 1}, {"b", 2}};
+for (const auto& [key, value] : m) {
+    // key is const std::string&, value is const int&
+}
+\end{lstlisting}
+
+Structured bindings work with \texttt{std::pair}, \texttt{std::tuple}, arrays, and structs where all members are public.
+
+\subsection{std::optional and std::variant}
+
+\textbf{\texttt{std::optional}} represents a value that may or may not exist. It replaces sentinel values like -1 or nullptr:
+
+\begin{lstlisting}[language=C++]
+#include <optional>
+#include <string>
+
+std::optional<int> safe_divide(int a, int b) {
+    if (b == 0) return std::nullopt;
+    return a / b;
+}
+
+auto result = safe_divide(10, 3);
+if (result) {
+    // *result == 3
+}
+
+// Default value
+int value = safe_divide(10, 0).value_or(-1);  // value == -1
+\end{lstlisting}
+
+Use \texttt{std::optional} when a function may fail to produce a value but failure is not exceptional (lookup, parsing, validation).
+
+\textbf{\texttt{std::variant}} is a type-safe union. It holds exactly one value from a fixed set of types:
+
+\begin{lstlisting}[language=C++]
+#include <variant>
+#include <string>
+#include <iostream>
+
+using Value = std::variant<int, double, std::string>;
+
+Value v = 42;
+v = "hello";
+
+// std::holds_alternative<T>(v) checks the active type
+// std::get<T>(v) extracts the value
+
+std::visit([](auto& val) {
+    std::cout << val << '\n';
+}, v);
+\end{lstlisting}
+
+Use \texttt{std::variant} when a variable can hold one of several unrelated types (e.g., AST nodes, JSON values, error-or-result types). Prefer it over \texttt{void*} unions or inheritance hierarchies for small closed sets of types.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Pitfall & Consequence & Solution \\
+Using \texttt{std::move} on \texttt{const} objects & Move degrades to copy — object remains unmodified & Only \texttt{std::move} non-\texttt{const} objects \\
+Returning references to local variables & Dangling reference, undefined behavior & Return by value, or ensure lifetime extends past caller \\
+Forgetting \texttt{noexcept} on move operations & \texttt{std::vector} copies instead of moves during reallocation & Always mark move constructor/assignment \texttt{noexcept} \\
+Storing \texttt{std::string\_view} to temporary strings & View points to freed memory & Only use \texttt{string\_view} when the source outlives the view \\
+Circular \texttt{shared\_ptr} references & Memory leak — ref count never reaches zero & Use \texttt{weak\_ptr} to break cycles \\
+Passing by \texttt{const T\&} for small types & Unnecessary indirection, inhibits optimization & Pass small trivially-copyable types by value \\
+Using \texttt{auto} with braced initializers & \texttt{auto x\{1\}} is \texttt{std::initializer\_list<int>}, not \texttt{int} & Use \texttt{auto x = 1} or be explicit \\
+\bottomrule
+\end{tabular}}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item Use \textbf{RAII} to manage all resources. Prefer smart pointers over raw \texttt{new}/\texttt{delete}.
+\item Use \textbf{move semantics} to avoid unnecessary copies.
+\item Use \textbf{concepts} to constrain templates and produce clearer error messages.
+\item Use \texttt{std::span} and \texttt{std::string\_view} for non-owning views of contiguous data.
+\item Follow the \textbf{Rule of Zero} — let automatic resource management do its job.
+\item Mark move operations as \texttt{noexcept} to enable optimal container performance.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{TCP connection pool.} A networked service maintains a pool of open connections to a database. Each connection is owned by the pool via \texttt{unique\_ptr}. Why is \texttt{unique\_ptr} the right choice here? What happens if you use \texttt{shared\_ptr} instead and the pool destructor runs while a worker thread still holds a copy? Write a small demo.
+
+   \textit{(In production, libraries like Redis use connection pools exactly this way — \texttt{unique\_ptr} ensures each connection has exactly one owner at a time.)}
+
+\item \textbf{Logging service.} A high-throughput logging system buffers log messages as \texttt{std::string} objects in a \texttt{std::vector}. Why does marking the string's move constructor \texttt{noexcept} matter? Estimate how many extra copies happen during vector reallocation if moves fall back to copies.
+
+   \textit{(In production, Google's Protobuf library relies on noexcept moves to maintain throughput in their RPC layer.)}
+
+\item \textbf{Cache key safety.} A web cache stores items in a hash map keyed by URL string. An intern changes the key type to \texttt{std::string\_view} to ``avoid copies.'' What goes wrong when the owning URL string is removed from the cache?
+
+\item \textbf{Function return bug.} A compiler optimization pass has a function that finds an instruction and returns a reference to it:
+\begin{lstlisting}
+   const Instruction& findInst(const std::vector<Instruction>& list, int id) {
+       for (const auto& inst : list)
+           if (inst.id() == id) return inst;
+       // Oops -- what do we return here?
+   }
+\end{lstlisting}
+   Fix this function. What should the return type be? What happens in a real compiler when this bug exists?
+
+\item \textbf{Circular references.} Two objects hold \texttt{shared\_ptr} to each other. They are never destroyed, even after all external references are gone. Why? Demonstrate with code and fix using \texttt{weak\_ptr}.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Query pipeline.} A database engine processes queries as a pipeline: scan reads rows, filter checks conditions, aggregate computes sums. Each stage owns the next via \texttt{unique\_ptr}. Implement a class hierarchy with \texttt{ScanNode}, \texttt{FilterNode}, and \texttt{AggregateNode}. Each has a \texttt{next()} that returns the next row (use \texttt{std::optional}). Demonstrate correct destruction order when the pipeline is torn down.
+
+   \textit{(In production, DuckDB uses this exact pattern — \texttt{unique\_ptr} chains of operator nodes.)}
+
+\item \textbf{Socket wrapper.} Write an RAII wrapper around a POSIX socket file descriptor. The class should:
+\begin{itemize}
+\item Close the fd on destruction
+\item Support move (transfer ownership)
+\item Be non-copyable
+\item Provide \texttt{send(span<const char>)} and \texttt{recv()} methods
+\end{itemize}
+   Demonstrate moving a socket from an acceptor to a connection handler.
+
+   \textit{(In production, NGINX and similar servers use this pattern for connection lifetime management.)}
+
+\item \textbf{Log parser.} A profiler writes timestamped function call records to a binary log. Write a parser that reads a \texttt{vector<char>} from disk and uses \texttt{std::span} and \texttt{std::string\_view} to extract fields without any heap allocation. Compare the allocation count with a version that uses \texttt{std::string} for each field.
+
+   \textit{(In production, Chrome's V8 profiler and many trading systems use zero-copy parsing to avoid GC pressure.)}
+
+\item \textbf{Constrained serialization.} Write a \texttt{serialize} function using C++20 concepts that works for any type. For trivially-copyable types, write raw bytes. For other types, call a \texttt{serialize(ostream\&)} member function. Demonstrate that passing a non-trivially-copyable type without the member function produces a clear compile error.
+
+\item \textbf{Ring buffer.} A network protocol processes messages from a stream. Implement a fixed-capacity \texttt{RingBuffer<T>} with RAII. Support \texttt{push}, \texttt{pop}, \texttt{front}, \texttt{back}, \texttt{size}, \texttt{empty}. When full, overwrite the oldest element (sliding window). Compare performance with \texttt{std::deque<T>}.
+
+    \textit{(In production, PostgreSQL uses a ring buffer for its wire protocol message framing.)}
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Custom allocator.} Implement a \texttt{PoolAllocator<T>} that allocates from a fixed arena. Use it with \texttt{std::vector} and measure allocation overhead vs the default allocator for 1$0^{6}$ push\_back operations. When does an arena allocator improve performance?
+
+    \textit{(In production, Google's TCMalloc and other allocators use thread-local caches to reduce contention.)}
+
+\item \textbf{Perfect forwarding.} Study how \texttt{std::forward} works. Implement a \texttt{make\_box} factory that constructs any \texttt{Box<T>} with perfect forwarding. Show it works for both lvalue and rvalue arguments. Then extend to \texttt{make\_unique\_for\_overwrite} (C++20).
+
+\item \textbf{Small object optimization.} Implement a \texttt{SmallVector<T, N>} that stores up to N elements inline before heap-allocating. Use \texttt{std::aligned\_storage} and placement new/delete. Benchmark push\_back against \texttt{std::vector<T>} for various T sizes. Show the allocation-free regime.
+
+\item \textbf{Coroutine generator.} Implement a \texttt{generator<T>} using C++20 coroutines that yields parsed tokens from a text input. Compare readability and generated assembly with an iterator-based version. Use Compiler Explorer to see whether the coroutine frame is heap-allocated.
+\end{enumerate}
+
+\subsection{Additional Exercises}
+
+\begin{enumerate}
+\item \textbf{Container benchmark.} Implement a benchmark that inserts 10$^{6}$ random integers into a \texttt{vector}, \texttt{deque}, \texttt{list}, \texttt{set}, and \texttt{unordered\_set}. Measure insertion time and memory usage. At what dataset size does \texttt{unordered\_set} overtake \texttt{set}?
+
+\item \textbf{Custom unique\_ptr.} Implement your own \texttt{MyUniquePtr<T>} from scratch. It should support construction from a raw pointer, move construction, move assignment, \texttt{reset()}, \texttt{release()}, \texttt{get()}, and \texttt{operator->}. Verify with a small test that the pointed-to object is destroyed exactly once.
+
+\item \textbf{Weak pointer cache.} Implement a \texttt{WeakCache<Key, Value>} that stores \texttt{weak\_ptr} to recently created objects. When a key is queried and the weak pointer has expired, the cache re-creates the value and stores a new \texttt{weak\_ptr}. Demonstrate that the cache does not prevent destruction of unused objects.
+
+\item \textbf{Lambda state machine.} Use a \texttt{mutable} lambda with captured state to implement a simple finite automaton that recognizes strings ending in ``ab''. The lambda should maintain the current state across invocations. Test it with \texttt{std::for\_each} over a sequence of characters.
+
+\item \textbf{Move-only container.} Implement a \texttt{MoveVector<T>} that stores elements using \texttt{unique\_ptr<T[]>}. It should support move construction, move assignment, \texttt{push\_back}, \texttt{size}, and element access. Demonstrate that it can be stored in a \texttt{std::vector}.
+
+\item \textbf{Container selection guide.} Write a function that, given a \texttt{string} describing the access pattern (``sequential'', ``random'', ``sorted'', ``hash''), returns a \texttt{string} recommending the best STL container. Implement it using \texttt{if constexpr} and concepts so the return value is a compile-time constant.
+
+\item \textbf{Forwarding factory.} Implement a \texttt{make\_pair} template that uses perfect forwarding to construct a \texttt{std::pair} from any two arguments. Show it preserves const, lvalue/rvalue, and works for types with explicit constructors.
+
+\item \textbf{Lambda algorithm\index{algorithm} library.} Rewrite the following STL algorithms using only lambdas and \texttt{std::accumulate} or manual loops: \texttt{std::transform}, \texttt{std::copy\_if}, and \texttt{std::partition}. Test each on a \texttt{vector<int>}.
+
+\item \textbf{Shared pointer ref-counting.} Implement a minimal \texttt{MySharedPtr<T>} with a separate control block that stores the reference count. Your implementation should support copy construction, copy assignment, destruction, and \texttt{use\_count()}. Verify that the managed object is destroyed when the last shared pointer is destroyed.
+
+\item \textbf{Move semantics timing.} Write a program that creates a \texttt{vector} of 10$^{6}$ \texttt{std::string} objects. Copy the vector into a second vector and measure the time. Then move-construct a third vector from the first and measure. Report the speedup ratio. Repeat with strings of length 10, 100, and 1000.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Bjarne Stroustrup, \textit{The C++ Programming Language}, 4th Edition. Addison-Wesley, 2013.
+\item Bjarne Stroustrup, "C++11 — the new ISO C++ standard." \textit{The C++ Source}, 2011.
+\item Nicolai M. Josuttis, \textit{C++17 — The Complete Guide}. Leanpub, 2019.
+\item Nicolai M. Josuttis, \textit{C++20 — The Complete Guide}. Leanpub, 2022.
+\item Rainer Grimm, \textit{C++20: Get the Details}. Leanpub, 2021.
+\item Herb Sutter, "Exceptional C++: 47 Engineering Puzzles, Programming Problems, and Solutions." Addison-Wesley, 2000.
+\item Herb Sutter and Andrei Alexandrescu, "C++ Coding Standards: 101 Rules, Guidelines, and Best Practices." Addison-Wesley, 2005.
+\item Scott Meyers, \textit{Effective Modern C++}. O'Reilly, 2014.
+\item Scott Meyers, "Universal References in C++11." — Overload Journal, 2012.
+\item David Vandevoorde, Nicolai M. Josuttis, and Douglas Gregor, \textit{C++ Templates: The Complete Guide}, 2nd Edition. Addison-Wesley, 2017.
+\item Andrei Alexandrescu, \textit{Modern C++ Design}. Addison-Wesley, 2001.
+\item cppreference.com — The definitive online C++ reference.
+\item ISO C++ Standard Committee, "Working Draft, Standard for Programming Language C++" (N4901, 2021).
+\end{itemize}
+

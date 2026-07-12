@@ -1,0 +1,7 @@
+i=0: prev2=0, prev1=0 -> curr = max(0, 0+2) = 2      -> prev2=0,  prev1=2
+i=1: prev2=2, prev1=2 -> curr = max(2, 0+7) = 7      -> prev2=2,  prev1=7
+i=2: prev2=7, prev1=7 -> curr = max(7, 2+9) = 11     -> prev2=7,  prev1=11
+i=3: prev2=11, prev1=11 -> curr = max(11, 7+3) = 11   -> prev2=11, prev1=11
+i=4: prev2=11, prev1=11 -> curr = max(11, 11+1) = 12  -> prev2=11, prev1=12
+
+Answer: 12 (rob houses 0, 2, 4 = 2 + 9 + 1 = 12)

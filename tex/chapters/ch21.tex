@@ -1,0 +1,764 @@
+\chapter{Persistent Data Structures}\label{ch21:persistent-data-structures}
+
+\section{Introduction and Motivation}\label{sec21:introduction}
+
+Most data structures are \textbf{ephemeral}: an update destroys the old version and produces a new one. A \textbf{persistent data structure}\index{persistent data structure} preserves every previous version after modification, allowing the program to access any historical state efficiently. The cost is not free, but it is far cheaper than cloning the entire structure for every change.
+
+\begin{itemize}
+\item \textbf{Undo\index{undo}/redo\index{redo}:} text editors and IDEs store a linear history of document states; each keystroke creates a new version.
+\item \textbf{Version control:} Git snapshots the file tree at each commit; the full history of every file is available.
+\item \textbf{Functional programming:} languages like Haskell and Clojure use immutable data structures as the default; all variables refer to persistent collections.
+\item \textbf{Databases:} Multi-Version Concurrency Control\index{multi-version concurrency control} (MVCC\index{MVCC}) keeps multiple versions of each row so that readers never block writers.
+\item \textbf{Concurrent access:} immutable structures can be shared across threads without synchronization.
+\end{itemize}
+
+A \textbf{mutable} array allows O(1) in-place updates but provides no history. A \textbf{persistent} array allows O(log n) access and update while retaining every previous version. The choice between mutable and persistent depends on whether history is needed.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Mutable & Persistent \\
+\midrule
+Access & O(1) & O(log n) \\
+Update & O(1) & O(log n) \\
+Memory per update & O(1) & O(log n) \\
+History & None & All versions \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Persistence Models}\label{sec21:persistence-models}
+
+\textbf{Partially Persistent.} All previous versions of the structure are accessible, but only the \textbf{latest} version can be modified. Updates create a new version; older versions are read-only. Most undo systems are partially persistent.
+
+\textbf{Fully Persistent.} All versions are accessible, and \textbf{any} version can be modified to produce a new version. This generalises partial persistence\index{partial persistence}\index{persistence}: a fully persistent structure is also partially persistent, but the reverse is not true.
+
+\textbf{Confluently Persistent.} In addition to full persistence\index{full persistence}, two arbitrary versions can be \textbf{merged} to create a new version. This is the most general model and the hardest to implement.
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Any version readable & Any version writable & Merge \\
+\midrule
+Partially persistent & Yes & Only latest & No \\
+Fully persistent & Yes & Any & No \\
+Confluently persistent & Yes & Any & Yes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Complexity tradeoffs.} Driscoll, Sarnak, Sleator, and Tarjan (1989) proved that partial and full persistence can be added to any data structure with O(1) amortised overhead per operation (at the cost of O(log n) extra space per modified node) without changing the original access time. Confluent persistence is strictly harder and often requires structural sharing.
+
+\section{Techniques}\label{sec21:techniques}
+
+\subsection{Fat Nodes}\label{sec21:fat-nodes}
+
+Each node contains a \textbf{version log}: an array of (field, value, version) triples. When a field is updated, a new entry is appended to the log. To read a field at a given version, search the log for the most recent entry at or before that version.
+
+\begin{lstlisting}[language=Java]
+Fat node: node_id = 5
+  field "left"  : version 0 -> 12
+                  version 3 -> 18
+  field "right" : version 0 -> 14
+                  version 2 -> 20
+  field "key"   : version 0 -> 42
+
+To read "key" at version 1: find most recent entry <= version 1 -> 42.
+To read "left" at version 5: find most recent entry <= version 5 -> 18.
+\end{lstlisting}
+
+\textbf{Space:} O(1) per modified field per update. A node touched in v versions stores v entries per modified field. If d fields change, each update costs O(d) extra space.
+
+\textbf{Time:} O(log n) per access (binary search on the version log), or O(1) amortised if entries are appended in version order.
+
+\textbf{Limitation:} space can grow linearly in the number of updates, making fat nodes\index{fat nodes} unsuitable for structures with very long histories.
+
+\subsection{Path Copying (Node Copying)}\label{sec21:path-copying}
+
+When updating a node in a tree, \textbf{copy} the nodes along the path from the root to the modified node. The unchanged subtrees are \textbf{shared} between the old and new versions. This produces a new root; the old root still points to the old version.
+
+\begin{lstlisting}[language=Java]
+Original tree (version 0):
+          10
+         /  \
+        5    15
+       / \
+      3   7
+
+After updating 3 -> 33 (version 1):
+              10           <-- NEW root for version 1
+             /  \
+           [5]   15       <-- 5 is a NEW node (copied)
+           / \
+         [33]  7          <-- 33 is NEW; 7 is SHARED with version 0
+          |         |
+     version 0:  10 -> 5 -> 3  (old, unchanged)
+                 5 -> 7 (shared)
+                 10 -> 15 (shared)
+
+The old version is still reachable via the version 0 root.
+\end{lstlisting}
+
+\textbf{Space:} O(log n) per update for a balanced tree of height O(log n). Only the path from root to modified node is copied; all other subtrees are shared.
+
+\textbf{Time:} O(log n) per update (same as the original tree) and O(log n) per access.
+
+\textbf{Limitation:} creating O(log n) new nodes per update is more than fat nodes in theory but far more practical in practice because the constants are small and memory is contiguous.
+
+\subsection{Structural Sharing}\label{sec21:structural-sharing}
+
+\textbf{Hash consing} is a technique where each unique subtree is stored exactly once. When creating a new node, check if an identical node already exists; if so, reuse it. This gives maximum structural sharing: identical subtrees across versions occupy a single copy in memory.
+
+\textbf{DAG representation} represents a version as a directed acyclic graph rather than a tree. Edges point to shared children. This is the basis of functional programming runtime systems (e.g., Clojure vectors, Scala persistent maps).
+
+\begin{lstlisting}[language=Java]
+Shared structure across versions:
+  Version 0:   A -> (B, C)
+  Version 1:   A' -> (B, D)     -- B is shared, C replaced by D
+  Version 2:   A'' -> (E, D)    -- D is shared with version 1
+
+DAG representation:
+  [A]  [A']  [A'']     <-- three roots
+   |     |      |
+  [B]--[B]    [E]      <-- single node B shared by v0 and v1
+   |           |
+  [C]         [D]--[D] <-- single node D shared by v1 and v2
+\end{lstlisting}
+
+\subsection{Comparing the Techniques}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Technique & Update & Access & Space per update \\
+\midrule
+Fat nodes & O(1) & O(log v) & O(1) \\
+Path copying\index{path copying} & O(log n) & O(log n) & O(log n) \\
+Hash consing & O(log n) & O(log n) & O(log n) amortised \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+In practice, path copying on balanced trees is the most widely used technique due to its simplicity and excellent cache behaviour.
+
+\section{Persistent Arrays}\label{sec21:persistent-arrays}
+
+A persistent array of size n supports read(index, version) and update(index, value, version) in O(log n) time. The implementation uses a balanced BST (such as a weight-balanced tree or segment tree) where leaves store array values and internal nodes represent ranges.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+struct parray_node {
+    T value;
+    std::shared_ptr<parray_node> left, right;
+};
+
+template <typename T>
+class persistent_array {
+public:
+    persistent_array(size_t n, const T& default_val)
+        : n_(n), versions_{build(0, n, default_val)} {}
+
+    T get(size_t idx, size_t ver = 0) const {
+        return get(versions_[ver], 0, n_, idx);
+    }
+
+    persistent_array set(size_t idx, const T& val, size_t ver = 0) {
+        persistent_array result(*this);
+        result.versions_.push_back(
+            set(versions_[ver], 0, n_, idx, val));
+        return result;
+    }
+
+    size_t size() const { return n_; }
+    size_t versions() const { return versions_.size(); }
+
+private:
+    size_t n_;
+    std::vector<std::shared_ptr<parray_node<T>>> versions_;
+
+    std::shared_ptr<parray_node<T>> build(
+            size_t lo, size_t hi, const T& val) {
+        if (lo + 1 == hi)
+            return std::make_shared<parray_node<T>>(
+                parray_node<T>{val, nullptr, nullptr});
+        size_t mid = lo + (hi - lo) / 2;
+        auto l = build(lo, mid, val);
+        auto r = build(mid, hi, val);
+        return std::make_shared<parray_node<T>>(
+            parray_node<T>{T{}, l, r});
+    }
+
+    T get(const std::shared_ptr<parray_node<T>>& node,
+          size_t lo, size_t hi, size_t idx) const {
+        if (lo + 1 == hi) return node->value;
+        size_t mid = lo + (hi - lo) / 2;
+        if (idx < mid) return get(node->left, lo, mid, idx);
+        else return get(node->right, mid, hi, idx);
+    }
+
+    std::shared_ptr<parray_node<T>> set(
+            const std::shared_ptr<parray_node<T>>& node,
+            size_t lo, size_t hi, size_t idx, const T& val) {
+        if (lo + 1 == hi)
+            return std::make_shared<parray_node<T>>(
+                parray_node<T>{val, nullptr, nullptr});
+        size_t mid = lo + (hi - lo) / 2;
+        if (idx < mid)
+            return std::make_shared<parray_node<T>>(
+                parray_node<T>{T{},
+                    set(node->left, lo, mid, idx, val),
+                    node->right});
+        else
+            return std::make_shared<parray_node<T>>(
+                parray_node<T>{T{},
+                    node->left,
+                    set(node->right, mid, hi, idx, val)});
+    }
+};
+\end{lstlisting}
+
+\textbf{Comparison with std::vector:} copying a std::vector of size n costs O(n) time and O(n) space. The persistent array costs O(log n) time and O(log n) space per version. The persistent array also allows O(1) version counting (versions\_::size) whereas std::vector copies have no version tracking.
+
+\section{Persistent Linked List}\label{sec21:persistent-list}
+
+An immutable linked list (cons list) supports O(1) prepend and O(1) head/tail access. Each node is an immutable cons cell pointing to its value and the rest of the list. Structural sharing means two lists that share a suffix share the same nodes in memory.
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+struct plist_node {
+    T head;
+    std::shared_ptr<const plist_node<T>> tail;
+};
+
+template <typename T>
+class persistent_list {
+public:
+    persistent_list() : root_(nullptr) {}
+
+    persistent_list(const T& val,
+                    const persistent_list& rest)
+        : root_(std::make_shared<plist_node<T>>(
+            plist_node<T>{val, rest.root_})) {}
+
+    bool empty() const { return !root_; }
+
+    const T& head() const { return root_->head; }
+
+    persistent_list tail() const {
+        return persistent_list(root_->tail);
+    }
+
+    persistent_list prepend(const T& val) const {
+        return persistent_list(val, *this);
+    }
+
+    size_t size() const {
+        size_t n = 0;
+        auto cur = root_;
+        while (cur) { ++n; cur = cur->tail; }
+        return n;
+    }
+
+private:
+    std::shared_ptr<const plist_node<T>> root_;
+
+    explicit persistent_list(
+        std::shared_ptr<const plist_node<T>> node)
+        : root_(node) {}
+};
+\end{lstlisting}
+
+\textbf{Complexity:} prepend is O(1) (allocate one node, share the tail). Head and tail access are O(1). Length is O(n) unless cached. The list is fully persistent: prepend creates a new version without destroying the old list.
+
+\textbf{Example usage:}
+\begin{lstlisting}[language=C++]
+persistent_list<int> empty;
+auto v1 = empty.prepend(3).prepend(2).prepend(1);
+auto v2 = v1.prepend(0);
+
+// v1: 1 -> 2 -> 3 -> empty
+// v2: 0 -> 1 -> 2 -> 3 -> empty
+// v1 is still valid; nodes 1 -> 2 -> 3 -> empty are shared.
+\end{lstlisting}
+
+\section{Persistent Balanced BST}\label{sec21:persistent-bst}
+
+A persistent balanced BST uses path copying on insert and delete. When inserting a key, the new root is created by copying the nodes along the search path; all other subtrees are shared with the previous version.
+
+\subsection{Persistent AVL Tree}
+
+\begin{lstlisting}[language=C++]
+template <typename K, typename V>
+struct pnode {
+    K key;
+    V val;
+    int height;
+    std::shared_ptr<const pnode<K, V>> left, right;
+};
+
+template <typename K, typename V>
+class persistent_avl {
+public:
+    persistent_avl() : root_(nullptr) {}
+
+    persistent_avl insert(const K& k, const V& v) const {
+        return persistent_avl(insert(root_, k, v));
+    }
+
+    bool contains(const K& k) const {
+        return find(root_, k) != nullptr;
+    }
+
+    const V& get(const K& k) const {
+        auto node = find(root_, k);
+        return node->val;
+    }
+
+    size_t size() const { return count(root_); }
+
+private:
+    std::shared_ptr<const pnode<K, V>> root_;
+
+    explicit persistent_avl(
+        std::shared_ptr<const pnode<K, V>> r) : root_(r) {}
+
+    static int ht(
+        const std::shared_ptr<const pnode<K, V>>& n) {
+        return n ? n->height : 0;
+    }
+
+    static int bf(
+        const std::shared_ptr<const pnode<K, V>>& n) {
+        return n ? ht(n->left) - ht(n->right) : 0;
+    }
+
+    static std::shared_ptr<const pnode<K, V>> make(
+        const K& k, const V& v,
+        std::shared_ptr<const pnode<K, V>> l,
+        std::shared_ptr<const pnode<K, V>> r) {
+        return std::make_shared<const pnode<K, V>>(
+            pnode<K, V>{k, v, std::max(ht(l), ht(r)) + 1, l, r});
+    }
+
+    static std::shared_ptr<const pnode<K, V>> rotate_l(
+        std::shared_ptr<const pnode<K, V>> n) {
+        auto y = n->right;
+        return make(y->key, y->val, make(n->key, n->val, n->left, y->left), y->right);
+    }
+
+    static std::shared_ptr<const pnode<K, V>> rotate_r(
+        std::shared_ptr<const pnode<K, V>> n) {
+        auto y = n->left;
+        return make(y->key, y->val, y->left, make(n->key, n->val, y->right, n->right));
+    }
+
+    static std::shared_ptr<const pnode<K, V>> rebalance(
+        std::shared_ptr<const pnode<K, V>> n) {
+        if (!n) return n;
+        if (bf(n) > 1) {
+            if (bf(n->left) < 0)
+                n = make(n->key, n->val, rotate_l(n->left), n->right);
+            return rotate_r(n);
+        }
+        if (bf(n) < -1) {
+            if (bf(n->right) > 0)
+                n = make(n->key, n->val, n->left, rotate_r(n->right));
+            return rotate_l(n);
+        }
+        return n;
+    }
+
+    static std::shared_ptr<const pnode<K, V>> insert(
+        const std::shared_ptr<const pnode<K, V>>& n,
+        const K& k, const V& v) {
+        if (!n) return make(k, v, nullptr, nullptr);
+        if (k < n->key)
+            return rebalance(make(n->key, n->val, insert(n->left, k, v), n->right));
+        if (k > n->key)
+            return rebalance(make(n->key, n->val, n->left, insert(n->right, k, v)));
+        return make(k, v, n->left, n->right);
+    }
+
+    static std::shared_ptr<const pnode<K, V>> find(
+        const std::shared_ptr<const pnode<K, V>>& n, const K& k) {
+        if (!n) return nullptr;
+        if (k < n->key) return find(n->left, k);
+        if (k > n->key) return find(n->right, k);
+        return n;
+    }
+
+    static size_t count(
+        const std::shared_ptr<const pnode<K, V>>& n) {
+        if (!n) return 0;
+        return 1 + count(n->left) + count(n->right);
+    }
+};
+\end{lstlisting}
+
+\textbf{Complexity:} insert is O(log n) time and O(log n) new nodes. get and contains are O(log n) time. Each version has its own root pointer, so all versions are independently accessible.
+
+\subsection{Merge for Confluent Persistence}
+
+Given two versions of a persistent BST, merge can be implemented by inserting all elements of the smaller tree into the larger. This runs in O(m log(n/m + 1)) where m and n are the sizes of the two trees. For balanced trees this produces a balanced result.
+
+\section{Persistent Segment Tree}\label{sec21:persistent-segment-tree}
+
+A persistent segment tree stores a version history of a segment tree. Each update creates O(log n) new nodes along one root-to-leaf path, sharing all other subtrees with previous versions. This was introduced briefly in Chapter 14; here we extend it with a version tree and range queries across versions.
+
+\begin{lstlisting}[language=C++]
+struct pst_node {
+    int sum;
+    std::shared_ptr<const pst_node> left, right;
+};
+
+using pst_ptr = std::shared_ptr<const pst_node>;
+
+class persistent_seg {
+public:
+    persistent_seg(size_t n, const std::vector<int>& init)
+        : n_(n), roots_{build(init, 0, n)} {}
+
+    int query(int ver, int l, int r) const {
+        return query(roots_[ver], 0, n_, l, r);
+    }
+
+    int update(int ver, int pos, int val) const {
+        int old = query(ver, pos, pos);
+        roots_.push_back(update(roots_[ver], 0, n_, pos, val - old));
+        return roots_.size() - 1;
+    }
+
+    size_t versions() const { return roots_.size(); }
+
+private:
+    size_t n_;
+    std::vector<pst_ptr> roots_;
+
+    pst_ptr build(const std::vector<int>& a, int lo, int hi) {
+        if (lo + 1 == hi)
+            return std::make_shared<pst_node>(
+                pst_node{lo < (int)a.size() ? a[lo] : 0, nullptr, nullptr});
+        int mid = lo + (hi - lo) / 2;
+        auto l = build(a, lo, mid);
+        auto r = build(a, mid, hi);
+        return std::make_shared<pst_node>(
+            pst_node{l->sum + r->sum, l, r});
+    }
+
+    int query(const pst_ptr& node, int lo, int hi, int l, int r) const {
+        if (!node || r <= lo || hi <= l) return 0;
+        if (l <= lo && hi <= r) return node->sum;
+        int mid = lo + (hi - lo) / 2;
+        return query(node->left, lo, mid, l, r)
+             + query(node->right, mid, hi, l, r);
+    }
+
+    pst_ptr update(const pst_ptr& node, int lo, int hi, int pos, int diff) const {
+        if (lo + 1 == hi)
+            return std::make_shared<pst_node>(
+                pst_node{node->sum + diff, nullptr, nullptr});
+        int mid = lo + (hi - lo) / 2;
+        if (pos < mid)
+            return std::make_shared<pst_node>(
+                pst_node{node->sum + diff,
+                    update(node->left, lo, mid, pos, diff),
+                    node->right});
+        else
+            return std::make_shared<pst_node>(
+                pst_node{node->sum + diff,
+                    node->left,
+                    update(node->right, mid, hi, pos, diff)});
+    }
+};
+\end{lstlisting}
+
+\textbf{Version tree.} The array roots\_ stores the root pointer for each version. version i is created by updating version i-1, forming a linear chain. In general, versions can form a tree: if version 5 branches from version 3, store roots\_[5] = update(roots\_[3], ...). This gives a DAG of versions.
+
+\textbf{K-th element in a version range.} Given versions [v\_l, v\_r] and a value k, find the k-th smallest element present in the difference between the two versions. This is solved by walking the segment tree and computing prefix sums across the two versions at each node -- a standard competitive programming technique.
+
+\textbf{Space:} O(log n) new nodes per update. Total space for m updates is O(n + m log n).
+
+\section{Applications}\label{sec21:applications}
+
+\subsection{Undo/Redo in a Text Editor}
+
+A text editor stores a version history as a persistent rope or persistent array. Each keystroke calls update to create a new version. Undo walks backward through the version array; redo walks forward.
+
+\begin{lstlisting}[language=C++]
+class editor {
+public:
+    void type(char c) {
+        history_.push_back(
+            history_.back().append(c));
+    }
+    void undo() {
+        if (cursor_ > 0) --cursor_;
+    }
+    void redo() {
+        if (cursor_ + 1 < (int)history_.size()) ++cursor_;
+    }
+    char get(size_t idx) const {
+        return history_[cursor_].get(idx);
+    }
+private:
+    std::vector<persistent_array<char>> history_;
+    int cursor_ = 0;
+};
+\end{lstlisting}
+
+\subsection{Git-like Snapshotting}
+
+A file system stores each file as a persistent byte array. A commit stores the root directory (a persistent tree of persistent files). Diff between two commits compares the tree structures; unchanged subtrees are shared.
+
+\subsection{Multi-Version Concurrency Control (MVCC)}
+
+In a database, each row has multiple versions tagged with transaction timestamps. Readers access a consistent snapshot by reading the version that was current at their start time. Writers create new versions without blocking readers. This is the core of PostgreSQL and MySQL (InnoDB) concurrency control.
+
+\subsection{Immutable State in Functional Programming}
+
+Clojure vectors, Scala persistent maps, and Haskell data structures are all persistent by design. Every ``mutation'' returns a new version while sharing structure with the old. The runtime relies on hash consing and balanced trees (typically 32-way branching tries) to achieve near-O(1) amortised access.
+
+\section{Complexity Summary}\label{sec21:complexity-summary}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Operation & Mutable & Partially Persistent & Fully Persistent \\
+\midrule
+Array access & O(1) & O(log n) & O(log n) \\
+Array update & O(1) & O(log n) & O(log n) \\
+BST search & O(log n) & O(log n) & O(log n) \\
+BST insert & O(log n) & O(log n) & O(log n) \\
+Linked list prepend & O(1) & O(1) & O(1) \\
+Linked list access & O(n) & O(n) & O(n) \\
+Segment tree query & O(log n) & O(log n) & O(log n) \\
+Segment tree update & O(log n) & O(log n) & O(log n) \\
+Space per update & O(1) & O(log n) & O(log n) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All persistent operations incur an O(log n) space overhead per update due to path copying. The time overhead is the same as the original data structure because the tree height is unchanged.
+
+\section{Common Bugs and Pitfalls}\label{sec21:pitfalls}
+
+\begin{itemize}
+\item \textbf{Memory overhead from path copying:} each update copies O(log n) nodes. For very large trees with millions of updates, this can exhaust memory. Mitigation: use a garbage collector (reference counting with shared\_ptr) and periodically compact or snapshot.
+
+\item \textbf{Forgetting to share unchanged subtrees:} if the insert function does not share the unchanged child pointer, the resulting tree duplicates the entire subtree -- losing the O(log n) space guarantee. Always reuse the old child pointer for the side that is not modified.
+
+\item \textbf{Reference counting cycles in cyclic persistent structures:} shared\_ptr reference counting cannot handle cycles (e.g., a doubly-linked persistent list). Use weak\_ptr or a tracing garbage collector for cyclic graphs.
+
+\item \textbf{Stack overflow from deep recursion:} a persistent segment tree of depth 30 with path copying can recurse 30 levels deep per operation -- usually safe. But a linked list of length 10$^{6}$ recurses 10$^{6}$ levels. Use iterative traversal for deep persistent structures.
+
+\item \textbf{Version index out of bounds:} when querying a specific version, verify that the version index is in [0, versions\_::size()). Out-of-bounds access is undefined behaviour.
+\end{itemize}
+
+\section{Exercises}\label{sec21:exercises}
+
+\begin{enumerate}
+\item Implement a persistent stack (push, pop, top) using a persistent linked list. Verify that all previous versions remain accessible after a sequence of push and pop operations.
+
+\item Prove that a persistent array built from a balanced BST of height h uses O(h) new nodes per update. What is the space complexity for m updates on an array of size n?
+
+\item Implement a persistent union-find using path copying on the parent array. Analyse the time complexity of n union and find operations.
+
+\item Given a persistent segment tree, implement a function that computes the k-th smallest element in the range [l, r] of a specific version. Write a test that builds 5 versions and queries the k-th element in each.
+
+\item Implement a persistent treap (randomised BST). Compare the number of nodes copied per insert with the persistent AVL tree. Which copies fewer nodes on average?
+
+\item Build a persistent binary indexed tree (Fenwick tree) using path copying. Support point update and prefix sum queries in O(log n) per version.
+
+\item Implement version diffing: given two versions of a persistent BST, compute the set of keys present in version A but not version B. Optimise by comparing subtree hashes when available.
+
+\item Prove that the total space for m updates on a persistent segment tree over n elements is O(n + m log n). Describe the worst case and the best case.
+\end{enumerate}
+
+%% ============================================================
+%% ADVANCED PERSISTENCE TOPICS (Brass coverage)
+%% ============================================================
+
+\section{Full Persistence vs Partial Persistence}
+\label{sec21:full-vs-partial}
+
+The distinction between partial and full persistence determines which operations a data structure supports and at what cost.
+
+\subsection{Partial Persistence}
+
+A \textbf{partially persistent} structure allows read access to every historical version but restricts modifications to the \textbf{latest} version only. Each update to the latest version creates a new version; older versions become immutable. This suffices for most practical applications including undo stacks, version control, and database snapshots.
+
+The Driscoll--Sarnak--Sleator--Tarjan (DST) technique adds partial persistence to any data structure with $O(1)$ amortised overhead per operation.
+
+\subsection{Full Persistence}
+
+A \textbf{fully persistent} structure allows read and write access to \textbf{any} version. Modifying an old version creates a new version branching from that point, producing a version DAG rather than a version list. The DST technique achieves full persistence with $O(1)$ amortised overhead, but the constant factors are higher.
+
+\subsection{Fat Nodes vs Path Copying}
+
+\textbf{Fat nodes} store a version log inside each node. Updates append to the log; reads binary-search the log. Space is $O(1)$ per modified field per update, but access can be $O(\log v)$ where $v$ is the number of versions that touched the node.
+
+\textbf{Path copying} creates $O(\log n)$ new nodes per update along the root-to-leaf path. Space is $O(\log n)$ per update, but access remains $O(\log n)$ regardless of version count.
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Technique & Update time & Access time & Space per update \\
+\midrule
+Fat nodes & $O(1)$ & $O(\log v)$ & $O(1)$ per field \\
+Path copying & $O(\log n)$ & $O(\log n)$ & $O(\log n)$ \\
+Combined (DST) & $O(1)$ amortised & $O(\log n)$ & $O(\log n)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Confluent Persistence}
+
+\textbf{Confluent persistence} adds a merge operation: two arbitrary versions can be combined to produce a new version. This generalises full persistence and models scenarios like branching and merging in version control systems or parallel computation.
+
+\section{Functional Data Structures}
+\label{sec21:functional-data-structures}
+
+A \textbf{purely functional} data structure\index{functional data structure} obeys two invariants: every node is immutable, and every operation returns a new structure without modifying the input. These invariants guarantee that all versions remain accessible and that concurrent access requires no synchronisation.
+
+\subsection{Lazy Evaluation and Lazy Lists}
+
+\textbf{Lazy evaluation}\index{lazy evaluation} defers computation until the result is actually needed. A \textbf{lazy list}\index{lazy list} (or stream) is a list where each tail is computed on demand. Lazy lists enable elegant implementations of infinite sequences and merge operations on sorted streams.
+
+\subsection{Lazy Segment Trees}
+
+A \textbf{lazy segment tree}\index{lazy segment tree} defers range updates by storing pending operations in internal nodes. Combined with functional persistence, each update creates a new version while sharing unchanged subtrees.
+
+\subsection{Amortised Analysis: Banker's Method}
+
+The \textbf{banker's method}\index{banker's method} assigns a ``credit'' to each element. Operations that are expensive in the worst case are paid for by credits accumulated from earlier cheap operations. For functional queues implemented as two lazy lists, the banker's method proves that head, tail, and enqueue are all $O(1)$ amortised.
+
+\subsection{Comparison with Imperative Counterparts}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Structure & Imperative & Functional & Use case \\
+\midrule
+Stack & $O(1)$ & $O(1)$ & Undo history \\
+Queue & $O(1)$ amortised & $O(1)$ amortised & Event processing \\
+BST & $O(\log n)$ & $O(\log n)$ & Ordered collections \\
+Segment tree & $O(\log n)$ & $O(\log n)$ & Range queries \\
+Union-find & $O(\alpha(n))$ & $O(\log n)$ & Connectivity \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{The Differential File}
+\label{sec21:differential-file}
+
+Database systems must provide durability: committed transactions survive crashes. Persistent data structures in databases are implemented through on-disk techniques that share the same principles of structural sharing.
+
+\subsection{Shadow Paging}
+
+\textbf{Shadow paging}\index{shadow paging} divides the disk into fixed-size pages. When a page is modified, a \textbf{shadow copy} is written to a new location; the page table is updated to point to the new copy. On commit, the new page table is atomically written to disk. On crash, the old page table is recovered.
+
+\subsection{Differential File}
+
+A \textbf{differential file}\index{differential file} separates the database into a large \textbf{base file} (read-only) and a small \textbf{differential file} (append-only). All writes go to the differential file. Reads check the differential file first. Periodically, the differential file is \textbf{merged} into the base file.
+
+\subsection{Write-Ahead Logging}
+
+\textbf{Write-ahead logging}\index{write-ahead logging} (WAL\index{WAL}) handles logical recovery. Every modification is first recorded in a sequential log on disk before any page is written. The WAL protocol states: a log record must be written to stable storage before the corresponding data page is written to disk.
+
+\subsection{Multi-Version Concurrency Control}
+
+\textbf{MVCC} combines differential files with versioning: each row has multiple versions tagged with transaction timestamps. Readers access a consistent snapshot by reading the version current at their start time. Writers create new versions without blocking readers.
+
+\section{Retroactive Data Structures}
+\label{sec21:retroactive-structures}
+
+A \textbf{retroactive data structure}\index{retroactive data structure} supports modifications not only at the current time but also at \textbf{past} times. This generalises persistence: while a persistent structure records all versions and lets you query any of them, a retroactive structure lets you \textbf{change history} and propagate the consequences forward.
+
+\subsection{Partial Retroactivity}
+
+In \textbf{partial retroactivity}\index{partial retroactivity}, insertions and deletions can be applied at past times, but queries must be answered at the current time. The Demaine--Lacki--Mitzenmacher framework achieves $O(\sqrt{m})$ overhead per operation by partitioning the timeline into blocks of size $\sqrt{m}$.
+
+\subsection{Full Retroactivity}
+
+\textbf{Full retroactivity}\index{full retroactivity} allows modifications at past times and queries at any past time. The DLM framework achieves $O(\sqrt{m} \log^{3/2} m)$ per operation using a balanced BST of time blocks, each storing a persistent data structure.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Time-travel debugging:}\index{time-travel debugging} record the full execution history, jump to any past state
+    \item \textbf{Undo/redo systems:} branching undo trees for collaborative editing
+    \item \textbf{Causal analysis:} ``what if this transaction had failed?'' queries in databases
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Past modifications & Past queries & Complexity \\
+\midrule
+Persistent & No & Yes & $O(\log n)$ per op \\
+Partially retroactive & Yes & No & $O(\sqrt{m})$ per op \\
+Fully retroactive & Yes & Yes & $O(\sqrt{m} \log^{3/2} m)$ per op \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Nonoblivious Retroactivity}
+\label{sec21:nonoblivious-retroactivity}
+
+Standard retroactivity lets you modify past updates. \textbf{Nonoblivious retroactivity} goes further: you specify a \emph{query} on the timeline, and the data structure reports the \emph{first} past update that changed the query's answer.
+
+\subsection{Problem Formulation}
+
+Given a sequence of updates $\sigma_1, \ldots, \sigma_m$ and a query $q$, find the earliest time $t$ such that $q(\Sigma_t) \ne q(\Sigma_{t-1})$, where $\Sigma_t = \sigma_1 \cdots \sigma_t$. If no such update exists, return ``unchanged.''
+
+\subsection{Priority Queue Example}
+
+For a priority queue, the nonoblivious retroactive query asks: ``what is the first past update that changed the minimum?'' The approach uses geometric decomposition of the timeline into blocks of size $1, 2, 4, \ldots$, maintaining snapshots at block boundaries. Scanning backward through blocks and replaying updates within each block yields $O(\lg n)$ amortized per operation.
+
+\subsection{Applications}
+
+\begin{itemize}
+    \item \textbf{Debugging:} identify the first update that caused an incorrect output
+    \item \textbf{What-if analysis:} ``when did this constraint first become violated?''
+    \item \textbf{Causal reasoning:} trace the earliest event that altered an outcome
+\end{itemize}
+
+\section{Data Structure Decomposition}
+\label{sec21:decomposition}
+
+Complex persistent data structures can be built by \textbf{composing} simpler persistent components. This decomposition approach reduces implementation effort, improves correctness, and often matches the performance of monolithic designs.
+
+\subsection{Persistent Union-Find via Decomposition}
+
+A persistent union-find can be decomposed into a \textbf{persistent array} for parent pointers and a \textbf{union-find logic layer} that performs unions without path compression, relying on the persistent array to track history.
+
+\subsection{Persistent Graph via Adjacency Lists}
+
+A persistent graph decomposes into a \textbf{persistent map} from vertex IDs to \textbf{persistent adjacency lists}. Each edge addition creates a new version of the adjacency list for both endpoints.
+
+\subsection{Compositional Design Principles}
+
+\begin{enumerate}
+    \item \textbf{Identify independent dimensions.} Each dimension becomes a separate persistent component.
+    \item \textbf{Use the simplest component that suffices.} Match complexity to the problem.
+    \item \textbf{Share versions across components.} Use a shared version counter for atomic updates.
+    \item \textbf{Test components independently.} Each persistent component has its own test suite.
+\end{enumerate}
+
+The compositional approach is powerful but has a caveat: the overhead of persistent components multiplies. A two-level decomposition with $O(\log n)$ components at each level yields $O(\log^2 n)$ per operation.
+
+\section{References and Further Reading}\label{sec21:references}
+
+\begin{itemize}
+\item James R. Driscoll, Neil Sarnak, Daniel D. Sleator, and Robert E. Tarjan, ``Making Data Structures Persistent'' -- Journal of Computer and System Sciences, 1989. The foundational paper on persistence, proving that partial and full persistence can be added to any data structure with O(1) amortised overhead.
+
+\item Chris Okasaki, \textit{Purely Functional Data Structures} -- Cambridge University Press, 1998. The definitive reference for persistent data structures in functional programming. Covers lazy vs strict, real-time vs amortised, and many concrete data structures.
+
+\item Erik Meijer, Maarten de Figueiredo, and Leo Burd, ``The Design and Implementation of Functional Collections in Scala'' -- Functional Programming in Scala (Red Book), 2015. Describes hash-array mapped tries (HAMTs), the basis of Scala's persistent collections.
+
+\item Rich Hickey, ``Persistent Data Structures and Managed References'' -- Clojure design document, 2009. Describes the 32-way branching persistent vector and persistent hash map used in Clojure.
+
+\item Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, and Clifford Stein, \textit{Introduction to Algorithms}, 4th Edition -- Chapter 13 (Red-Black Trees), Chapter 19 (Fibonacci Heaps). Background on balanced BSTs used in persistent constructions.
+
+\item Gunnar Peyer, ``Persistent Data Structures'' -- Master's Thesis, ETH Zurich, 2010. A comprehensive survey of persistence techniques with performance benchmarks.
+\end{itemize}

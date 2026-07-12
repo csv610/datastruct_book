@@ -1,0 +1,13 @@
+4-ary heap (d = 4):
+
+               [1]
+          / / |  \
+        [3] [5] [7] [9]
+       /|\  |
+    [12][8][15][2] [6]
+
+Array: [1, 3, 5, 7, 9, 12, 8, 15, 2, 6]
+
+For d-ary heap at index i (0-indexed):
+  Parent:     (i - 1) / d
+  k-th child: d * i + k + 1   (for k = 0, 1, ..., d-1)

@@ -1,0 +1,17 @@
+Array (1-indexed): [1, 3, 5, 7, 9, 11]
+
+Fenwick tree (BIT):
+BIT[1] = arr[1] = 1
+BIT[2] = arr[1] + arr[2] = 4
+BIT[3] = arr[3] = 5
+BIT[4] = arr[1] + arr[2] + arr[3] + arr[4] = 16
+BIT[5] = arr[5] = 9
+BIT[6] = arr[5] + arr[6] = 20
+
+To get prefix sum up to index 5:
+  BIT[5] = 9
+  i -= (i & -i)  ->  i = 4
+  BIT[4] = 16
+  i -= (i & -i)  ->  i = 0
+  Total = 9 + 16 = 25
+  Check: 1+3+5+7+9 = 25 (OK)

@@ -1,0 +1,1349 @@
+\chapter{Dynamic Programming}\label{ch17:dynamic-programming}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The General Method}
+
+\textbf{Dynamic programming (DP)}\index{dynamic programming} solves problems by combining solutions to overlapping subproblems. Unlike divide and conquer (where subproblems are independent), DP handles cases where the same subproblems appear multiple times.
+
+\textbf{Key insight:} If a recursive function calls itself on the same inputs more than once, we can cache the results to avoid redundant computation. This transforms an exponential-time recursion into a polynomial-time algorithm.
+
+\subsection{Key Concepts}
+
+\begin{itemize}
+\item \textbf{Optimal substructure:}\index{optimal substructure} an optimal solution contains optimal solutions to subproblems
+\item \textbf{Overlapping subproblems:}\index{overlapping subproblems} the same subproblems are solved repeatedly
+\item \textbf{Memoization:}\index{memoization} cache subproblem results (top-down)
+\item \textbf{Tabulation:}\index{tabulation} build the solution iteratively from smallest subproblems (bottom-up)
+\end{itemize}
+
+\subsection{Top-Down vs. Bottom-Up}
+
+\textbf{Top-down (memoization)} writes the recurrence directly as a recursive function with a cache:
+
+\begin{lstlisting}[language=C++]
+// Fibonacci: top-down
+std::unordered_map<int, long long> memo;
+long long fib(int n) {
+    if (n <= 1) return n;
+    if (memo.count(n)) return memo[n];
+    return memo[n] = fib(n - 1) + fib(n - 2);  // cache result
+}
+\end{lstlisting}
+
+\textbf{Bottom-up (tabulation)} fills a table iteratively:
+
+\begin{lstlisting}[language=C++]
+// Fibonacci: bottom-up
+long long fib(int n) {
+    std::vector<long long> dp(n + 1);
+    dp[0] = 0; dp[1] = 1;
+    for (int i = 2; i <= n; ++i)
+        dp[i] = dp[i - 1] + dp[i - 2];
+    return dp[n];
+}
+\end{lstlisting}
+
+\textbf{When to use which:}
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+Top-down & Bottom-up \\
+Easier to write (direct recursion) & Often faster (no recursion overhead) \\
+Computes only needed subproblems & Fills entire table (may waste work) \\
+Stack overflow risk for deep recursion & No stack risk \\
+Cache misses from random access & Sequential access (cache-friendly) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{DP Design Steps}
+
+\begin{enumerate}
+\item Characterize the structure of an optimal solution
+\item Define the value of an optimal solution recursively
+\item Compute the value bottom-up
+\item Reconstruct the solution
+\end{enumerate}
+
+\textbf{Worked example:} Climbing stairs. You can climb 1 or 2 steps at a time. How many ways to reach step n?
+
+Step 1: ways(n) = ways(n-1) + ways(n-2) — you arrived from step n-1 or n-2.  
+Step 2: Base cases: ways(0) = 1, ways(1) = 1.  
+Step 3: Fill dp[0..n]: dp[0]=1, dp[1]=1, dp[2]=2, dp[3]=3, dp[4]=5, ...  
+Step 4: dp[n] is the answer (no reconstruction needed).
+
+This is the Fibonacci sequence shifted by one index — many DP problems have this ``same recurrence, different interpretation'' property.
+
+\section{The 0/1 Knapsack Problem}
+
+\textbf{Problem:} n items, each with weight w$_{i}$ and value v$_{i}$.\index{knapsack} Fill a knapsack of capacity C to maximize value. Each item is taken or left (no fractions).
+
+\subsection{Recursive Formulation}
+
+Let V(i, c) = maximum value using items 1..i with capacity c.
+
+\begin{lstlisting}[language=Java]
+V(i, c) = 
+  V(i-1, c)                          if w$_{i}$ > c (cannot take item i)
+  max(V(i-1, c), v$_{i}$ + V(i-1, c-w$_{i}$)) otherwise
+V(0, c) = 0
+V(i, 0) = 0
+\end{lstlisting}
+
+\subsection{Bottom-Up Implementation}
+
+\begin{lstlisting}[language=C++]
+int knapsack_01(std::span<const int> weights, std::span<const int> values, int capacity) {
+    int n = weights.size();
+    std::vector<std::vector<int>> dp(n + 1, std::vector<int>(capacity + 1, 0));
+
+    for (int i = 1; i <= n; ++i) {
+        for (int w = 1; w <= capacity; ++w) {
+            if (weights[i - 1] > w) {
+                dp[i][w] = dp[i - 1][w];
+            } else {
+                dp[i][w] = std::max(dp[i - 1][w],
+                                    values[i - 1] + dp[i - 1][w - weights[i - 1]]);
+            }
+        }
+    }
+    return dp[n][capacity];
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$\cdot $C) time and space. Since C can be large, this is pseudo-polynomial.
+
+\subsection{Space-Optimized Version}
+
+\begin{lstlisting}[language=C++]
+int knapsack_01_optimized(std::span<const int> weights,
+                           std::span<const int> values, int capacity) {
+    std::vector<int> dp(capacity + 1, 0);
+    for (size_t i = 0; i < weights.size(); ++i) {
+        for (int w = capacity; w >= weights[i]; --w) {
+            dp[w] = std::max(dp[w], values[i] + dp[w - weights[i]]);
+        }
+    }
+    return dp[capacity];
+}
+\end{lstlisting}
+
+\textbf{Space:} O(C). Reason: dp[w] = max(dp\_old[w], v$_{i}$ + dp\_old[w-w$_{i}$]). We iterate w backwards so dp[w-w$_{i}$] is still from the previous iteration.
+
+\subsection{Reconstructing the Solution}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> knapsack_items(std::span<const int> weights,
+                                    std::span<const int> values, int capacity) {
+    int n = weights.size();
+    std::vector<std::vector<int>> dp(n + 1, std::vector<int>(capacity + 1, 0));
+    // ... fill dp table as above ...
+
+    std::vector<size_t> selected;
+    int w = capacity;
+    for (int i = n; i > 0; --i) {
+        if (dp[i][w] != dp[i - 1][w]) {
+            selected.push_back(i - 1);
+            w -= weights[i - 1];
+        }
+    }
+    return selected;
+}
+\end{lstlisting}
+
+\section{Matrix Chain Multiplication}
+
+\textbf{Problem:} Given matrices A$_{1}$, A$_{2}$, ..., A$_{n}$ with dimensions d$_{0}$$\times $d$_{1}$, d$_{1}$$\times $d$_{2}$, ..., d$_{n}$$_{-1}$$\times $d$_{n}$, find the parenthesization that minimizes the total scalar multiplications.\index{matrix chain multiplication}
+
+\subsection{Recurrence}
+
+Let M[i][j] = minimum cost to multiply A$_{i}$ through A$_{j}$.
+
+\begin{lstlisting}[language=Java]
+M[i][j] = 0                                   if i = j
+          min { M[i][k] + M[k+1][j] + d(i-1) * d(k) * d(j) }
+          i  <=  k < j
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+int matrix_chain_order(std::span<const int> dims) {
+    int n = dims.size() - 1;  // number of matrices
+    std::vector<std::vector<int>> m(n, std::vector<int>(n, 0));
+
+    for (int len = 2; len <= n; ++len) {      // chain length
+        for (int i = 0; i <= n - len; ++i) {
+            int j = i + len - 1;
+            m[i][j] = INT_MAX;
+            for (int k = i; k < j; ++k) {
+                int cost = m[i][k] + m[k + 1][j]
+                         + dims[i] * dims[k + 1] * dims[j + 1];
+                if (cost < m[i][j]) m[i][j] = cost;
+            }
+        }
+    }
+    return m[0][n - 1];
+}
+\end{lstlisting}
+
+\textbf{Trace for dims = [10, 20, 30, 40, 30] (A:10$\times $20, B:20$\times $30, C:30$\times $40, D:40$\times $30):}
+
+\begin{lstlisting}[language=Java]
+m[0][1] = 10$\times$20$\times$30 = 6000        (AB)
+m[1][2] = 20$\times$30$\times$40 = 24000       (BC)
+m[2][3] = 30$\times$40$\times$30 = 36000       (CD)
+
+m[0][2] = min(
+  m[0][0] + m[1][2] + 10$\times$20$\times$40 = 0 + 24000 + 8000 = 32000,
+  m[0][1] + m[2][2] + 10$\times$30$\times$40 = 6000 + 0 + 12000 = 18000  ->  min
+)
+
+m[1][3] = min(
+  m[1][1] + m[2][3] + 20$\times$30$\times$30 = 0 + 36000 + 18000 = 54000,
+  m[1][2] + m[3][3] + 20$\times$40$\times$30 = 24000 + 0 + 24000 = 48000  ->  min
+)
+
+m[0][3] = min(
+  k=0: m[0][0] + m[1][3] + 10$\times$20$\times$30 = 0 + 48000 + 6000 = 54000,
+  k=1: m[0][1] + m[2][3] + 10$\times$30$\times$30 = 6000 + 36000 + 9000 = 51000  ->  min
+  k=2: m[0][2] + m[3][3] + 10$\times$40$\times$30 = 18000 + 0 + 12000 = 30000  ->  ACTUAL MIN
+)
+
+Optimal: (A $\times$ (B $\times$ (C $\times$ D))) = 30000 multiplications
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$^{3}$) time, O(n$^{2}$) space.
+
+\section{All-Pairs Shortest Paths (Floyd-Warshall)}
+
+\textbf{Problem:} Find shortest paths between all pairs of vertices in a weighted directed graph (may have negative edges, but no negative cycles).
+
+From Chapter 12. The DP formulation:
+
+Let $D^{(k)}[i][j]$ = shortest path from i to j using intermediate vertices only from \{0, 1, ..., k-1\}.
+
+\begin{lstlisting}[language=Java]
+D(k)[i][j] = min(D(k-1)[i][j], D(k-1)[i][k-1] + D(k-1)[k-1][j])
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+void floyd_warshall(std::vector<std::vector<int>>& dist) {
+    int n = dist.size();
+    for (int k = 0; k < n; ++k)
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j)
+                if (dist[i][k] + dist[k][j] < dist[i][j])
+                    dist[i][j] = dist[i][k] + dist[k][j];
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} 4 vertices with adjacency matrix (INF = no edge):
+
+\begin{lstlisting}[language=Java]
+Initial D(0):
+       0    1    2    3
+  0 [  0    3    8  INF ]
+  1 [ INF    0  INF   -4 ]
+  2 [ INF  INF    0    2 ]
+  3 [ INF  INF  INF    0 ]
+
+k=0 (use vertex 0 as intermediate):
+  D[1][2] = min(INF, D[1][0]+D[0][2]) = min(INF, INF+8) = INF  (no improvement)
+  D[1][3] = min(-4, D[1][0]+D[0][3]) = -4  (no improvement)
+  No changes -- vertex 0 has no incoming edges.
+
+k=1 (use vertex 1 as intermediate):
+  D[0][3] = min(INF, D[0][1]+D[1][3]) = min(INF, 3+(-4)) = -1
+  D[2][3] = min(2, D[2][1]+D[1][3]) = min(2, INF+(-4)) = 2
+  Updated: D[0][3] = -1
+
+k=2 (use vertex 2 as intermediate):
+  D[0][2] = min(8, D[0][2]+D[2][2]) = 8  (no change)
+  D[1][0] = min(INF, D[1][2]+D[2][0]) = INF  (no change)
+  No significant changes.
+
+k=3 (use vertex 3 as intermediate):
+  D[0][2] = min(8, D[0][3]+D[3][2]) = 8  (3 has no outgoing to 2)
+  D[1][0] = min(INF, D[1][3]+D[3][0]) = INF  (3 has no outgoing to 0)
+  No changes.
+
+Final D:
+       0    1    2    3
+  0 [  0    3    8   -1 ]
+  1 [ INF    0  INF   -4 ]
+  2 [ INF  INF    0    2 ]
+  3 [ INF  INF  INF    0 ]
+
+Shortest path from 0 to 3: 0->1->3, cost -1 (uses negative edge!)
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$^{3}$) time, O(n$^{2}$) space. Can be reduced to O(n$^{2}$) space using a single matrix (overwrite in place).  
+\textbf{When to use:} dense graphs, negative edges present, or when you need all-pairs shortest paths. For sparse graphs, running Dijkstra from each vertex is faster: O(V $\cdot$ (V + E) log V).
+
+\section{Longest Common Subsequence (LCS)}
+
+\textbf{Problem:} Given two strings X and Y, find the longest sequence that appears as a subsequence in both.
+
+\subsection{Recurrence}
+
+\begin{lstlisting}[language=Java]
+LCS[i][j] = longest common subsequence\index{longest common subsequence} of X[0..i-1] and Y[0..j-1]
+
+LCS[i][j] = 0                                        if i=0 or j=0
+            LCS[i-1][j-1] + 1                        if X[i-1] = Y[j-1]
+            max(LCS[i-1][j], LCS[i][j-1])            otherwise
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+int lcs_length(std::string_view a, std::string_view b) {
+    int m = a.size(), n = b.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            if (a[i - 1] == b[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = std::max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+    }
+    return dp[m][n];
+}
+
+std::string lcs(std::string_view a, std::string_view b) {
+    int m = a.size(), n = b.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+    // ... fill dp table ...
+
+    // Backtrack
+    std::string result;
+    int i = m, j = n;
+    while (i > 0 && j > 0) {
+        if (a[i - 1] == b[j - 1]) {
+            result.push_back(a[i - 1]);
+            --i; --j;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            --i;
+        } else {
+            --j;
+        }
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Example:} X = "ABCBDAB", Y = "BDCABA" $\to $ LCS = "BCBA" or "BDAB" (length 4).
+
+\section{Edit Distance (Levenshtein Distance)}
+
+\textbf{Problem:} Minimum number of insertions, deletions, and substitutions to convert string A into string B.
+
+\subsection{Recurrence}
+
+\begin{lstlisting}[language=Java]
+ED[i][j] = edit distance\index{edit distance} between A[0..i-1] and B[0..j-1]
+
+ED[i][j] = i                                       if j = 0
+           j                                       if i = 0
+           ED[i-1][j-1]                            if A[i-1] = B[j-1]
+           min(ED[i-1][j] + 1,     // delete
+               ED[i][j-1] + 1,     // insert
+               ED[i-1][j-1] + 1)   // substitute
+\end{lstlisting}
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+int edit_distance(std::string_view a, std::string_view b) {
+    int m = a.size(), n = b.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1));
+
+    for (int i = 0; i <= m; ++i) dp[i][0] = i;
+    for (int j = 0; j <= n; ++j) dp[0][j] = j;
+
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            if (a[i - 1] == b[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            } else {
+                dp[i][j] = std::min({dp[i - 1][j] + 1,      // delete
+                                     dp[i][j - 1] + 1,      // insert
+                                     dp[i - 1][j - 1] + 1}); // substitute
+            }
+        }
+    }
+    return dp[m][n];
+}
+\end{lstlisting}
+
+\textbf{Application:} Spell checking, DNA sequence alignment, diff tools.
+
+\section{Coin Change (Unbounded)}
+
+\textbf{Problem:} Given coin denominations\index{coin change} (unlimited supply), find the minimum number of coins to make a target amount.
+
+\subsection{Recurrence}
+
+\begin{lstlisting}[language=Java]
+dp[c] = min coins needed to make amount c
+dp[c] = min over all coins  <=  c of (dp[c - coin] + 1)
+dp[0] = 0
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+int coin_change(std::span<const int> coins, int amount) {
+    std::vector<int> dp(amount + 1, INT_MAX / 2);
+    dp[0] = 0;
+
+    for (int c = 1; c <= amount; ++c) {
+        for (int coin : coins) {
+            if (coin <= c) {
+                dp[c] = std::min(dp[c], dp[c - coin] + 1);
+            }
+        }
+    }
+    return dp[amount] == INT_MAX / 2 ? -1 : dp[amount];
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} coins = [1, 3, 4], amount = 6.
+
+\begin{lstlisting}[language=Java]
+dp[0] = 0
+dp[1] = dp[1-1] + 1 = 1
+dp[2] = dp[2-1] + 1 = 2
+dp[3] = min(dp[3-1]+1, dp[3-3]+1) = min(3, 1) = 1
+dp[4] = min(dp[4-1]+1, dp[4-3]+1, dp[4-4]+1) = min(2, 2, 1) = 1
+dp[5] = min(dp[5-1]+1, dp[5-3]+1, dp[5-4]+1) = min(2, 2, 2) = 2
+dp[6] = min(dp[6-1]+1, dp[6-3]+1, dp[6-4]+1) = min(3, 2, 2) = 2
+
+Answer: 2 coins (3+3 or 4+1+1? No: 3+3 = 2 coins!)
+\end{lstlisting}
+
+\textbf{Why greedy fails here:} Greedy by largest coin: 4 + 1 + 1 = 3 coins. But 3 + 3 = 2 coins is better. The denominations [1, 3, 4] don't have the ``canonical'' property that US coins have (25, 10, 5, 1), where greedy is always optimal.
+
+\textbf{Variant: count the number of ways:}
+
+\begin{lstlisting}[language=C++]
+int count_ways(std::span<const int> coins, int amount) {
+    std::vector<int> dp(amount + 1, 0);
+    dp[0] = 1;
+    for (int coin : coins)
+        for (int c = coin; c <= amount; ++c)
+            dp[c] += dp[c - coin];
+    return dp[amount];
+}
+\end{lstlisting}
+
+For coins [1, 3, 4] and amount = 6: dp[6] = 3 ways (1+1+1+1+1+1, 3+3, 3+1+1+1).
+
+\textbf{Complexity:} O(amount $\times$ coins) time, O(amount) space. This is pseudo-polynomial — polynomial in the value of the input, not its bit length. The problem is NP-hard in general (subset sum reduces to it).
+
+\section{DP vs. Greedy vs. Divide and Conquer}
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Criterion & Greedy & Divide \& Conquer & Dynamic Programming \\
+Subproblems & One & Independent & Overlapping \\
+Decision & Locally optimal & Combine solutions & Table of all options \\
+Correctness & Greedy choice property & Induction & Optimal substructure \\
+Example & Dijkstra, MST & Merge sort, binary search & Knapsack, LCS, Floyd-Warshall \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{When to use each:}
+
+\begin{itemize}
+\item \textbf{Greedy:} when the problem has optimal substructure AND the greedy choice property — i.e., making the locally best choice always leads to a globally optimal solution. Fastest (usually O(n log n)).
+\item \textbf{DP:} when subproblems overlap and optimal substructure holds, but the greedy choice property does not. Slower (polynomial) but guaranteed correct.
+\item \textbf{Divide \& Conquer:} when subproblems are independent and can be solved separately. The combine step is often the bottleneck. Natural fit for parallelism.
+\end{itemize}
+
+\textbf{Case study: shortest paths}
+\begin{itemize}
+\item Dijkstra (greedy): non-negative weights, O((V+E) log V)
+\item Bellman-Ford (DP): handles negative weights, O(V$\cdot$E)
+\item Floyd-Warshall (DP): all-pairs, O(V$^{3}$)
+\item Divide \& Conquer doesn't naturally apply here — shortest paths have overlapping subproblems.
+\end{itemize}
+
+\textbf{Case study: knapsack}
+\begin{itemize}
+\item Fractional knapsack (greedy): O(n log n) by ratio — optimal
+\item 0/1 knapsack (DP): O(n$\cdot$C) — greedy fails
+\item Unbounded knapsack (DP): O(n$\cdot$C) — greedy fails
+\end{itemize}
+\section{Common Bugs and Pitfalls}
+
+\begin{itemize}
+\item \textbf{Infinite loops in recurrence} — a recurrence that depends on itself without a base case leads to infinite recursion. Always verify the base case terminates and that subproblems strictly decrease the state space.
+\item \textbf{Off-by-one in table dimensions} — DP tables indexed by string length or array position must handle the empty-prefix case at index 0. Forgetting this causes out-of-bounds access or incorrect base values.
+\item \textbf{Integer overflow in DP values} — filling a knapsack DP with \texttt{INT\_MAX} and then adding 1 overflows to negative. Use \texttt{INT\_MAX / 2} as "infinity" and check before adding.
+\item \textbf{Assuming DP is always faster} — for small problem sizes, recursion or brute force can be faster due to DP's overhead from table construction. Profile before optimizing.
+\item \textbf{Forgetting to reconstruct} — the DP table gives the optimal \textit{value}, not the solution itself. Always store the decision in a parallel table if reconstruction is needed (e.g., which items to pack).
+\item \textbf{2D tables for problems that need only the previous row} — many DP problems (01 knapsack, edit distance) only need the previous row. Allocating O(n$^{2}$) space when O(n) suffices is wasteful and limits scalability.
+\end{itemize}
+
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Dynamic programming} solves problems with overlapping subproblems and optimal substructure.
+\item \textbf{Top-down (memoization)} is often easier to code; \textbf{bottom-up (tabulation)} is often more efficient.
+\item \textbf{Knapsack, matrix chain, LCS, edit distance, and Floyd-Warshall} are canonical DP problems.
+\item Industrial applications include \textbf{Google's PageRank} (DP on graphs), \textbf{spell checkers} (edit distance), \textbf{DNA sequence alignment} (Smith-Waterman), \textbf{speech recognition} (Viterbi), \textbf{robotics path planning}, and \textbf{supply chain optimization}.
+\item The \textbf{key skill} is formulating the recurrence — recognizing the state and the transition.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{What's the real diagnostic for ``this problem needs DP'' — beyond ``overlapping subproblems''?}\label{faq:dp-diagnostic}
+
+The practical test: (1) Write the naive recursive solution. (2) If it recomputes the same subproblems more than a few times, DP will help. (3) If the number of \emph{distinct} subproblems is polynomial (even though the recursion tree is exponential), memoization gives you polynomial time. The deeper insight: DP works when the problem has \emph{optimal substructure} AND the subproblem graph has no cycles (otherwise you need techniques like Bellman-Ford for shortest paths with negative edges). A common trap: problems with optimal substructure but no overlapping subproblems (like greedy problems) don't benefit from DP — they need greedy or other techniques.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does bottom-up tabulation actually outperform top-down memoization — and vice versa?}\label{faq:tab-vs-memo}
+
+Tabulation wins when: (1) you need O(1) stack space (memoization uses O(depth) stack frames), (2) the subproblem dependency graph is dense (tabulation avoids hash table overhead), (3) you want cache-friendly access patterns (iterating arrays is faster than hash lookups). Memoization wins when: (1) only a fraction of subproblems are needed (lazy evaluation), (2) the recurrence is naturally recursive (tree DP, DP on DAGs), (3) you want to avoid figuring out the iteration order. In practice, the difference is often 2--3x — pick whichever makes the code clearer.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you optimize DP space from O(n$\cdot$m) to O(m)?}
+
+When the recurrence for dp[i][j] only depends on dp[i-1][...], you only need the previous row. Use a single 1D array and update it in the right direction. For 0/1 knapsack, iterate capacity backwards; for unbounded knapsack, iterate forwards. For LCS, use two rows. This reduces space from O(n$\cdot$m) to O(min(n,m)).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain the time complexity of the 0/1 knapsack DP.}
+
+The table has n+1 rows and C+1 columns, where n is the number of items and C is the capacity. Each cell takes O(1) time. Total: O(n$\cdot$C). This is \textbf{pseudo-polynomial} — polynomial in the numeric value of C, not in the number of bits to represent C. Since C can be exponential in its bit length, the problem is actually NP-hard.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you convert a DP recurrence into an efficient implementation — the practical workflow?}\label{faq:dp-workflow}
+
+Step 1: Write the recurrence relation (e.g., dp[i][j] = min(dp[i-1][j], dp[i-1][j-w[i]] + v[i])). Step 2: Identify the state space (what are i and j?). Step 3: Determine the iteration order (which states depend on which?). Step 4: Optimize space (can you reduce 2D to 1D?). The key insight: the iteration order IS the dependency order — if dp[i] depends on dp[i-1], iterate forward. If it depends on dp[i+1], iterate backward. Getting this wrong gives wrong answers, not just slow code.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does the coin change greedy fail? Give a concrete example.}
+
+Denominations [1, 3, 4], amount = 6. Greedy (largest first): 4+1+1 = 3 coins. Optimal: 3+3 = 2 coins. Greedy fails because 4 is not a multiple of 3, leaving an awkward remainder. US coins (1, 5, 10, 25) are canonical — greedy is always optimal. Most other currency systems are not.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is edit distance O(m$\cdot$n) and not O(3$^{\max(m,n)})$, and what are the practical speedups?}\label{faq:edit-distance-speedup}
+
+Naive recursion tries all three operations (insert/delete/substitute) at each position --- $O(3^{\max(m,n)})$ because each choice branches into three. DP avoids recomputation by storing results for all $(i,j)$ pairs --- $O(m \cdot n)$ states, $O(1)$ per state. Practical speedups: (1) Ukkonen's optimization --- if you only care about distance $\leq k$, stop when all values in a row exceed $k$, giving $O(k \cdot \min(m,n))$; (2) Myers' bit-parallel algorithm --- packs the DP row into machine words, processing 64 cells per operation, giving $O(mn/w)$ where $w = 64$; (3) For long strings with small differences, banded DP restricts the computation to a diagonal band of width $2k+1$.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What's the most common mistake when reconstructing DP solutions, and how do you avoid it?}\label{faq:dp-reconstruct-mistake}
+
+The most common mistake: overwriting the decision table during the DP computation. When you optimize space from O(n$\cdot$m) to O(m) using two rows, you lose the decision information needed for reconstruction. Fix: either (1) keep the full decision table separately (costs O(n$\cdot$m) space but you need it), (2) recompute the DP forward while tracing backward (O(n$\cdot$m) time, O(m) space), or (3) use Hirschberg's algorithm for LCS which gives O(m+n) space AND the actual subsequence. The lesson: space optimization and solution reconstruction are often in tension — plan for both from the start.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does LCS use a 2D DP table when the problem seems 1D (two strings)?}\label{faq:lc-2d-state}
+
+The state needs to capture progress on BOTH strings simultaneously — dp[i][j] = LCS of prefix A[0..i] and B[0..j]. If you only track one index, you lose information about where you are in the other string. This is the general principle: the DP state dimension equals the number of independent ``progress counters'' in the problem. For LCS, you advance through A and B independently $\to$ 2D. For edit distance, same reasoning. For knapsack with n items and capacity W, you track both item index and remaining capacity $\to$ 2D. The state space IS the problem's degrees of freedom.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the Held-Karp algorithm for TSP?}
+
+Held-Karp uses DP over subsets: dp[S][i] = minimum cost to visit all cities in set S, ending at city i. There are 2$^{n}$ subsets and n ending cities, giving O(n$^{2} \cdot 2^{n})$ time and O(n $\cdot$ 2$^{n}$) space. It beats brute force O(n!) by a factor of n, but is only feasible for n $\le$ 20-25. For larger instances, approximation algorithms or heuristics are needed.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the concrete methodology for recognizing when a greedy approach fails and DP is needed?}\label{faq:greedy-to-dp-methodology}
+
+Three diagnostic tests: (1) Try the exchange argument — if you can't prove the greedy choice is always safe, greedy fails. (2) Build a counterexample — try small inputs where the greedy choice leaves a ``bad remainder'' (e.g., coin change [1,3,4] amount=6: greedy picks 4, leaves 2 which needs 2 more coins). (3) Check if the problem has \emph{state} that greedy discards — if the optimal decision depends on information from previous choices (like remaining capacity in knapsack), you need DP to track that state. The concrete sign: if your greedy algorithm makes a choice and then can't ``undo'' it when a better option appears later, you need DP.
+\end{enumerate}
+
+\section{Longest Common Subsequence (LCS) --- Detailed Treatment}
+
+\textbf{Problem:} Given two sequences X[0..m-1] and Y[0..n-1], find the longest subsequence common to both. A subsequence is obtained by deleting zero or more elements without changing the order of the remaining elements.
+
+\subsection{DP Formulation}
+
+Let dp[i][j] = length of the LCS of X[0..i-1] and Y[0..j-1].
+
+Base cases: dp[0][j] = 0 for all j (empty X); dp[i][0] = 0 for all i (empty Y).
+
+Recurrence:
+
+\begin{lstlisting}[language=Java]
+If X[i-1] == Y[j-1]:
+    dp[i][j] = dp[i-1][j-1] + 1    (extend the match)
+Else:
+    dp[i][j] = max(dp[i-1][j], dp[i][j-1])  (skip from X or Y)
+\end{lstlisting}
+
+\subsection{Table Construction: X = "ABCBDAB", Y = "BDCAB"}
+
+Build an 8 x 6 table (m+1 rows, n+1 columns):
+
+\begin{lstlisting}[language=Java]
+          ""   B    D    C    A    B
+    ""  [  0    0    0    0    0    0 ]
+     A  [  0    0    0    0    1    1 ]
+     B  [  0    1    1    1    1    2 ]
+     C  [  0    1    1    2    2    2 ]
+     B  [  0    1    1    2    2    3 ]
+     D  [  0    1    2    2    2    3 ]
+     A  [  0    1    2    2    3    3 ]
+     B  [  0    1    2    2    3    4 ]
+
+LCS length = dp[7][5] = 4
+\end{lstlisting}
+
+Step-by-step fill of key cells:
+
+\begin{lstlisting}[language=Java]
+dp[1][1]: X[0]='A' != Y[0]='B' -> max(dp[0][1],dp[1][0]) = max(0,0) = 0
+dp[1][5]: X[0]='A' != Y[4]='B' -> max(dp[0][5],dp[1][4]) = max(0,1) = 1
+dp[2][1]: X[1]='B' == Y[0]='B' -> dp[1][0]+1 = 0+1 = 1
+dp[2][5]: X[1]='B' == Y[4]='B' -> dp[1][4]+1 = 1+1 = 2
+dp[3][3]: X[2]='C' == Y[2]='C' -> dp[2][2]+1 = 1+1 = 2
+dp[4][5]: X[3]='B' == Y[4]='B' -> dp[3][4]+1 = 2+1 = 3
+dp[5][2]: X[4]='D' == Y[1]='D' -> dp[4][1]+1 = 1+1 = 2
+dp[7][5]: X[6]='B' == Y[4]='B' -> dp[6][4]+1 = 3+1 = 4
+\end{lstlisting}
+
+\subsection{Backtracking to Find the Actual Subsequence}
+
+Trace back from dp[m][n] to reconstruct the LCS:
+
+\begin{lstlisting}[language=Java]
+Start at (i=7, j=5):
+  X[6]='B' == Y[4]='B' -> match! Record 'B', go to (6,4)
+  X[5]='A' == Y[3]='A' -> match! Record 'A', go to (5,3)
+  X[4]='D' != Y[2]='C'. dp[3][3]=2 >= dp[4][2]=2? Yes -> go up to (3,3)
+  X[2]='C' == Y[2]='C' -> match! Record 'C', go to (2,2)
+  X[1]='B' != Y[1]='D'. dp[1][2]=1 >= dp[2][1]=1? Yes -> go up to (1,2)
+  X[0]='A' != Y[1]='D'. dp[0][2]=0 < dp[1][1]=0? No -> go up to (0,2)
+  i=0, stop.
+
+Result (reversed): B, A, C, B -> "BCAB"  (length 4)
+\end{lstlisting}
+
+Note: there may be multiple valid LCS strings of the same length. Backtracking choices at ties determine which one is found.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <vector>
+#include <algorithm>
+
+std::string lcs_backtrack(std::string_view x, std::string_view y) {
+    int m = x.size(), n = y.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            if (x[i - 1] == y[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = std::max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+    }
+
+    // Backtrack to recover the actual subsequence
+    std::string result;
+    int i = m, j = n;
+    while (i > 0 && j > 0) {
+        if (x[i - 1] == y[j - 1]) {
+            result.push_back(x[i - 1]);
+            --i; --j;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            --i;
+        } else {
+            --j;
+        }
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(m $\cdot$ n) time and space. Space can be reduced to O(min(m,n)) when only the length is needed, but backtracking requires the full table.
+
+\textbf{Applications:} diff tools (git diff), plagiarism detection, version control, bioinformatics (DNA/protein sequence alignment).
+
+\section{Edit Distance (Levenshtein Distance) --- Detailed Treatment}
+
+\textbf{Problem:} Given two strings A and B, find the minimum number of insertions, deletions, and substitutions to convert A into B. Each operation costs 1.
+
+\subsection{DP Formulation}
+
+Let dp[i][j] = minimum edit distance between A[0..i-1] and B[0..j-1].
+
+Base cases: dp[i][0] = i (delete all i characters from A); dp[0][j] = j (insert all j characters of B).
+
+Recurrence:
+
+\begin{lstlisting}[language=Java]
+If A[i-1] == B[j-1]:
+    dp[i][j] = dp[i-1][j-1]           (characters match, no operation)
+Else:
+    dp[i][j] = 1 + min(
+        dp[i-1][j],        (delete from A)
+        dp[i][j-1],        (insert into A)
+        dp[i-1][j-1]       (substitute in A)
+    )
+\end{lstlisting}
+
+\subsection{Table Construction: A = "kitten", B = "sitting"}
+
+Build a 7 x 8 table (m+1 = 7 rows, n+1 = 8 columns):
+
+\begin{lstlisting}[language=Java]
+          ""   s    i    t    t    i    n    g
+    ""  [  0    1    2    3    4    5    6    7 ]
+     k  [  1    1    2    3    4    5    6    7 ]
+     i  [  2    2    1    2    3    4    5    6 ]
+     t  [  3    3    2    1    2    3    4    5 ]
+     t  [  4    4    3    2    1    2    3    4 ]
+     e  [  5    5    4    3    2    2    3    4 ]
+     n  [  6    6    5    4    3    3    2    3 ]
+
+Edit distance = dp[6][7] = 3
+\end{lstlisting}
+
+Step-by-step fill of key cells:
+
+\begin{lstlisting}[language=Java]
+dp[1][1]: 'k' != 's' -> 1 + min(dp[0][1],dp[1][0],dp[0][0])
+                           = 1 + min(1,1,0) = 1
+dp[2][2]: 'i' == 'i' -> dp[1][1] = 1
+dp[3][3]: 't' == 't' -> dp[2][2] = 1
+dp[4][4]: 't' == 't' -> dp[3][3] = 1
+dp[5][5]: 'e' != 'i' -> 1 + min(dp[4][5],dp[5][4],dp[4][4])
+                           = 1 + min(3,2,1) = 2
+dp[6][6]: 'n' == 'n' -> dp[5][5] = 2
+dp[6][7]: 'n' != 'g' -> 1 + min(dp[5][7],dp[6][6],dp[5][6])
+                           = 1 + min(4,2,3) = 3
+\end{lstlisting}
+
+The three operations are: substitute k->s, substitute e->i, insert g at end.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <string>
+#include <vector>
+#include <algorithm>
+
+int edit_distance(std::string_view a, std::string_view b) {
+    int m = a.size(), n = b.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1));
+
+    for (int i = 0; i <= m; ++i) dp[i][0] = i;
+    for (int j = 0; j <= n; ++j) dp[0][j] = j;
+
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            if (a[i - 1] == b[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            } else {
+                dp[i][j] = 1 + std::min({dp[i - 1][j],      // delete
+                                          dp[i][j - 1],      // insert
+                                          dp[i - 1][j - 1]}); // substitute
+            }
+        }
+    }
+    return dp[m][n];
+}
+\end{lstlisting}
+
+\subsection{Backtracking to Find the Operations}
+
+\begin{lstlisting}[language=C++]
+std::string edit_ops(std::string_view a, std::string_view b) {
+    int m = a.size(), n = b.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1));
+    // ... fill dp table as above ...
+
+    std::string ops;
+    int i = m, j = n;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i-1] == b[j-1]) {
+            --i; --j;  // match, no operation
+        } else if (i > 0 && j > 0 && dp[i][j] == dp[i-1][j-1] + 1) {
+            ops += "SUB " + std::string(1, a[i-1]) + "->" + std::string(1, b[j-1]) + "\n";
+            --i; --j;
+        } else if (i > 0 && dp[i][j] == dp[i-1][j] + 1) {
+            ops += "DEL " + std::string(1, a[i-1]) + "\n";
+            --i;
+        } else {
+            ops += "INS " + std::string(1, b[j-1]) + "\n";
+            --j;
+        }
+    }
+    std::reverse(ops.begin(), ops.end());
+    return ops;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(m $\cdot$ n) time and space. Can be reduced to O(min(m,n)) space using two rows.
+
+\textbf{Applications:} spell checking (suggest closest word), DNA sequence alignment, plagiarism detection, diff tools, speech recognition (aligning phoneme sequences), fuzzy string matching in search engines.
+
+\section{Matrix Chain Multiplication --- Detailed Treatment}
+
+\textbf{Problem:} Given n matrices A$_{1}$, A$_{2}$, ..., A$_{n}$ where A$_{i}$ has dimensions p[i-1] x p[i], find the parenthesization that minimizes the total number of scalar multiplications.
+
+\subsection{DP Formulation}
+
+Let m[i][j] = minimum cost to multiply matrices A$_{i}$ through A$_{j}$ (1-indexed).
+
+Base case: m[i][i] = 0 (single matrix, no multiplication needed).
+
+Recurrence:
+
+\begin{lstlisting}[language=Java]
+m[i][j] = min over k in [i, j-1] of:
+    m[i][k] + m[k+1][j] + p[i-1] * p[k] * p[j]
+\end{lstlisting}
+
+The term p[i-1] * p[k] * p[j] is the cost of multiplying the result of (A$_{i}$..A$_{k}$) with the result of (A$_{k+1}$..A$_{j}$).
+
+\subsection{Worked Trace: 4 Matrices}
+
+Dimensions: A$_{1}$ = 10x20, A$_{2}$ = 20x30, A$_{3}$ = 30x40, A$_{4}$ = 40x30.
+Dimension array: p = [10, 20, 30, 40, 30].
+
+\begin{lstlisting}[language=Java]
+Step 1: Fill diagonal (chain length = 1, single matrices)
+  m[1][1] = 0, m[2][2] = 0, m[3][3] = 0, m[4][4] = 0
+
+Step 2: Chain length = 2 (two consecutive matrices)
+  m[1][2]: k=1: 0 + 0 + 10*20*30 = 6000
+  m[2][3]: k=2: 0 + 0 + 20*30*40 = 24000
+  m[3][4]: k=3: 0 + 0 + 30*40*30 = 36000
+
+Step 3: Chain length = 3
+  m[1][3]:
+    k=1: m[1][1]+m[2][3]+10*20*40 = 0+24000+8000 = 32000
+    k=2: m[1][2]+m[3][3]+10*30*40 = 6000+0+12000 = 18000  (min)
+  m[2][4]:
+    k=2: m[2][2]+m[3][4]+20*30*30 = 0+36000+18000 = 54000
+    k=3: m[2][3]+m[4][4]+20*40*30 = 24000+0+24000 = 48000  (min)
+
+Step 4: Chain length = 4
+  m[1][4]:
+    k=1: m[1][1]+m[2][4]+10*20*30 = 0+48000+6000 = 54000
+    k=2: m[1][2]+m[3][4]+10*30*30 = 6000+36000+9000 = 51000
+    k=3: m[1][3]+m[4][4]+10*40*30 = 18000+0+12000 = 30000  (min)
+
+Cost table m[i][j]:
+       j=1    j=2     j=3     j=4
+i=1 [  0    6000   18000  30000 ]
+i=2 [  -       0   24000  48000 ]
+i=3 [  -       -       0  36000 ]
+i=4 [  -       -       -       0 ]
+
+Optimal cost = 30000
+Optimal parenthesization: ((A1 x A2) x (A3 x A4))
+\end{lstlisting}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <span>
+#include <climits>
+
+int matrix_chain_order(std::span<const int> p) {
+    int n = p.size() - 1;
+    std::vector<std::vector<int>> m(n, std::vector<int>(n, 0));
+
+    for (int len = 2; len <= n; ++len) {
+        for (int i = 0; i <= n - len; ++i) {
+            int j = i + len - 1;
+            m[i][j] = INT_MAX;
+            for (int k = i; k < j; ++k) {
+                int cost = m[i][k] + m[k + 1][j]
+                         + p[i] * p[k + 1] * p[j + 1];
+                if (cost < m[i][j]) m[i][j] = cost;
+            }
+        }
+    }
+    return m[0][n - 1];
+}
+\end{lstlisting}
+
+\subsection{Printing the Optimal Parenthesization}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <span>
+#include <string>
+
+std::string matrix_chain_parens(std::span<const int> p) {
+    int n = p.size() - 1;
+    std::vector<std::vector<int>> m(n, std::vector<int>(n, 0));
+    std::vector<std::vector<int>> s(n, std::vector<int>(n, 0));
+
+    for (int len = 2; len <= n; ++len) {
+        for (int i = 0; i <= n - len; ++i) {
+            int j = i + len - 1;
+            m[i][j] = INT_MAX;
+            for (int k = i; k < j; ++k) {
+                int cost = m[i][k] + m[k + 1][j]
+                         + p[i] * p[k + 1] * p[j + 1];
+                if (cost < m[i][j]) {
+                    m[i][j] = cost;
+                    s[i][j] = k;
+                }
+            }
+        }
+    }
+
+    // Recursive helper to build the string
+    auto build = [&](auto&& self, int i, int j) -> std::string {
+        if (i == j) return "A" + std::to_string(i + 1);
+        int k = s[i][j];
+        return "(" + self(self, i, k) + " x "
+                   + self(self, k + 1, j) + ")";
+    };
+    return build(build, 0, n - 1);
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$^{3}$) time, O(n$^{2}$) space. The DP considers O(n$^{2}$) subproblems, each taking O(n) time to compute.
+
+\section{Subset Sum Problem}
+
+\textbf{Problem:} Given a set of non-negative integers and a target sum T, determine if any subset sums to exactly T.
+
+\subsection{DP Formulation}
+
+Let dp[i][w] = true if a subset of the first i integers can sum to exactly w.
+
+Base case: dp[0][0] = true (empty subset sums to 0); dp[0][w] = false for w > 0.
+
+Recurrence:
+
+\begin{lstlisting}[language=Java]
+dp[i][w] = dp[i-1][w]              if nums[i-1] > w  (cannot take)
+            dp[i-1][w] || dp[i-1][w - nums[i-1]]  otherwise
+\end{lstlisting}
+
+\subsection{Worked Trace: nums = [3, 7, 1, 8, 4], T = 11}
+
+\begin{lstlisting}[language=Java]
+         w=0   w=1   w=2   w=3   w=4   w=5   w=6   w=7   w=8   w=9  w=10  w=11
+i=0 [] [  T     F     F     F     F     F     F     F     F     F     F     F  ]
+i=1 3  [  T     F     F     T     F     F     F     F     F     F     F     F  ]
+i=2 7  [  T     F     F     T     F     F     F     T     F     F     F     T  ]
+i=3 1  [  T     T     F     T     F     F     F     T     F     F     T     T  ]
+i=4 8  [  T     T     F     T     F     F     F     T     T     T     T     T  ]
+i=5 4  [  T     T     F     T     T     T     F     T     T     T     T     T  ]
+
+dp[5][11] = true -> subset exists: {3, 8} or {7, 4} or {3, 7, 1}
+\end{lstlisting}
+
+To reconstruct the subset, trace back from dp[n][T]:
+
+\begin{lstlisting}[language=Java]
+i=5, w=11: dp[5][11]=T, dp[4][11]=T -> skip nums[4]=4
+i=4, w=11: dp[4][11]=T, dp[3][11]=T -> skip nums[3]=8
+i=3, w=11: dp[3][11]=T, dp[2][11]=T -> skip nums[2]=1
+i=2, w=11: dp[2][11]=T, dp[1][11]=F -> take nums[1]=7, w=11-7=4
+i=1, w=4:  dp[1][4]=F -> take nums[0]=3, w=4-3=1
+i=0, w=1:  base case
+
+Subset: {3, 7} -> 3+7 = 10 ... wait, recheck.
+\end{lstlisting}
+
+Recheck: with nums = [3, 7, 1, 8, 4] and T = 11, the valid subsets are {3, 8} = 11 and {7, 4} = 11 and {3, 7, 1} = 11.
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <span>
+
+bool subset_sum(std::span<const int> nums, int target) {
+    int n = nums.size();
+    std::vector<std::vector<bool>> dp(n + 1, std::vector<bool>(target + 1, false));
+    dp[0][0] = true;
+
+    for (int i = 1; i <= n; ++i) {
+        for (int w = 0; w <= target; ++w) {
+            dp[i][w] = dp[i - 1][w];  // skip nums[i-1]
+            if (w >= nums[i - 1]) {
+                dp[i][w] = dp[i][w] || dp[i - 1][w - nums[i - 1]];
+            }
+        }
+    }
+    return dp[n][target];
+}
+\end{lstlisting}
+
+\subsection{Space-Optimized Version}
+
+Since each row depends only on the previous row, use a single 1D array:
+
+\begin{lstlisting}[language=C++]
+bool subset_sum_optimized(std::span<const int> nums, int target) {
+    std::vector<bool> dp(target + 1, false);
+    dp[0] = true;
+
+    for (int num : nums) {
+        for (int w = target; w >= num; --w) {
+            dp[w] = dp[w] || dp[w - num];
+        }
+    }
+    return dp[target];
+}
+\end{lstlisting}
+
+Note: iterate backwards (right to left) so each number is used at most once (0/1 property). If you iterate forwards, you allow unlimited reuse (unbounded variant).
+
+\textbf{Complexity:} O(n $\cdot$ T) time and space (or O(T) space optimized). Pseudo-polynomial since T can be exponential in the number of bits used to represent it. The subset sum problem is NP-complete in general.
+
+\textbf{Applications:} partition problems (can the set be split into two equal halves?), cryptography (knapsack-based cryptosystems), resource allocation, load balancing.
+
+\section{House Robber}
+
+\textbf{Problem:} Given a row of houses, each with a value, find the maximum total value you can rob without robbing two adjacent houses. This is a classic 1D DP problem that appears frequently in interviews.
+
+\subsection{Recurrence}
+
+Let dp[i] = maximum value robbing houses 0 through i. For house i, you have two choices: skip it (dp[i-1]) or rob it (dp[i-2] + value[i], since you cannot rob the previous house).
+
+\begin{lstlisting}[language=Java]
+dp[i] = max(dp[i-1], dp[i-2] + value[i])
+dp[0] = value[0]
+dp[1] = max(value[0], value[1])
+\end{lstlisting}
+
+\subsection{Tabulation}
+
+\begin{lstlisting}[language=C++]
+int rob(std::span<const int> values) {
+    int n = values.size();
+    if (n == 0) return 0;
+    if (n == 1) return values[0];
+    std::vector<int> dp(n);
+    dp[0] = values[0];
+    dp[1] = std::max(values[0], values[1]);
+    for (int i = 2; i < n; ++i)
+        dp[i] = std::max(dp[i - 1], dp[i - 2] + values[i]);
+    return dp[n - 1];
+}
+\end{lstlisting}
+
+\subsection{Space-Optimized Version}
+
+Since dp[i] depends only on the two previous values, we can use two variables instead of an array:
+
+\begin{lstlisting}[language=C++]
+int rob_optimized(std::span<const int> values) {
+    int prev2 = 0, prev1 = 0;
+    for (int v : values) {
+        int curr = std::max(prev1, prev2 + v);
+        prev2 = prev1;
+        prev1 = curr;
+    }
+    return prev1;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} values = [2, 7, 9, 3, 1].
+
+\begin{lstlisting}[language=Java]
+i=0: prev2=0, prev1=0 -> curr = max(0, 0+2) = 2      -> prev2=0,  prev1=2
+i=1: prev2=2, prev1=2 -> curr = max(2, 0+7) = 7      -> prev2=2,  prev1=7
+i=2: prev2=7, prev1=7 -> curr = max(7, 2+9) = 11     -> prev2=7,  prev1=11
+i=3: prev2=11, prev1=11 -> curr = max(11, 7+3) = 11   -> prev2=11, prev1=11
+i=4: prev2=11, prev1=11 -> curr = max(11, 11+1) = 12  -> prev2=11, prev1=12
+
+Answer: 12 (rob houses 0, 2, 4 = 2 + 9 + 1 = 12)
+\end{lstlisting}
+
+\textbf{Complexity:} O(n) time, O(1) space. The recurrence is linear because each state depends on exactly two previous states.
+
+\textbf{Variant: circular houses.} If houses are arranged in a circle (house 0 and house n-1 are adjacent), solve twice: once excluding the last house, once excluding the first. Return the maximum. This is the ``House Robber II'' variant.
+
+\section{Longest Increasing Subsequence (LIS)}
+
+\textbf{Problem:} Given an array of integers, find the length of the longest strictly increasing subsequence. A subsequence is obtained by deleting elements without changing the order of the rest.
+
+\subsection{\texorpdfstring{O(n$^{2}$)}{O(n squared)} DP}
+
+Let dp[i] = length of LIS ending at index i. For each i, check all j < i: if nums[j] < nums[i], then dp[i] = max(dp[i], dp[j] + 1).
+
+\begin{lstlisting}[language=C++]
+int lis_dp(std::span<const int> nums) {
+    int n = nums.size();
+    std::vector<int> dp(n, 1);  // every element is an LIS of length 1
+    int best = 1;
+    for (int i = 1; i < n; ++i) {
+        for (int j = 0; j < i; ++j) {
+            if (nums[j] < nums[i])
+                dp[i] = std::max(dp[i], dp[j] + 1);
+        }
+        best = std::max(best, dp[i]);
+    }
+    return best;
+}
+\end{lstlisting}
+
+\textbf{Worked trace:} nums = [10, 9, 2, 5, 3, 7, 101, 18].
+
+\begin{lstlisting}[language=Java]
+dp[0] = 1  (10)
+dp[1] = 1  (9, no j with nums[j] < 9)
+dp[2] = 1  (2, no j with nums[j] < 2)
+dp[3] = 2  (5 > 2, extend dp[2])
+dp[4] = 2  (3 > 2, extend dp[2])
+dp[5] = 3  (7 > 2, extend dp[2]; also > 5, extend dp[3]; also > 3, extend dp[4])
+dp[6] = 4  (101 > 7, extend dp[5])
+dp[7] = 4  (18 > 7, extend dp[5])
+
+LIS length = 4  (e.g., 2, 5, 7, 101 or 2, 3, 7, 101)
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$^{2}$) time, O(n) space. Good for n up to about 10,000.
+
+\subsection{O(n log n) Patience Sorting}
+
+The key idea: maintain an array \texttt{tails} where tails[i] is the smallest possible tail element for an increasing subsequence of length i+1. For each number, binary search for the position where it can extend or replace an entry.
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <algorithm>
+
+int lis_patience(std::span<const int> nums) {
+    std::vector<int> tails;
+    for (int x : nums) {
+        auto it = std::lower_bound(tails.begin(), tails.end(), x);
+        if (it == tails.end())
+            tails.push_back(x);       // extend longest subsequence
+        else
+            *it = x;                  // replace to keep smallest tail
+    }
+    return tails.size();
+}
+\end{lstlisting}
+
+\textbf{Why this works:} Each element is placed in the leftmost pile where it can sit (patience sorting analogy). Piles are sorted, and each pile's top card is increasing. The number of piles equals the LIS length. Replacing a tail with a smaller value preserves all existing subsequences while enabling longer extensions in the future.
+
+\subsection{Worked Trace: Patience Sorting}
+
+nums = [10, 9, 2, 5, 3, 7, 101, 18]
+
+\begin{lstlisting}[language=Java]
+x=10: tails = [10]                 (new pile)
+x=9:  tails = [9]                  (9 replaces 10 in pile 1)
+x=2:  tails = [2]                  (2 replaces 9 in pile 1)
+x=5:  tails = [2, 5]               (5 starts pile 2)
+x=3:  tails = [2, 3]               (3 replaces 5 in pile 2)
+x=7:  tails = [2, 3, 7]            (7 starts pile 3)
+x=101: tails = [2, 3, 7, 101]      (101 starts pile 4)
+x=18: tails = [2, 3, 7, 18]        (18 replaces 101 in pile 4)
+
+Number of piles = 4 -> LIS length = 4
+\end{lstlisting}
+
+Note that \texttt{tails} is NOT the LIS itself -- it is an auxiliary structure. The actual LIS can be recovered by storing predecessor pointers during the binary search.
+
+\subsection{Recovering the Actual Subsequence}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> lis_with_sequence(std::span<const int> nums) {
+    int n = nums.size();
+    std::vector<int> tails;
+    std::vector<int> tail_indices;   // index in nums of each tail
+    std::vector<int> prev(n, -1);    // predecessor of nums[i] in LIS
+    std::vector<int> dp(n, 1);
+
+    for (int i = 0; i < n; ++i) {
+        auto it = std::lower_bound(tails.begin(), tails.end(), nums[i]);
+        int pos = it - tails.begin();
+        if (it == tails.end()) {
+            tails.push_back(nums[i]);
+            tail_indices.push_back(i);
+        } else {
+            *it = nums[i];
+            tail_indices[pos] = i;
+        }
+        dp[i] = pos + 1;
+        prev[i] = (pos > 0) ? tail_indices[pos - 1] : -1;
+    }
+
+    // Reconstruct by following predecessors from the last element
+    std::vector<int> result;
+    int k = tail_indices[tails.size() - 1];
+    while (k >= 0) {
+        result.push_back(nums[k]);
+        k = prev[k];
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n log n) time, O(n) space. The binary search dominates; each element is inserted or replaced once.
+
+\textbf{When to use which:}
+\begin{itemize}
+\item O(n$^{2}$) DP: when you need to reconstruct the LIS easily, or when n is small ($<$ 10,000), or when you need additional information (e.g., count of LIS of each length).
+\item O(n log n) patience sorting: when n is large (up to 10$^{5}$ or more) and you only need the length.
+\end{itemize}
+
+\textbf{Applications:} patience sorting itself is a card game algorithm; LIS appears in version control (longest common subsequence of file changes), bioinformatics (sequence alignment), and scheduling (maximum number of non-overlapping intervals is related).
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For the 0/1 knapsack with items (weight, value) = [(2, 3), (3, 4), (4, 5), (5, 6)] and capacity C = 8, compute the DP table bottom-up. What is the optimal value? Which items are selected?
+\end{enumerate}
+
+\begin{enumerate}
+\item Compute the LCS of "ABCBDAB" and "BDCABA". Show the DP table and trace back to find the LCS.
+\end{enumerate}
+
+\begin{enumerate}
+\item For the matrix chain product with dimensions A$_{1}$(10$\times $20), A$_{2}$(20$\times $30), A$_{3}$(30$\times $40), A$_{4}$(40$\times $30), compute the optimal parenthesization using DP. Show the cost table and the split table.
+\end{enumerate}
+
+\begin{enumerate}
+\item Compute the edit distance between "kitten" and "sitting". Show the DP table and trace the optimal alignment.
+\end{enumerate}
+
+\begin{enumerate}
+\item For the coin change problem with coins [1, 2, 5] and amount = 11, compute the DP table. What is the minimum number of coins?
+\end{enumerate}
+
+\begin{enumerate}
+\item State whether each problem has optimal substructure:
+\end{enumerate}
+   a) Finding the longest path in a graph
+   b) Finding the shortest path in a graph (Dijkstra)
+   c) Finding the maximum independent set
+   d) Finding the longest increasing subsequence
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Supply chain shipping optimization (0/1 knapsack).} A warehouse has trucks with 50-ton capacity. There are 200 pallets with weights (100–1000 kg) and priority values. Implement the bottom-up DP knapsack to select pallets maximizing value. For n = 200 and C = 50,000, optimize memory using the 1D rolling array technique. Benchmark against the 2D version. How much memory does the 1D version save?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{DNA sequence alignment (Smith-Waterman).} Implement the Smith-Waterman local alignment algorithm (a variant of edit distance) for DNA sequences. Align two bacterial gene sequences (download from NCBI). Compute the alignment score and visualize the matching regions. Compare with BLAST's heuristic approach.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Viterbi for speech recognition.} Implement the Viterbi algorithm to decode the most likely phoneme sequence from audio features. Given an HMM with 5 states (phonemes), observation probabilities, and transition probabilities, decode the sequence of observations [O$_{1}$, O$_{2}$, O$_{3}$, O$_{4}$, O$_{5}$]. Show the DP trellis and the most likely state path.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Text justification in Google Docs.} Implement text justification using DP: given words with lengths and a line width of 80 characters, break lines to minimize the sum of (slack)$^{3}$ where slack = width - used\_width. Compare the DP result with greedy word-wrapping. Show that greedy produces worse spacing on a sample paragraph.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Robotic path planning (grid DP).} A warehouse robot (similar to Amazon Robotics drives) must navigate from (0,0) to (m,n) on a grid, moving only right and down, avoiding obstacles. Each cell has a traversal cost (floor wear, battery). Find the minimum-cost path using DP. Test on a 100$\times $100 grid with 20\% random obstacles.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{OPT binary search tree for compiler symbol tables.} Compilers use optimal BSTs for symbol table lookup. Given keys [A, B, C, D, E] with access frequencies [0.05, 0.15, 0.40, 0.25, 0.15], compute the OBST using DP. Show the cost table and the resulting tree. Compare expected search cost with a skewed BST (sorted insertion) and a balanced tree.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Longest increasing subsequence for stock trading.} Find the longest sequence of days where a stock price increases (longest bull run). Implement O(n$^{2}$) DP and O(n log n) patience sorting. Test on 20 years of S\&P 500 daily close prices (download from Yahoo Finance). How long is the longest increasing subsequence? How much faster is the O(n log n) version for 5000 data points?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Held-Karp TSP for delivery route planning.} Implement the Held-Karp DP algorithm for the traveling salesman problem. Test on 15 randomly generated cities in 2D. Show the DP table (size = n$\cdot $2$^{n}$). For n = 20, how much memory does the DP table require? At what n does the algorithm become infeasible for a typical laptop? Compare with a nearest-neighbor greedy heuristic — how far from optimal is the greedy solution?
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(DP + approximation for knapsack)} The subset sum DP can approximate the knapsack problem with arbitrarily small error. Implement the FPTAS (fully polynomial-time approximation scheme) for knapsack by scaling values. Show that for $\varepsilon $ = 0.1, the solution is within 10\% of optimal while running in polynomial time.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(DP on trees)} Solve the maximum independent set in a tree using DP. A social network wants to select influencers such that no two connected influencers are selected. Implement tree DP and test on random trees with 1000 nodes. How much faster is tree DP than a general graph algorithm (which would be NP-hard)?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Floyd-Warshall for network routing)} Implement Floyd-Warshall for all-pairs shortest paths in a network of 1000 routers. Use an adjacency matrix with edge weights representing latency. Compare with running Dijkstra from each vertex. Which is faster for dense graphs? For sparse graphs?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(DP for resource allocation)} Implement the DP for allocating a budget of \$1M across 10 projects, each with a nonlinear return function (diminishing returns). Show the DP table and the optimal allocation. Compare with a greedy allocation by ROI.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Longest palindromic subsequence.} Given a string, find the longest subsequence that is a palindrome. Hint: this is an LCS variant -- relate it to the LCS of the string and its reverse. Implement and test on strings of length up to 1000.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Minimum edit distance with weighted operations.} Modify the edit distance DP so that insertions cost 2, deletions cost 3, and substitutions cost 1. Recompute the "kitten" to "sitting" trace. How does the optimal alignment change?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Longest increasing subsequence.} Given an array, find the length of the longest strictly increasing subsequence. Implement the O(n$^{2}$) DP and the O(n log n) patience-sorting variant. Compare running times on random arrays of size 10,000.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Unbounded knapsack.} In the unbounded knapsack, each item can be used unlimited times. Modify the 0/1 knapsack recurrence so the inner loop on capacity iterates forwards instead of backwards. Prove why this change allows reuse.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Partition equal subset sum.} Given an array of positive integers, determine if it can be partitioned into two subsets with equal sum. Implement using the subset sum DP. Test on arrays where the total sum is odd (should immediately return false).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Rod cutting problem.}\index{rod cutting} Given a rod of length n and prices p[1], p[2], ..., p[n] for each length, find the cutting plan that maximizes revenue. Write the DP recurrence and implement it. Compare with the greedy approach of always cutting the longest profitable piece.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Longest common substring.} Unlike LCS (subsequence), a substring must be contiguous. Write a DP that finds the longest common substring of two strings. Hint: use dp[i][j] = dp[i-1][j-1] + 1 when characters match, reset to 0 otherwise.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Climbing stairs with variable costs.} Each step i has a cost c[i]. You can climb 1 or 2 steps at a time. Find the minimum total cost to reach the top. Write the recurrence, implement it, and trace on costs [1, 100, 1, 1, 1, 100, 1, 1, 100, 1].
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Matrix chain -- print the split table.} Extend the matrix chain implementation to store and print the split point s[i][j] for every subproblem. Use it to reconstruct the full parenthesization string for 6 matrices with dimensions [30, 35, 15, 5, 10, 20, 25].
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Edit distance with transpositions.} The Damerau-Levenshtein distance adds the transposition operation (swapping two adjacent characters) at cost 1. Modify the edit distance DP to include: dp[i][j] = dp[i-2][j-2] + 1 when A[i-1]==B[j-2] and A[i-2]==B[j-1]. Trace on "CA" to "ABC".
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Richard Bellman, \textit{Dynamic Programming}. Princeton University Press, 1957.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapters 14 (DP), 15 (DP).
+\item Dan Gusfield, \textit{Algorithms on Strings, Trees, and Sequences}. Cambridge, 1997.
+\item Michael Held and Richard M. Karp, "A Dynamic Programming Approach to Sequencing Problems" — JSIAM, 1962.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Chapter 5 (strings), Chapter 6 (DP).
+\item Donald E. Knuth, "Optimum Binary Search Trees" — Acta Informatica, 1971.
+\end{itemize}
+

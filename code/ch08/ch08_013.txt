@@ -1,0 +1,6 @@
+int random_level() {
+    int level = 0;
+    while (rand() < RAND_MAX / 2 && level < MAX_LEVEL)
+        ++level;
+    return level;
+}

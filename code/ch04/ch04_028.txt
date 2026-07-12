@@ -1,0 +1,11 @@
+iterator find(const T& target) {
+        Node* curr = head_;
+        while (curr) {
+            for (int i = 0; i < curr->count; ++i) {
+                if (curr->data[i] == target)
+                    return iterator(curr, i);
+            }
+            curr = curr->next;
+        }
+        return end();
+    }

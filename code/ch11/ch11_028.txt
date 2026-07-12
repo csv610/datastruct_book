@@ -1,0 +1,18 @@
+Primary tree (keyed on x):
+              [5,8]
+            /       \
+         [3,4]     [7,9]
+         /   \     /   \
+       [1,2] [4,6] [6,7] [8,10]
+
+  Each node stores a secondary tree (keyed on y):
+  Node [5,8] -> secondary tree:
+              [8]
+            /     \
+          [5]     [10]
+          /         \
+        [3]         [12]
+
+  Query [x1=2,x2=9] x [y1=4,y2=11]:
+    1. Primary: find range [2,9] in x  -> nodes [3,4],[5,8],[7,9]
+    2. Secondary at each: find [4,11] in y -> report matches

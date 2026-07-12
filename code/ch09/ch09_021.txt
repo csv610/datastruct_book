@@ -1,0 +1,8 @@
+// After DFS, euler[] has node ids in visit order,
+// depth[] has their depths, first[u] = first index
+// of u in euler[].  Then:
+//
+//   LCA(u,v) = euler[ RMQ( depth, first[u], first[v] ) ]
+//
+// With a sparse table for RMQ: O(n log n) preprocess,
+// O(1) per query.  Overall: O(n log n) + O(q).

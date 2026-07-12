@@ -1,0 +1,13 @@
+Version 0 (original):        Version 1 (update pos 3):
+        [28]                        [28]
+       /    \                      /    \
+     [9]     [19]               [9]     [21]  <-- new node
+    /   \   /   \              /   \   /    \
+  [4]  [5][9]  [10]         [4]  [5][9]    [10]
+                                    \           \
+                                  [7]         [10]
+                                    \           \
+                                  [7]         [10]
+
+Shared nodes: [9], [4], [5], [9], [10], [7], [10]
+New nodes in version 1: [21], and the path to pos 3

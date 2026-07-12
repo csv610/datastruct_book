@@ -1,0 +1,8 @@
+Augmenting path s->A->X->t: flow 1. Match: A-X.
+Augmenting path s->B->Y->t: no path (B has no edge to Y).
+  Try augmenting: s->B->X... X is matched to A. 
+  Residual: X->A(1) (undo edge). A->Y(1). Y->t(1).
+  Path: s->B->X->A->Y->t: flow 1. 
+  New matching: B-X, A-Y. (A switched from X to Y.)
+
+Max flow = 2. Maximum matching: {B-X, A-Y}. C unmatched.

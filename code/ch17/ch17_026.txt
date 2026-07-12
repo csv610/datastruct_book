@@ -1,0 +1,8 @@
+If A[i-1] == B[j-1]:
+    dp[i][j] = dp[i-1][j-1]           (characters match, no operation)
+Else:
+    dp[i][j] = 1 + min(
+        dp[i-1][j],        (delete from A)
+        dp[i][j-1],        (insert into A)
+        dp[i-1][j-1]       (substitute in A)
+    )

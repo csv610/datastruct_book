@@ -1,0 +1,48 @@
+Read '/' (operator):
+  ops: ['/']
+  out: []
+
+Read 'E' (operand):
+  ops: ['/']
+  out: ['E']
+
+Read '-' (operator):
+  Top of ops is '/' which has higher precedence -> pop '/' and output
+  ops: ['-']
+  out: ['E', '/']
+
+Read 'C' (operand):
+  ops: ['-']
+  out: ['E', '/', 'C']
+
+Read '+' (operator):
+  Top of ops is '-' which has lower or equal precedence -> push '+'
+  ops: ['-', '+']
+  out: ['E', '/', 'C']
+
+Read 'B' (operand):
+  ops: ['-', '+']
+  out: ['E', '/', 'C', 'B']
+
+Read '(' : pop until ')'
+  Pop '+' and output
+  ops: ['-']
+  out: ['E', '/', 'C', 'B', '+']
+
+Read ')' : discard
+
+Read '*' (operator):
+  Top of ops is '-' which has lower precedence -> push '*'
+  ops: ['-', '*']
+  out: ['E', '/', 'C', 'B', '+']
+
+Read 'A' (operand):
+  ops: ['-', '*']
+  out: ['E', '/', 'C', 'B', '+', 'A']
+
+End of input. Pop remaining operators:
+  Pop '*' and output -> out: ['E', '/', 'C', 'B', '+', 'A', '*']
+  Pop '-' and output -> out: ['E', '/', 'C', 'B', '+', 'A', '*', '-']
+
+Final prefix expression (reverse of out):
+  Result: "- * A + B C / D E"

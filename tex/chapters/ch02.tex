@@ -1,0 +1,966 @@
+\chapter{Performance Analysis}\label{ch02:performance-analysis}
+
+\section{Introduction}
+
+Why do we need to analyze algorithms? Consider two programs that solve the same problem. One completes in milliseconds; the other takes hours. The difference is not in the hardware or the programming language — it is in the algorithm.
+
+Performance analysis is the theoretical study of an algorithm's time and space requirements as a function of input size. Performance measurement (Chapter 3) is the empirical study of actual running time. Both are essential.
+
+In this chapter we develop the mathematical tools needed to compare algorithms independently of the machine, compiler, or programming language.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{What Is an Algorithm?}
+
+An \textbf{algorithm} is a finite sequence of unambiguous instructions that, given an input, produces an output and terminates in finite time.
+
+Properties of an algorithm:
+\begin{enumerate}
+\item \textbf{Input} — zero or more externally supplied values
+\item \textbf{Output} — at least one value produced
+\item \textbf{Definiteness} — each instruction is precise and unambiguous
+\item \textbf{Finiteness} — the algorithm terminates after a finite number of steps
+\item \textbf{Effectiveness} — each instruction is basic enough to be performed exactly
+\end{enumerate}
+
+A \textbf{program} is an algorithm expressed in a programming language. A program may not terminate (e.g., an operating system), but an algorithm always must.
+
+\section{Measuring Algorithm Efficiency}
+
+\subsection{Time Complexity}
+
+The time taken by a program depends on:
+\begin{itemize}
+\item The input size
+\item The machine and compiler
+\item The quality of the generated code
+\item The algorithm itself
+\end{itemize}
+
+We need a way to talk about efficiency that abstracts away the machine. We count \textbf{operations} — comparisons, arithmetic operations, data movements — as a function of \textbf{input size}, denoted \textit{n}.
+
+\subsection{Space Complexity}
+
+Space complexity measures the memory required:
+\begin{itemize}
+\item \textbf{Instruction space} — the compiled code
+\item \textbf{Data space} — constants, variables, dynamically allocated memory
+\item \textbf{Stack space} — function call overhead, local variables in recursive functions
+\end{itemize}
+
+\section{Asymptotic Notation}
+
+Asymptotic notation describes the growth rate of functions. We care about behavior as \textit{n} $\to $ $\infty $.
+
+\subsection{Big O Notation (O)}
+
+\textbf{Definition:} f(n) = O(g(n)) if there exist positive constants c and n$_{0}$ such that f(n) $\le $ c$\cdot $g(n) for all n $\ge $ n$_{0}$.
+
+Big O gives an \textbf{upper bound} on the growth rate.
+
+\textit{Example:} f(n) = 3n$^{2}$ + 2n + 1 is O(n$^{2}$) because 3n$^{2}$ + 2n + 1 $\le $ 4n$^{2}$ for all n $\ge $ 3.
+
+Common Big O classes, from slowest to fastest growth:
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Notation & Name & Example \\
+O(1) & Constant & Array\index{array} access \\
+O(log n) & Logarithmic & Binary search \\
+O(n) & Linear & Finding maximum \\
+O(n log n) & Linearithmic & Merge sort \\
+O(n$^{2}$) & Quadratic & Bubble sort \\
+O(n$^{3}$) & Cubic & Matrix\index{matrix} multiplication \\
+O(2$^{n}$) & Exponential & Subset generation \\
+O(n!) & Factorial & Permutations \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\subsection{Big Omega Notation (\texorpdfstring{$\Omega$}{Omega})}
+
+\textbf{Definition:} f(n) = $\Omega $(g(n)) if there exist positive constants c and n$_{0}$ such that f(n) $\ge $ c$\cdot $g(n) for all n $\ge $ n$_{0}$.
+
+Big Omega gives a \textbf{lower bound} — the function grows at least as fast as g(n).
+
+\textit{Example 1:} f(n) = 3n$^{2}$ + 2n + 1 is $\Omega $(n$^{2}$) because 3n$^{2}$ + 2n + 1 $\ge $ 3n$^{2}$ for all n $\ge $ 0.
+
+\textit{Example 2:} f(n) = 7n + 5 is $\Omega $(n) because 7n + 5 $\ge $ 7n for all n $\ge $ 0.
+
+\textit{Example 3 (why Omega matters):} Any comparison-based sorting algorithm requires $\Omega $(n log n) comparisons in the worst case. This means no matter how clever our algorithm is, we cannot sort faster than n log n using comparisons. Merge sort achieves this lower bound — it is \textbf{asymptotically optimal}.
+
+\textbf{Common mistake:} saying ``f(n) = O(n$^{2}$) means f(n) grows like n$^{2}$.'' No — O gives an UPPER bound. f(n) = n also satisfies f(n) = O(n$^{2}$). To say f grows exactly like n$^{2}$, use $\Theta $(n$^{2}$).
+
+\subsection{Big Theta Notation (\texorpdfstring{$\Theta$}{Theta})}
+
+\textbf{Definition:} f(n) = $\Theta $(g(n)) if f(n) = O(g(n)) and f(n) = $\Omega $(g(n)).
+
+Big Theta gives a \textbf{tight bound} — the function grows at exactly the same rate as g(n).
+
+\textit{Example 1:} f(n) = 3n$^{2}$ + 2n + 1 is $\Theta $(n$^{2}$) because it is both O(n$^{2}$) and $\Omega $(n$^{2}$).
+
+\textit{Example 2:} f(n) = n log n + 3n is $\Theta $(n log n).
+
+\textit{When to use $\Theta $ vs O:} Use $\Theta $ when the bound is tight. ``Merge sort is $\Theta $(n log n)'' is more precise than ``merge sort is O(n log n)'' — the latter allows O(n$^{2}$) which is not tight. In this book, we use $\Theta $ when possible and O when only an upper bound is needed.
+
+\textbf{Proving $\Theta $:} show both O(g(n)) and $\Omega $(g(n)):
+\begin{itemize}
+\item For O: find constants c, n$_{0}$ such that f(n) $\le $ c$\cdot $g(n) for n $\ge $ n$_{0}$
+\item For $\Omega $: find constants c', n'$\_{0}$ such that f(n) $\ge $ c'$\cdot $g(n) for n $\ge $ n'$\_{0}$
+\end{itemize}
+
+\textit{Example proof:} f(n) = 2n + 3 is $\Theta $(n).
+
+Upper bound: 2n + 3 $\le $ 5n for n $\ge $ 1. So f(n) = O(n).  
+Lower bound: 2n + 3 $\ge $ 2n for n $\ge $ 0. So f(n) = $\Omega $(n).  
+Therefore f(n) = $\Theta $(n).
+
+\subsection{Little o and Little \texorpdfstring{$\omega$}{omega}}
+
+\textbf{Little o:} f(n) = o(g(n)) if for every positive constant c, there exists n$_{0}$ such that f(n) < c$\cdot $g(n) for all n $\ge $ n$_{0}$. (Strict upper bound — f grows strictly slower than g.)
+
+\textbf{Little $\omega $:} f(n) = $\omega $(g(n)) if for every positive constant c, there exists n$_{0}$ such that f(n) > c$\cdot $g(n) for all n $\ge $ n$_{0}$. (Strict lower bound — f grows strictly faster than g.)
+
+\textbf{Contrast with Big-O:} Big-O says f(n) $\le $ c$\cdot $g(n) for SOME c. Little-o says f(n) < c$\cdot $g(n) for ALL c. Little-o is strictly stronger.
+
+\textit{Examples:}
+\begin{itemize}
+\item n = o(n$^{2}$) because n/n$^{2}$ = 1/n $\to$ 0 as n $\to \infty $.
+\item n$^{2}$ = o(n$^{3}$) because n$^{2}$/n$^{3}$ = 1/n $\to$ 0.
+\item n = o(n log n) because n/(n log n) = 1/log n $\to$ 0.
+\item n log n = $\omega $(n) because n log n/n = log n $\to \infty $.
+\item 2$^{n}$ = $\omega $(n$^{k}$) for any k — exponentials dominate polynomials.
+\end{itemize}
+
+\textbf{When little-o is useful:} it provides a strict separation of growth rates. ``Merge sort is o(n$^{2}$)'' means merge sort grows strictly slower than quadratic — a stronger statement than ``merge sort is O(n$^{2}$).''
+
+\section{Practical Complexity}
+
+\subsection{Growth Rates Compared}
+
+Consider algorithms with different time complexities on a machine executing 10$^{8}$ operations per second:
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+n & O(log n) & O(n) & O(n log n) & O(n$^{2}$) & O(2$^{n}$) \\
+10 & 0.00 us & 0.10 us & 0.33 us & 1.00 us & 10.2 us \\
+100 & 0.01 us & 1.00 us & 6.64 us & 100 us & 4$\times $10$^{16}$ years \\
+1000 & 0.01 us & 10.0 us & 99.7 us & 10.0 ms & -- \\
+10$^{6}$ & 0.02 us & 10.0 ms & 199 ms & 2.78 hours & -- \\
+10$^{9}$ & 0.03 us & 10.0 s & 299 s & 317 years & -- \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\subsection{Which Complexity Matters?}
+
+An O(n$^{2}$) algorithm that takes 1 second for n = 1000 will take 100 seconds for n = 10000. An O(n log n) algorithm that takes 1 second for n = 1000 will take about 10 seconds for n = 10000 — a linear degradation, not quadratic.
+
+\textbf{Key insight:} The asymptotic growth rate dominates all constant factors for sufficiently large n.
+
+\section{Analyzing Iterative Algorithms}
+
+\subsection{Simple Loop}
+
+\begin{lstlisting}[language=C++]
+// Find the maximum element
+int find_max(const std::vector<int>& a) {
+    int max = a[0];                          // 1
+    for (size_t i = 1; i < a.size(); ++i) {  // n-1 iterations
+        if (a[i] > max) max = a[i];          // 2 ops per iteration
+    }
+    return max;
+}
+\end{lstlisting}
+
+Operations: 1 + 2(n-1) = 2n - 1 = O(n)
+
+\subsection{Nested Loops}
+
+\begin{lstlisting}[language=C++]
+// All pairs
+for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+        process(a[i], a[j]);   // O(1) operation
+    }
+}
+\end{lstlisting}
+
+Inner loop executes n times for each of n outer iterations: O(n$^{2}$).
+
+\subsection{Dependent Nested Loops}
+
+\begin{lstlisting}[language=C++]
+for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < i; ++j) {
+        process(a[i], a[j]);
+    }
+}
+\end{lstlisting}
+
+Total iterations: 0 + 1 + 2 + ... + (n-1) = n(n-1)/2 = O(n$^{2}$).
+
+\subsection{Logarithmic Loops}
+
+\begin{lstlisting}[language=C++]
+for (int i = 1; i < n; i *= 2) {
+    process(i);
+}
+\end{lstlisting}
+
+i takes values 1, 2, 4, 8, ..., $2^{k}$ where $2^{k}$ < n. So k = $\lfloor $log$_{2}$ n$\rfloor $ iterations: O(log n).
+
+\section{Analyzing Recursive Algorithms}
+
+\subsection{Recurrence Relations}
+
+Recursive algorithms lead to recurrence relations. The recurrence describes the running time in terms of the running time on smaller inputs.
+
+\textbf{Example: Factorial}
+
+\begin{lstlisting}[language=C++]
+int factorial(int n) {
+    if (n <= 1) return 1;          // O(1)
+    return n * factorial(n - 1);   // T(n-1) + O(1)
+}
+\end{lstlisting}
+
+Recurrence: T(n) = T(n-1) + c, T(1) = d.
+
+Solution: T(n) = c(n-1) + d = O(n).
+
+\textbf{Example: Binary Search}
+
+\begin{lstlisting}[language=C++]
+int binary_search(const std::vector<int>& a, int target, int low, int high) {
+    if (low > high) return -1;
+    int mid = low + (high - low) / 2;
+    if (a[mid] == target) return mid;
+    if (a[mid] > target) return binary_search(a, target, low, mid - 1);
+    return binary_search(a, target, mid + 1, high);
+}
+\end{lstlisting}
+
+Recurrence: T(n) = T(n/2) + c, T(1) = d.
+
+Solution: T(n) = c$\cdot $log$_{2}$ n + d = O(log n).
+
+\subsection{Solving Recurrences}
+
+\textbf{Method 1: Substitution}
+
+Guess the form of the solution and prove by induction.
+
+For T(n) = 2T(n/2) + n, T(1) = 1:
+\begin{itemize}
+\item Guess T(n) = O(n log n)
+\item Assume T(k) $\le $ ck log k for k < n
+\item Then T(n) $\le $ 2c(n/2)log(n/2) + n = cn log(n/2) + n = cn log n - cn log 2 + n = cn log n - cn + n
+\item Choose c $\ge $ 1: T(n) $\le $ cn log n $\checkmark$
+\end{itemize}
+
+\textbf{Method 2: Recursion Tree}
+
+Draw the tree of recursive calls, sum the cost at each level.
+
+For T(n) = 2T(n/2) + n:
+\begin{lstlisting}[language=Java]
+          n                  <-  level 0, 1 node
+        /   \
+      n/2   n/2              <-  level 1, 2 nodes
+     /  \   /  \
+    n/4 n/4 n/4 n/4          <-  level 2, 4 nodes
+   ...  ...  ...  ...
+\end{lstlisting}
+Level i has 2$^{i}$ nodes, each costing n/2$^{i}$. Total per level: n.
+Height: log$_{2}$ n levels. Total: n$\cdot $log$_{2}$ n.
+
+\textbf{Method 3: Master Theorem}
+
+For recurrences of the form T(n) = aT(n/b) + f(n), where a $\ge $ 1, b > 1:
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Case & Condition & Solution \\
+1 & f(n) = O(n\textasciicircum{}(log\_b a - $\varepsilon $)) for some $\varepsilon $ > 0 & T(n) = $\Theta $(n\textasciicircum{}(log\_b a)) \\
+2 & f(n) = $\Theta $(n\textasciicircum{}(log\_b a) $\cdot $ lo$g^{k}$ n) & T(n) = $\Theta $(n\textasciicircum{}(log\_b a) $\cdot $ log\textasciicircum{}(k+1) n) \\
+3 & f(n) = $\Omega $(n\textasciicircum{}(log\_b a + $\varepsilon $)) and af(n/b) $\le $ cf(n) for some c < 1 & T(n) = $\Theta $(f(n)) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\textit{Examples:}
+\begin{itemize}
+\item T(n) = 2T(n/2) + n: a=2, b=2, log\_b a = 1, f(n)=n = $\Theta $($n^{1}$) $\to $ Case 2 $\to $ T(n) = $\Theta $(n log n)
+\item T(n) = T(n/2) + 1: a=1, b=2, log\_b a = 0, f(n)=1 = $\Theta $($n^{0}$) $\to $ Case 2 $\to $ T(n) = $\Theta $(log n)
+\item T(n) = 9T(n/3) + n: a=9, b=3, log\_b a = 2, f(n)=n = O(n\textasciicircum{}(2-$\varepsilon $)) $\to $ Case 1 $\to $ T(n) = $\Theta $(n$^{2}$)
+\end{itemize}
+
+\section{Amortized Analysis}
+
+Sometimes a single operation is expensive, but the average cost over a sequence of operations is low. \textbf{Amortized\index{amortized} analysis} bounds the average cost per operation.
+
+\subsection{Aggregate Method}
+
+We compute the total cost of n operations and divide by n.
+
+\textbf{Example: Dynamic array\index{dynamic array} (std::vector\index{vector} push\_back)}
+
+When the array is full, we double its capacity and copy all elements. A push\_back that triggers a resize costs O(k) where k is the current size. But most push\_back operations cost O(1).
+
+Total cost for n insertions into an initially empty array that doubles at capacity:
+\begin{itemize}
+\item Capacities: 1, 2, 4, 8, ..., 2\textasciicircum{}($\lceil $log$_{2}$ n$\rceil $)
+\item Copy cost: 1 + 2 + 4 + ... + 2\textasciicircum{}($\lceil $log$_{2}$ n$\rceil $) < 2n
+\item n insertions cost at most 3n (n inserts at unit cost + 2n for copies)
+\item Amortized cost per insertion: O(1)
+\end{itemize}
+
+\subsection{Accounting Method}
+
+We charge more for cheap operations and use the surplus to pay for expensive ones.
+
+For the dynamic array: charge 3 for each push\_back. Each regular insertion costs 1; the remaining 2 are saved. When a resize copies k elements, the saved credits from the k elements pay for it.
+
+\subsection{Potential Method}
+
+Define a potential function $\Phi$(state) that measures how close the data structure is to needing an expensive operation. The amortized cost is actual cost + $\Delta$$\Phi$.
+
+For the dynamic array: let $\Phi$ = 2$\cdot $size - capacity when size $\ge $ capacity/2, and 0 otherwise.
+
+\textbf{Worked example:} binary counter increment.
+
+A binary counter starts at 0 and increments n times. Each increment flips some bits (0$\to$1 and 1$\to$0$\to$1 chain). The worst case flips all bits: O(log n). But most increments flip only 1 bit.
+
+\begin{lstlisting}[language=Java]
+Increment: 0000 -> 0001 -> 0010 -> 0011 -> 0100 -> 0101 -> 0110 -> 0111 -> 1000
+Flips:       1      2      1      3      1      2      1      4
+\end{lstlisting}
+
+Aggregate: total flips = n/2 (bit 0) + n/4 (bit 1) + n/8 (bit 2) + ... < n. Amortized = O(1).
+
+Potential method: let $\Phi$ = number of 1-bits in the counter. Each increment flips k trailing 1s to 0 and one 0 to 1. Actual cost = k + 1. $\Delta\Phi$ = $-$(k) + 1 = 1 $-$ k. Amortized cost = (k + 1) + (1 $-$ k) = 2 = O(1).
+
+\section{Space Complexity}
+
+\subsection{Fixed vs. Variable Space}
+
+\begin{itemize}
+\item \textbf{Fixed space:} constants, program code — independent of input size
+\item \textbf{Variable space:} depends on input size — arrays, dynamic allocations, recursion stack
+\end{itemize}
+
+Total space = fixed + variable.
+
+\subsection{Analyzing Space}
+
+\begin{lstlisting}[language=C++]
+// O(1) extra space
+int sum(const std::vector<int>& a) {
+    int total = 0;
+    for (int x : a) total += x;
+    return total;
+}
+
+// O(n) extra space
+std::vector<int> duplicate(const std::vector<int>& a) {
+    std::vector<int> result(a.size());
+    for (size_t i = 0; i < a.size(); ++i) result[i] = a[i];
+    return result;
+}
+
+// O(n) stack space (recursive)
+int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);  // n stack frames
+}
+\end{lstlisting}
+
+\section{Best, Average, and Worst Case}
+
+\begin{itemize}
+\item \textbf{Best case} — minimum time over all inputs of size n
+\item \textbf{Worst case} — maximum time over all inputs of size n
+\item \textbf{Average case} — expected time over all inputs of size n (requires a probability distribution)
+\end{itemize}
+
+\textit{Example: Linear search in an array of size n}
+\begin{itemize}
+\item Best case: element is first $\to $ O(1)
+\item Worst case: element is last or absent $\to $ O(n)
+\item Average case (assuming uniform distribution, element present): (n+1)/2 $\to $ O(n)
+\end{itemize}
+
+We primarily study worst-case complexity in this book. It provides a guarantee, not a hope.
+
+\section{Smoothed Analysis}
+
+Worst-case analysis can be overly pessimistic. Average-case analysis requires knowing the input distribution, which is often unavailable. \textbf{Smoothed analysis} (Spielman and Teng, 2001) bridges this gap: it measures the expected performance when inputs are first slightly perturbed randomly, then fed to the algorithm.
+
+\subsection{The Idea}
+
+For an algorithm with input $x$, define:
+\begin{itemize}
+\item \textbf{Worst case:} $\max_x \text{cost}(x)$
+\item \textbf{Average case:} $\mathbb{E}_x[\text{cost}(x)]$ (over some distribution)
+\item \textbf{Smoothed cost:} $\mathbb{E}_{\bar{x}}[\text{cost}(\bar{x})]$ where $\bar{x} = x + \text{small random noise}$
+\end{itemize}
+
+The smoothed complexity of an algorithm is the maximum over all inputs $x$ of the expected running time when $x$ is perturbed by a small Gaussian (or uniform) perturbation of magnitude $\sigma$.
+
+\subsection{The Simplex Example}
+
+The simplex algorithm for linear programming has worst-case exponential time (Klee-Minty examples), yet it runs in near-linear time in practice. Smoothed analysis explains why:
+
+\begin{itemize}
+\item \textbf{Worst case:} $2^{n}$ (Klee-Minty cube, constructed inputs)
+\item \textbf{Smoothed case:} polynomial in $n$ and $\log(1/\sigma)$ (Spielman-Teng, 2004)
+\end{itemize}
+
+Intuition: the exponentially many degenerate vertices that cause worst-case behavior are \textit{unstable} — any small perturbation eliminates them. The probability of hitting a degenerate path under random perturbation is vanishingly small.
+
+\subsection{Formal Definition}
+
+Given input $x \in \mathbb{R}^n$ and perturbation size $\sigma > 0$:
+
+\[
+S_\sigma(A, x) = \mathbb{E}_{\bar{x} \sim \text{Normal}(x, \sigma^2 I)}[\text{time}(A, \bar{x})]
+\]
+
+The \textbf{smoothed complexity} is:
+\[
+S_\sigma(A) = \max_x S_\sigma(A, x)
+\]
+
+Compare with:
+\begin{itemize}
+\item Worst case: $\max_x \text{time}(A, x)$
+\item Average case: $\mathbb{E}_{x}[\text{time}(A, x)]$
+\end{itemize}
+
+Smoothed complexity is always $\ge$ average case (worst-case input still chosen adversarially) and $\le$ worst case (perturbation helps).
+
+\subsection{Why It Matters}
+
+\begin{itemize}
+\item \textbf{Explains practical performance:} algorithms with bad worst-case but good smoothed complexity perform well on real data (which is never exactly adversarial)
+\item \textbf{Robustness:} if an algorithm has good smoothed complexity, it works well even when inputs are slightly noisy — a realistic assumption
+\item \textbf{Bridges theory and practice:} closes the gap between worst-case lower bounds and observed runtime
+\end{itemize}
+
+\subsection{Known Results}
+
+\begin{itemize}
+\item \textbf{Simplex method:} smoothed complexity is polynomial (Spielman-Teng, 2004)
+\item \textbf{Gradient descent:} smoothed complexity $O(n^{3} \sigma^{-2})$ for general convex functions
+\item \textbf{Local search for k-SAT:} smoothed complexity polynomial for bounded perturbation
+\item \textbf{Metroid greedy algorithm:} smoothed complexity polynomial even when worst-case is exponential
+\end{itemize}
+
+\section{Recursion Deep Dive}
+
+Recursion is a powerful technique where a function calls itself on a smaller subproblem. Mastering recursion requires understanding the recursive thought process, visualizing the call structure, and knowing when recursion is the right tool.
+
+\subsection{The Recursive Thought Process}
+
+To solve a problem recursively, identify two things:
+\begin{enumerate}
+\item \textbf{Base case:} the smallest input for which the answer is known directly.
+\item \textbf{Recursive case:} decompose the problem into smaller subproblems, combine their results.
+\end{enumerate}
+
+The key insight: \textit{assume the recursive call works} on the smaller input, and focus on how to combine its result with the current step. This is sometimes called the ``leap of faith.''
+
+\subsection{Recursion Tree Visualization}
+
+A \textbf{recursion tree} shows every recursive call as a node, with children representing the subproblems it spawns. The total work is the sum of all nodes' costs.
+
+\textit{Example: Fibonacci}
+
+\begin{lstlisting}[language=C++]
+int fib(int n) {
+    if (n <= 1) return n;           // base case: 1 operation
+    return fib(n - 1) + fib(n - 2); // two recursive calls
+}
+\end{lstlisting}
+
+For \texttt{fib(5)}, the recursion tree is:
+
+\begin{lstlisting}
+                    fib(5)
+                  /        \
+             fib(4)        fib(3)
+            /     \       /     \
+         fib(3)  fib(2) fib(2) fib(1)
+         /   \    / \    / \
+     fib(2) fib(1) fib(1) fib(0) fib(1) fib(0)
+     / \
+  fib(1) fib(0)
+\end{lstlisting}
+
+Count the nodes: \texttt{fib(5)} spawns 15 total calls. In general, \texttt{fib(n)} makes O(2$^{n}$) calls — exponential. This is because subproblems overlap: \texttt{fib(3)} is computed twice, \texttt{fib(2)} three times, and so on. This redundancy is what makes naive Fibonacci so slow.
+
+\subsection{Tail Recursion vs Non-Tail Recursion}
+
+A function is \textbf{tail-recursive} if the recursive call is the \textit{last} operation — nothing remains to do after it returns.
+
+\textbf{Non-tail recursive:}
+\begin{lstlisting}[language=C++]
+int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);   // multiply AFTER the call returns
+}
+\end{lstlisting}
+
+After \texttt{factorial(n-1)} returns, we still multiply by \texttt{n}. The compiler cannot reuse the current stack frame.
+
+\textbf{Tail recursive:}
+\begin{lstlisting}[language=C++]
+int factorial_helper(int n, int acc) {
+    if (n <= 1) return acc;
+    return factorial_helper(n - 1, n * acc);  // last operation is the call
+}
+\end{lstlisting}
+
+Here \texttt{factorial\_helper(n-1, n*acc)} is the very last thing that happens. The compiler can optimize this into a loop, reusing one stack frame instead of allocating a new one. This is called \textbf{tail call optimization} (TCO).
+
+\subsection{Converting Tail Recursion to Iteration}
+
+Any tail-recursive function can be mechanically converted to an iterative loop:
+
+\begin{lstlisting}[language=C++]
+int factorial(int n) {
+    int acc = 1;
+    while (n > 1) {
+        acc = n * acc;
+        --n;
+    }
+    return acc;
+}
+\end{lstlisting}
+
+The accumulator \texttt{acc} replaces the function parameter. The loop body is identical to the recursive step. This conversion eliminates all recursion overhead: no stack frames, no risk of stack overflow, and often better cache performance.
+
+\subsection{Worked Example: Fibonacci (Optimized)}
+
+The naive recursion for Fibonacci is O(2$^{n}$). We can fix this in two ways:
+
+\textbf{Bottom-up iteration:}
+\begin{lstlisting}[language=C++]
+int fib(int n) {
+    if (n <= 1) return n;
+    int prev2 = 0, prev1 = 1;
+    for (int i = 2; i <= n; ++i) {
+        int curr = prev1 + prev2;
+        prev2 = prev1;
+        prev1 = curr;
+    }
+    return prev1;
+}
+\end{lstlisting}
+
+Time: O(n). Space: O(1).
+
+\textbf{Tail-recursive version:}
+\begin{lstlisting}[language=C++]
+int fib_tail(int n, int a, int b) {
+    if (n == 0) return a;
+    if (n == 1) return b;
+    return fib_tail(n - 1, b, a + b);
+}
+\end{lstlisting}
+
+Called as \texttt{fib\_tail(n, 0, 1)}. Time: O(n). Space: O(1) with TCO, O(n) without.
+
+\subsection{Worked Example: Tower of Hanoi}
+
+The Tower of Hanoi puzzle has three pegs and n disks of increasing size. Move all disks from peg A to peg C, one disk at a time, never placing a larger disk on a smaller one.
+
+\begin{lstlisting}[language=C++]
+void hanoi(int n, char from, char to, char aux) {
+    if (n == 0) return;
+    hanoi(n - 1, from, aux, to);           // step 1: move n-1 to aux
+    std::cout << "Move disk " << n
+              << " from " << from << " to " << to << "\n";
+    hanoi(n - 1, aux, to, from);           // step 3: move n-1 to target
+}
+\end{lstlisting}
+
+\textbf{Trace for n = 3:}
+
+\begin{lstlisting}
+hanoi(3, A, C, B):
+  hanoi(2, A, B, C):
+    hanoi(1, A, C, B):
+      move disk 1: A -> C
+    move disk 2: A -> B
+    hanoi(1, C, B, A):
+      move disk 1: C -> B
+  move disk 3: A -> C
+  hanoi(2, B, C, A):
+    hanoi(1, B, A, C):
+      move disk 1: B -> A
+    move disk 2: B -> C
+    hanoi(1, A, C, B):
+      move disk 1: A -> C
+\end{lstlisting}
+
+Recurrence: T(n) = 2T(n-1) + 1, T(0) = 0.
+
+Solution: T(n) = 2$^{n}$ $-$ 1 = O(2$^{n}$). The puzzle requires an exponential number of moves — there is no faster solution.
+
+\subsection{Worked Example: Power Function}
+
+Compute x$^{n}$ efficiently using repeated squaring.
+
+\textbf{Naive recursion:}
+\begin{lstlisting}[language=C++]
+double power(double x, int n) {
+    if (n == 0) return 1.0;
+    return x * power(x, n - 1);    // O(n) multiplications
+}
+\end{lstlisting}
+
+\textbf{Exponentiation by squaring:}
+\begin{lstlisting}[language=C++]
+double power(double x, int n) {
+    if (n == 0) return 1.0;
+    double half = power(x, n / 2);
+    if (n % 2 == 0) return half * half;
+    return x * half * half;
+}
+\end{lstlisting}
+
+Recurrence: T(n) = T(n/2) + O(1). By the Master Theorem (Case 2: a=1, b=2, f(n)=O(1)): T(n) = O(log n).
+
+We reduced n multiplications to log n by observing that x$^{n}$ = (x$^{n/2}$)$^{2}$ when n is even, and x$^{n}$ = x $\cdot$ (x$^{(n-1)/2}$)$^{2}$ when n is odd.
+
+\section{Loop Invariants}
+
+A \textbf{loop invariant} is a property that holds before and after every iteration of a loop. Proving an algorithm correct with a loop invariant is a powerful technique: it reduces reasoning about potentially unbounded iterations to three simple proof steps.
+
+\subsection{The Three Parts}
+
+To prove a loop implements its specification, state a loop invariant and prove three properties:
+\begin{enumerate}
+\item \textbf{Initialization:} the invariant is true before the first iteration.
+\item \textbf{Maintenance:} if the invariant is true before an iteration, it is true after the iteration.
+\item \textbf{Termination:} when the loop terminates, the invariant combined with the termination condition implies correctness.
+\end{enumerate}
+
+This structure mirrors mathematical induction: initialization is the base case, maintenance is the inductive step, and termination provides the final conclusion.
+
+\subsection{Worked Example: Insertion Sort Correctness}
+
+\begin{lstlisting}[language=C++]
+void insertion_sort(std::vector<int>& a) {
+    for (size_t i = 1; i < a.size(); ++i) {
+        int key = a[i];
+        size_t j = i;
+        while (j > 0 && a[j - 1] > key) {
+            a[j] = a[j - 1];
+            --j;
+        }
+        a[j] = key;
+    }
+}
+\end{lstlisting}
+
+\textbf{Loop invariant for the outer loop:} At the start of each iteration of the outer \texttt{for} loop, the subarray \texttt{a[0..i-1]} consists of the elements originally in \texttt{a[0..i-1]}, but sorted.
+
+\textbf{Initialization:} Before the first iteration (i = 1), \texttt{a[0..0]} contains one element, which is trivially sorted.
+
+\textbf{Maintenance:} Assume \texttt{a[0..i-1]} is sorted. The inner \texttt{while} loop shifts elements right until the correct position for \texttt{key} = \texttt{a[i]} is found. After insertion, \texttt{a[0..i]} is sorted. Thus the invariant holds for the next iteration with i replaced by i+1.
+
+\textbf{Termination:} The loop terminates when i = a.size(). By the invariant, \texttt{a[0..a.size()-1]} is sorted — the entire array is sorted. $\square$
+
+\subsection{Worked Example: Binary Search Correctness}
+
+\begin{lstlisting}[language=C++]
+int binary_search(const std::vector<int>& a, int target, int low, int high) {
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (a[mid] == target) return mid;
+        if (a[mid] < target) low = mid + 1;
+        else                 high = mid - 1;
+    }
+    return -1;
+}
+\end{lstlisting}
+
+Assume \texttt{a} is sorted in non-decreasing order.
+
+\textbf{Loop invariant:} If \texttt{target} exists in \texttt{a}, it is in \texttt{a[low..high]}.
+
+\textbf{Initialization:} Before the first iteration, low = 0 and high = a.size() $-$ 1, covering the entire array. If target exists, it is in this range.
+
+\textbf{Maintenance:} At each step, compare \texttt{a[mid]} with target:
+\begin{itemize}
+\item If \texttt{a[mid] == target}, we return mid — correct.
+\item If \texttt{a[mid] < target}, all elements \texttt{a[low..mid]} are $\le $ target. Since \texttt{a[mid]} $\ne $ target, target (if present) must be in \texttt{a[mid+1..high]}. Setting low = mid + 1 preserves the invariant.
+\item If \texttt{a[mid] > target}, all elements \texttt{a[mid..high]} are $\ge $ target. Target (if present) must be in \texttt{a[low..mid-1]}. Setting high = mid $-$ 1 preserves the invariant.
+\end{itemize}
+
+\textbf{Termination:} The loop terminates when low > high, meaning \texttt{a[low..high]} is empty. By the invariant, if target existed, it would be in this range — but the range is empty. Therefore target is not in \texttt{a}, and returning $-$1 is correct. $\square$
+
+\section{Space Complexity Analysis (Deep Dive)}
+
+Section~\ref{ch02:performance-analysis} introduced the components of space complexity. Here we analyze space in depth, focusing on how recursion and auxiliary data structures affect memory usage.
+
+\subsection{Stack Space for Recursion}
+
+Each recursive call allocates a \textbf{stack frame} containing:
+\begin{itemize}
+\item Local variables
+\item Function parameters
+\item Return address
+\item Saved registers (implementation-dependent)
+\end{itemize}
+
+The total stack space is (number of simultaneous frames) $\times $ (size per frame).
+
+\textit{Example: Factorial} — depth n, so O(n) stack space.
+
+\textit{Example: Binary search} — depth log n, so O(log n) stack space.
+
+\textit{Example: Merge sort} — the deepest path in the recursion tree has log n frames, but at each level, \texttt{merge()} allocates O(n) temporary space. The total space is O(n + log n) = O(n) auxiliary.
+
+\subsection{Auxiliary Space vs Input Space}
+
+\begin{itemize}
+\item \textbf{Input space:} memory occupied by the input itself (e.g., the array of n integers).
+\item \textbf{Auxiliary space:} extra memory used by the algorithm, not counting the input.
+\end{itemize}
+
+\textit{Example:} A function that takes a vector of n integers and returns their sum uses O(n) input space and O(1) auxiliary space.
+
+\begin{lstlisting}[language=C++]
+// O(n) input space, O(1) auxiliary space
+int sum(const std::vector<int>& a) {
+    int total = 0;
+    for (int x : a) total += x;
+    return total;
+}
+
+// O(n) input space, O(n) auxiliary space
+std::vector<int> reverse_copy(const std::vector<int>& a) {
+    std::vector<int> result(a.rbegin(), a.rend());
+    return result;
+}
+
+// O(n) input space, O(n) auxiliary space (recursion stack)
+void print_reverse(const std::vector<int>& a, int i) {
+    if (i < 0) return;
+    std::cout << a[i] << " ";
+    print_reverse(a, i - 1);
+}
+\end{lstlisting}
+
+When we say ``merge sort uses O(n) space,'' we mean O(n) \textit{auxiliary} space — the O(n) input space is always required.
+
+\subsection{Space-Time Tradeoffs}
+
+Sometimes using more space reduces time, and vice versa:
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Algorithm & Time & Auxiliary Space \\
+\midrule
+Naive Fibonacci & O(2$^{n}$) & O(n) stack \\
+Memoized Fibonacci & O(n) & O(n) table \\
+Iterative Fibonacci & O(n) & O(1) \\
+Merge sort & O(n log n) & O(n) \\
+In-place merge sort & O(n log$^{2}$ n) & O(1) \\
+Hash table lookup & O(1) amortized & O(n) table \\
+Sorted array binary search & O(log n) & O(1) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The choice between algorithms often depends on which resource is the bottleneck: time or memory.
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Confusing worst-case with average-case & Over-engineering for rare inputs & State which case you're analyzing \\
+Ignoring constant factors & O(n$^{2}$) algorithm beats O(n log n) for n $\le $ 1000 & Measure, don't just analyze \\
+Misapplying the Master Theorem & Wrong asymptotic bound & Verify recurrence matches one of the three cases exactly \\
+Forgetting the recursion stack in space analysis & Underestimating memory by O(n) & Count stack frames for recursive algorithms \\
+Assuming \texttt{std::vector::push\_back} is always O(1) & Surprising latency spikes on reallocation & Use \texttt{reserve()} when size is known \\
+Confusing Big-O (upper bound) with Big-$\Theta $ (tight bound) & Imprecise claims about algorithm behavior & Use $\Theta $ when the bound is tight, O for upper bound only \\
+Analyzing worst-case when amortized matters & Pessimistic design decisions & Use amortized analysis for sequences of operations \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Asymptotic notation} (O, $\Omega $, $\Theta $, o, $\omega $) describes growth rates independently of machine constants.
+\item \textbf{Iterative algorithms} are analyzed by summing loop iterations.
+\item \textbf{Recursive algorithms} lead to recurrences, solved by substitution, recursion trees, or the Master Theorem.
+\item \textbf{Amortized analysis} measures the average cost of operations over a sequence.
+\item \textbf{Space complexity} includes fixed and variable components, plus the recursion stack.
+\item \textbf{Worst-case analysis} provides performance guarantees.
+\item \textbf{Smoothed analysis} explains practical performance by averaging over slightly perturbed inputs — bridging worst-case pessimism and average-case assumptions.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{Index vs table scan.} A database can search an index in O(log n) reads or scan the whole table in O(n) reads. For a table of 1$0^{6}$ rows, the index should win. But the index = 800 ms and the scan = 12 ms. What does Big-O notation ignore that explains this? (Hint: think about sequential vs random I/O.)
+\end{enumerate}
+
+   \textit{(In production, databases like PostgreSQL use cost-based query planning that weighs disk access patterns, not just operation counts.)}
+
+\begin{enumerate}
+\item \textbf{Blocking vs non-blocking.} A database operation called KEYS has O(n) cost and blocks all other operations while running. Another operation called SCAN has O(1) per call and O(n) total, but does not block others. A colleague says "they're both O(n), they're the same." Why is this reasoning wrong?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Hash table growing pains.} An engineer replaces a balanced tree (O(log n) lookup) with a hash table (O(1) average lookup), expecting faster code. Throughput drops. What hidden cost of the hash table does Big-O notation hide? Think about rehashing, memory allocation, and cache misses.
+\end{enumerate}
+
+   \textit{(In production, Google's \texttt{absl::flat\_hash\_map} and similar libraries optimize the growth strategy to minimize this overhead.)}
+
+\begin{enumerate}
+\item \textbf{Compound index.} A database index on \texttt{(city, last\_seen)} should answer "find all rows for Seattle in the last hour" in O(log n) time. The actual query takes much longer. If "Seattle" matches 10,000 rows and "last hour" spans only a few of them, why does the index still scan many pages?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Stack overflow.} A serverless function uses a recursive algorithm whose depth equals the input size. Code review says "each call is O(1), so total is O(n)." Yet the function crashes on large inputs. What aspect of complexity analysis was overlooked?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Recursion trace.} Trace the recursion tree for \texttt{fib(6)} using the naive recursive implementation. How many total calls are made? How many are duplicate computations? If memoization caches results, how many unique subproblems exist?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Tail recursion conversion.} Convert the following recursive function to an iterative version using an accumulator:
+\begin{lstlisting}[language=C++]
+int sum_list(Node* head) {
+    if (!head) return 0;
+    return head->data + sum_list(head->next);
+}
+\end{lstlisting}
+What is the time and space complexity of each version?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Power function trace.} Trace the execution of \texttt{power(2, 13)} using the exponentiation-by-squaring algorithm. Show each recursive call, the value of \texttt{half}, and the final computation at each level. How many multiplications are performed?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Write buffer amortization.} An in-memory write buffer accepts inserts (each O(log m) where m is buffer size). When the buffer reaches capacity, it's flushed to disk (cost O(m)). Show that the amortized cost per insert is O(log n) despite the occasional O(m) flush. Implement a simulation that counts operations over 1$0^{6}$ inserts.
+\end{enumerate}
+
+   \textit{(In production, LevelDB and RocksDB use this exact "memtable" pattern.)}
+
+\begin{enumerate}
+\item \textbf{Vector growth cost.} A dynamic array (like \texttt{std::vector}) doubles its capacity each time it runs out of space. Analyze the total number of element copies over n insertions. Show that the average (amortized) cost is O(1) per insertion despite occasional O(n) reallocations. Implement a simulation that counts copies for n = 1$0^{6}$ and verify the bound. What happens with growth factor 1.5 vs 2?
+\end{enumerate}
+
+   \textit{(In production, Chromium's rendering engine carefully manages vector growth to minimize page load jank.)}
+
+\begin{enumerate}
+\item \textbf{Merging sorted segments.} A background process merges m sorted segments containing n total items. The standard merge has recurrence T(n) = 2T(n/2) + O(n). Solve this using the Master Theorem. Implement a simulator and verify the total operations. How does the complexity change if the merge step is O(n$^{2}$)?
+\end{enumerate}
+
+   \textit{(In production, Kafka's log compaction uses this pattern to merge sorted message segments.)}
+
+\begin{enumerate}
+\item \textbf{Shortest path in a road network.} Dijkstra's algorithm with a binary heap has complexity O((V+E) log V). For a road network with V = 1$0^{6}$ intersections and E = 2.5 $\times $ 1$0^{6}$ roads, estimate the heap operations. Implement Dijkstra with a binary heap and with a simpler array-based approach for a dense subgraph. Compare actual operation counts.
+\end{enumerate}
+
+   \textit{(In production, Google Maps uses optimized variants of Dijkstra with heuristics like A} and contraction hierarchies.)*
+
+\begin{enumerate}
+\item \textbf{Batched allocation.} A server allocates resources in batches — when the pool is empty, it creates 10 new ones at once instead of 1 at a time. Using amortized analysis (the accounting method), assign a "token cost" to each allocation. Show that the average cost per resource is O(1) despite occasional bursts. Implement a simulation.
+\end{enumerate}
+
+    \textit{(In production, NGINX and other web servers use batched connection allocation to smooth out latency spikes.)}
+
+\begin{enumerate}
+\item \textbf{Loop invariant for selection sort.} State a loop invariant for the outer loop of selection sort:
+\begin{lstlisting}[language=C++]
+void selection_sort(std::vector<int>& a) {
+    for (size_t i = 0; i + 1 < a.size(); ++i) {
+        size_t min_idx = i;
+        for (size_t j = i + 1; j < a.size(); ++j)
+            if (a[j] < a[min_idx]) min_idx = j;
+        std::swap(a[i], a[min_idx]);
+    }
+}
+\end{lstlisting}
+Prove correctness by establishing initialization, maintenance, and termination.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Recursion vs iteration tradeoffs.} Implement matrix exponentiation (computing A$^{n}$ for a 2$\times$2 matrix A) using: (a) a naive loop (O(n) multiplications), (b) exponentiation by squaring (O(log n) multiplications). Measure both for n = 1$0^{8}$ and compare. What is the auxiliary space of each?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Space complexity of algorithms.} Analyze the auxiliary space complexity of the following: (a) reversing an array in-place, (b) computing all n choose 2 pair sums into a new vector, (c) checking if a binary tree is balanced recursively. For (c), distinguish between the best-case tree shape and worst-case tree shape.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Tower of Hanoi generalization.} The standard Tower of Hanoi uses 3 pegs. With 4 pegs (Reve's puzzle), the Frame-Stewart algorithm gives an empirically better but unproven optimal solution. Implement the 3-peg solution and count moves for n = 1, 2, 4, 8, 16. Verify the 2$^{n}$ $-$ 1 formula. Then implement a simple 4-peg variant and compare move counts.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Cache complexity.} Standard Big-O analysis ignores the memory hierarchy. Analyze a blocked (tiled) matrix multiplication: count how many cache misses occur for n $\times $ n matrices with a cache of size Z. Show the complexity is O(n$^{3}$ / $\sqrt {Z}$) cache misses. Implement and measure L1/L2/L3 misses using \texttt{perf stat} for n = 512, 1024, 2048.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Real-time guarantees.} A real-time control system (e.g., a robot) cannot tolerate occasional O(n) reallocation spikes from \texttt{std::vector::push\_back}. Design a data structure that guarantees O(1) per operation at the cost of higher average memory. Implement it and measure worst-case vs \texttt{std::vector}. Compare P99 and P99.9 latency.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{External sorting.} When data exceeds available RAM, sorting must happen on disk. An external sort creates sorted runs of size M (memory limit) and then merges them. Analyze the I/O complexity: how many disk blocks are read and written? Show that increasing M (more memory) reduces I/O significantly. Implement a simulation with various memory budgets.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Consensus message complexity.} A distributed consensus algorithm requires multiple rounds of messages between nodes. In the naive version, every node talks to every other node — O(n$^{2}$) messages. An optimized version elects a leader, reducing this to O(n) messages. Analyze the message cost for committing one log entry in a 5-node cluster and a 50-node cluster. Implement a message-counting simulation.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Stack frame size measurement.} The theoretical O(n) stack space for recursion depends on the actual frame size, which varies by compiler and optimization level. Write a recursive function that measures the stack pointer at each depth. Compile with \texttt{-O0}, \texttt{-O2}, and \texttt{-Os}, and measure the actual bytes per frame. How does tail call optimization change the frame count?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Smoothed analysis of sorting.} Implement insertion sort, quicksort, and their behavior on worst-case inputs (already sorted, reverse sorted) vs randomly perturbed inputs. Measure the number of comparisons as a function of perturbation magnitude. At what perturbation level does the worst-case penalty disappear?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Space-efficient recursion.} Implement merge sort with three approaches: (a) standard O(n) auxiliary space, (b) in-place merge using O(1) auxiliary space but O(n log$^{2}$ n) time, (c) a hybrid that switches to insertion sort for small subarrays. Measure the wall-clock time and peak memory for n = 1$0^{6}$, 1$0^{7}$. Plot the time-memory tradeoff curve.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Alfred V. Aho, John E. Hopcroft, and Jeffrey D. Ullman, \textit{The Design and Analysis of Computer Algorithms}. Addison-Wesley, 1974.
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. MIT Press, 2022.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Addison-Wesley, 2011.
+\item Donald E. Knuth, \textit{The Art of Computer Programming}, Volumes 1–4A. Addison-Wesley.
+\item Daniel H. Greene and Donald E. Knuth, \textit{Mathematics for the Analysis of Algorithms}, 3rd Edition. Birkhauser, 1990.
+\item Michael Sipser, \textit{Introduction to the Theory of Computation}, 3rd Edition. Cengage, 2012.
+\item Steven S. Skiena, \textit{The Algorithm Design Manual}, 2nd Edition. Springer, 2008.
+\item Jon Kleinberg and Eva Tardos, \textit{Algorithm Design}. Addison-Wesley, 2005.
+\item Sanjoy Dasgupta, Christos H. Papadimitriou, and Umesh Vazirani, \textit{Algorithms}. McGraw-Hill, 2006.
+\item Daniel A. Spielman and Shang-Hua Teng, "Smoothed Analysis of Algorithms: Why the Simplex Algorithm Usually Takes Polynomial Time" — JACM, 2004.
+\item Daniel A. Spielman and Shang-Hua Teng, "Smoothed Analysis of Algorithms" — STOC, 2001.
+\end{itemize}
+

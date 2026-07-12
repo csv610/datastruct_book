@@ -1,0 +1,655 @@
+\chapter{Succinct Data Structures}\label{ch22:succinct-data-structures}
+
+\section{Introduction}\label{sec22:introduction}
+
+A data structure is \textbf{succinct} if it stores data in space close to the information-theoretic lower bound while supporting queries efficiently. Given a set of $n$ elements drawn from a universe $\{0, 1, \ldots, m-1\}$, the minimum number of bits needed to represent the set is $n \log(m/n)$ bits (this follows from counting the number of such sets and taking the logarithm). A succinct representation uses this lower bound plus $o(n)$ extra bits, while still supporting the required operations.
+
+\begin{itemize}
+\item \textbf{Implicit:} stores the set in exactly the information-theoretic minimum bits (no extra space). Usually cannot support any non-trivial queries.
+\item \textbf{Succinct:} uses $H + o(n)$ bits where $H$ is the information-theoretic minimum. Supports queries in O(1) or O(log n) time.
+\item \textbf{Compressed:} uses O(n) bits (or $O(H)$ bits), but does not necessarily support efficient queries. A compressed data structure may use more space than a succinct one if $H \ll n$.
+\end{itemize}
+
+A concrete comparison: storing an array of $n$ integers from $\{0, \ldots, 2^{32}-1\}$ naively costs $32n$ bits. If the array is a permutation, the information-theoretic minimum is $n \log n$ bits (about $20n$ bits for $n = 10^6$). A succinct representation stores the permutation in $n \log n + o(n)$ bits with O(1) access time.
+
+\textbf{Applications:}
+\begin{itemize}
+\item Full-text indexes: succinct suffix arrays and FM-indexes index terabyte-scale text in a fraction of the original size.
+\item Web search: search engines use succinct data structures to index billions of pages within memory limits.
+\item Bioinformatics: genome sequences (billions of base pairs) are indexed using FM-indexes built on rank/select.
+\item Compressed databases: SQLite and other embedded databases use succinct structures for query execution on compressed data.
+\end{itemize}
+
+\section{Rank and Select on Bitvectors}\label{sec22:rank-select}
+
+Two fundamental operations on bitvectors are \textbf{rank} and \textbf{select}. They form the building blocks of almost all succinct data structures.
+
+\begin{itemize}
+\item \textbf{rank(b, i):} the number of 1-bits in the first $i$ positions of bitvector $b$. Formally, $\text{rank}_b(i) = |\{j < i : b[j] = 1\}|$.
+\item \textbf{select(b, i):} the position of the $i$-th 1-bit in bitvector $b$. Formally, $\text{select}_b(i) = \min\{j : \text{rank}_b(j+1) = i + 1\}$.
+\end{itemize}
+
+Both operations can be supported in O(1) time with a small amount of extra space. The key idea is \textbf{block decomposition}: partition the bitvector into blocks of $\log^2 n$ bits each. For each block, store the rank at the block boundary. Within each block, further divide into superblocks of $\log n$ bits and store the rank at superblock boundaries. The total extra space is $O(n / \log n)$ bits, and answering a rank query requires only a constant number of table lookups.
+
+Select can be answered in O(1) time using a similar decomposition combined with a precomputed table, or in O(log n) time using binary search with rank queries. A practical approach uses interpolation search within blocks since the density of 1-bits is known.
+
+\begin{lstlisting}[language=C++]
+class succinct_bitvector {
+public:
+    succinct_bitvector(const std::vector<bool>& bits)
+        : n_(bits.size()),
+          blocks_((n_ + 63) / 64),
+          bits_(blocks_, 0),
+          block_rank_(blocks_, 0)
+    {
+        for (size_t i = 0; i < n_; ++i)
+            if (bits[i]) bits_[i / 64] |= 1ULL << (i % 64);
+
+        uint64_t running = 0;
+        for (size_t i = 0; i < blocks_; ++i) {
+            block_rank_[i] = running;
+            running += __builtin_popcountll(bits_[i]);
+        }
+    }
+
+    uint64_t rank(uint64_t i) const {
+        uint64_t block = i / 64;
+        uint64_t pos = i % 64;
+        uint64_t r = block > 0 ? block_rank_[block - 1] : 0;
+        uint64_t mask = (pos == 64) ? ~0ULL : (1ULL << pos) - 1;
+        r += __builtin_popcountll(bits_[block] & mask);
+        return r;
+    }
+
+    uint64_t select(uint64_t k) const {
+        uint64_t lo = 0, hi = n_;
+        while (lo < hi) {
+            uint64_t mid = lo + (hi - lo) / 2;
+            if (rank(mid) <= k) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    uint64_t operator[](uint64_t i) const {
+        return (bits_[i / 64] >> (i % 64)) & 1;
+    }
+
+    uint64_t size() const { return n_; }
+
+private:
+    uint64_t n_, blocks_;
+    std::vector<uint64_t> bits_;
+    std::vector<uint64_t> block_rank_;
+};
+\end{lstlisting}
+
+\textbf{Applications of rank and select:}
+\begin{itemize}
+\item Converting between binary and unary representations: rank converts a bitvector to an array of integers (positions of 1-bits); select does the inverse.
+\item Counting occurrences in a range: $\text{rank}(r) - \text{rank}(l)$ counts 1-bits in $[l, r)$.
+\item Finding the $k$-th occurrence of a symbol in a string (used by wavelet trees and FM-indexes).
+\end{itemize}
+
+\section{Wavelet Tree}\label{sec22:wavelet-tree}
+
+The \textbf{wavelet tree} (Grossi, Gupta, and Vitter, 2003) is a multi-level binary partition of an alphabet that supports rank, select, and range count queries in $O(\log \sigma)$ time, where $\sigma$ is the alphabet size. Each node of the tree stores a bitvector marking which elements of the current sub-alphabet go left (lower half) versus right (upper half).
+
+\subsection{Structure}
+
+For the string \texttt{abracadabra} with alphabet $\{a, b, c, d, r\}$:
+
+\begin{lstlisting}[language=Java]
+Wavelet tree for "abracadabra":
+
+              [a b c d r]
+              /         \
+          [a b]         [c d r]
+          / \           / \
+        [a] [b]      [c] [d r]
+                            / \
+                          [d] [r]
+
+Root bitvector (left=0, right=1):
+  a b r a c a d a b r a
+  0 0 1 0 1 0 1 0 0 1 0   (a,b go left; r,c,d go right)
+
+Left child bitvector (a vs b):
+  a b . a . a . a b . a
+  0 1 . 0 . 0 . 0 1 . 0   (a=0, b=1)
+
+Right child bitvector (c vs d,r):
+  . . r . c . d . . r .
+  . . 1 . 0 . 0 . . 1 .   (c=0, d,r go right)
+
+Far-right child (d vs r):
+  . . r . . . d . . r .
+  . . 1 . . . 0 . . 1 .   (d=0, r=1)
+\end{lstlisting}
+
+\subsection{Operations}
+
+\textbf{access(i):} starting at the root, read bitvector[pos]. If 0, go left; if 1, go right. The symbol is found at the leaf. Time: $O(\log \sigma)$.
+
+\textbf{rank(c, i):} at the root, determine if $c$ goes left or right. If $c$ goes left, replace $i$ with rank0(i) and recurse left. If $c$ goes right, replace $i$ with rank1(i) and recurse right. Time: $O(\log \sigma)$.
+
+\textbf{select(c, i):} starting at the leaf for $c$, walk upward. At each parent, if $c$ came from the left child, find the position in the parent bitvector whose rank0 equals $i$. If from the right, use rank1. Time: $O(\log \sigma)$.
+
+\textbf{range count(l, r, c\_lo, c\_hi):} count occurrences of symbols in $[c\_lo, c\_hi]$ within $[l, r)$ of the text. This is answered by recursing into the wavelet tree, narrowing the alphabet range at each level. Time: $O(\log \sigma)$.
+
+\begin{lstlisting}[language=C++]
+struct wavelet_node {
+    std::vector<bool> bits;
+    std::vector<uint64_t> block_rank;
+    std::unique_ptr<wavelet_node> left, right;
+    char lo, hi;
+
+    uint64_t rank0(uint64_t i) const {
+        uint64_t r = 0;
+        for (uint64_t j = 0; j < i; ++j)
+            if (!bits[j]) ++r;
+        return r;
+    }
+
+    uint64_t rank1(uint64_t i) const {
+        return i - rank0(i);
+    }
+};
+
+class wavelet_tree {
+public:
+    wavelet_tree(const std::string& s) {
+        std::set<char> alpha(s.begin(), s.end());
+        root_ = build(s, alpha.begin(), alpha.end());
+    }
+
+    char access(uint64_t i) const {
+        return access(root_.get(), i);
+    }
+
+    uint64_t rank(char c, uint64_t i) const {
+        return rank(root_.get(), c, i);
+    }
+
+    uint64_t select(char c, uint64_t k) const {
+        return select(root_.get(), c, k);
+    }
+
+    uint64_t range_count(uint64_t l, uint64_t r,
+                         char lo, char hi) const {
+        return range_count(root_.get(), l, r, lo, hi);
+    }
+
+private:
+    std::unique_ptr<wavelet_node> root_;
+
+    std::unique_ptr<wavelet_node> build(
+        const std::string& s,
+        std::set<char>::iterator lo,
+        std::set<char>::iterator hi)
+    {
+        if (lo == hi) return nullptr;
+        if (std::next(lo) == hi) {
+            auto node = std::make_unique<wavelet_node>();
+            node->lo = node->hi = *lo;
+            node->bits.assign(s.size(), false);
+            return node;
+        }
+        auto mid = lo;
+        std::advance(mid, std::distance(lo, hi) / 2);
+        auto node = std::make_unique<wavelet_node>();
+        node->lo = *lo;
+        node->hi = *std::prev(hi);
+
+        std::string left_str, right_str;
+        for (char c : s) {
+            bool go_left = (c < *mid);
+            node->bits.push_back(go_left);
+            if (go_left) left_str += c;
+            else right_str += c;
+        }
+        node->left = build(left_str, lo, mid);
+        node->right = build(right_str, mid, hi);
+        return node;
+    }
+
+    char access(const wavelet_node* node, uint64_t i) const {
+        if (!node) return node->lo;
+        if (node->left == nullptr && node->right == nullptr)
+            return node->lo;
+        if (!node->bits[i]) {
+            uint64_t new_i = node->rank0(i);
+            return access(node->left.get(), new_i);
+        } else {
+            uint64_t new_i = node->rank1(i);
+            return access(node->right.get(), new_i);
+        }
+    }
+
+    uint64_t rank(const wavelet_node* node, char c,
+                  uint64_t i) const {
+        if (!node) return 0;
+        if (node->left == nullptr && node->right == nullptr)
+            return i;
+        if (c <= node->left->hi) {
+            uint64_t new_i = node->rank0(i);
+            return rank(node->left.get(), c, new_i);
+        } else {
+            uint64_t new_i = node->rank1(i);
+            return rank(node->right.get(), c, new_i);
+        }
+    }
+
+    uint64_t select(const wavelet_node* node, char c,
+                    uint64_t k) const {
+        if (!node) return k;
+        if (node->left == nullptr && node->right == nullptr)
+            return k;
+        uint64_t child_sel;
+        if (c <= node->left->hi)
+            child_sel = select(node->left.get(), c, k);
+        else
+            child_sel = select(node->right.get(), c, k);
+        return node->bits[child_sel] ? node->rank1(child_sel + 1)
+                                     : node->rank0(child_sel + 1) - 1;
+    }
+
+    uint64_t range_count(const wavelet_node* node,
+                         uint64_t l, uint64_t r,
+                         char lo, char hi) const {
+        if (!node || l >= r) return 0;
+        if (hi < node->lo || lo > node->hi) return 0;
+        if (lo <= node->lo && node->hi <= hi)
+            return r - l;
+        uint64_t l0 = node->rank0(l), r0 = node->rank0(r);
+        uint64_t l1 = node->rank1(l), r1 = node->rank1(r);
+        uint64_t total = 0;
+        if (lo <= node->left->hi)
+            total += range_count(node->left.get(), l0, r0, lo, hi);
+        if (hi >= node->right->lo)
+            total += range_count(node->right.get(), l1, r1, lo, hi);
+        return total;
+    }
+};
+\end{lstlisting}
+
+\textbf{Complexity:} each operation traverses at most $\log \sigma$ levels, doing O(1) work at each. Space: $O(n \log \sigma)$ bits total across all bitvectors (the sum of bitvector lengths at each level equals $n$). With block decomposition on each bitvector, the overhead is $O(n \log \sigma / \log n)$ extra bits.
+
+\textbf{Applications:} range median queries, range quantile queries, string indexing, frequency counting, and as a component of the FM-index.
+
+\section{Burrows-Wheeler Transform and FM-Index}\label{sec22:bwt-fmindex}
+
+\subsection{Burrows-Wheeler Transform}
+
+The \textbf{Burrows-Wheeler Transform} (BWT) permutes a string by sorting all of its rotations lexicographically. The transformed string is the last column of the sorted rotation matrix. The BWT is reversible: given the transformed string and the original string's starting position in the sorted matrix, the original string can be recovered.
+
+\textbf{Example:} for the string \texttt{banana\$}:
+
+\begin{lstlisting}[language=Java]
+  Sorted rotations of "banana$":
+
+  $ a n a n a      Last     First
+  a $ a n a n      column   column
+  a n $ a n a      ------   ------
+  a n a $ a n   -> a n n $  $ a a a
+  a n a n $ a      n a a a  a n n a
+  a n a n a $      a a n n  n a $ a
+  n a $ a n a      n $ a a  n a a $
+  n a n a $ a                  $ a n a
+
+  BWT("banana$") = "annb$aa"
+  (concatenating last column from top to bottom)
+\end{lstlisting}
+
+The BWT does not compress by itself, but it groups similar characters together, making the output highly compressible by run-length encoding or other methods.
+
+\subsection{FM-Index}
+
+The \textbf{FM-Index} (Ferragina and Manzini, 2000) is a succinct full-text index that uses the BWT together with rank on auxiliary bitvectors. It supports substring search in time proportional to the pattern length, using O(n) bits of space.
+
+The FM-Index maintains, for each character $c$, a bitvector $B_c$ of length $n+1$ where $B_c[i] = 1$ if the $i$-th character of the BWT is $c$. A C-array stores the number of characters lexicographically smaller than $c$ in the original text.
+
+\textbf{LF-mapping:} the key property is that the $i$-th occurrence of character $c$ in the BWT corresponds to the $i$-th occurrence of $c$ in the original text. This mapping, called the LF-mapping, is:
+\[
+\text{LF}(i) = C[\text{BWT}[i]] + \text{rank}_{B_c}(i)
+\]
+where $C[c]$ counts characters lexicographically smaller than $c$.
+
+\textbf{Backward search:} to find a pattern $P = p_1 p_2 \ldots p_m$, start with an interval $[lo, hi) = [0, n)$ and extend backward. For each character $p_j$ from right to left:
+\[
+lo = C[p_j] + \text{rank}_{B_{p_j}}(lo), \quad
+hi = C[p_j] + \text{rank}_{B_{p_j}}(hi)
+\]
+If $lo < hi$ after processing all characters, the pattern occurs $hi - lo$ times in the text. Time: O(m) with precomputed rank, or O(m log n) with binary-search rank.
+
+\begin{lstlisting}[language=C++]
+class fm_index {
+public:
+    fm_index(const std::string& text) : n_(text.size()) {
+        build_bwt(text);
+    }
+
+    int count(const std::string& pattern) const {
+        int lo = 0, hi = n_;
+        for (int i = (int)pattern.size() - 1; i >= 0; --i) {
+            char c = pattern[i];
+            lo = C_[c] + rank(c, lo);
+            hi = C_[c] + rank(c, hi);
+            if (lo >= hi) return 0;
+        }
+        return hi - lo;
+    }
+
+    std::vector<int> find(const std::string& pattern) const {
+        int lo = 0, hi = n_;
+        for (int i = (int)pattern.size() - 1; i >= 0; --i) {
+            char c = pattern[i];
+            lo = C_[c] + rank(c, lo);
+            hi = C_[c] + rank(c, hi);
+            if (lo >= hi) return {};
+        }
+        std::vector<int> occ;
+        for (int i = lo; i < hi; ++i)
+            occ.push_back(locate(i));
+        return occ;
+    }
+
+private:
+    int n_;
+    std::vector<char> bwt_;
+    std::vector<int> C_;
+    std::vector<std::vector<int>> occ_;
+
+    void build_bwt(const std::string& text) {
+        n_ = text.size();
+        std::vector<int> sa(n_);
+        std::iota(sa.begin(), sa.end(), 0);
+        std::sort(sa.begin(), sa.end(), [&](int a, int b) {
+            return text.compare(a, n_ - a, text, b, n_ - b) < 0;
+        });
+
+        bwt_.resize(n_);
+        for (int i = 0; i < n_; ++i)
+            bwt_[i] = text[(sa[i] + n_ - 1) % n_];
+
+        C_.assign(256, 0);
+        for (char c : bwt_) ++C_[c];
+        int sum = 0;
+        for (int i = 0; i < 256; ++i) {
+            int tmp = C_[i];
+            C_[i] = sum;
+            sum += tmp;
+        }
+
+        occ_.assign(256, std::vector<int>(n_ + 1, 0));
+        for (int i = 0; i < n_; ++i) {
+            for (int c = 0; c < 256; ++c)
+                occ_[c][i + 1] = occ_[c][i];
+            ++occ_[(int)bwt_[i]][i + 1];
+        }
+    }
+
+    int rank(char c, int i) const {
+        return occ_[(int)c][i];
+    }
+
+    int locate(int pos) const {
+        int steps = 0;
+        while (steps < n_) {
+            char c = bwt_[pos];
+            pos = C_[c] + occ_[(int)c][pos];
+            ++steps;
+        }
+        return (pos + 1) % n_;
+    }
+};
+\end{lstlisting}
+
+\textbf{Applications:}
+\begin{itemize}
+\item Bioinformatics: FM-indexes index entire human genomes (3 billion base pairs) in a few gigabytes, enabling fast substring search for read alignment.
+\item Compression: the BWT is the core of bzip2; FM-indexes combine compression with search.
+\item Full-text search: the FM-index is the basis of the succinct index in many text search libraries.
+\end{itemize}
+
+\section{Succinct Trees}\label{sec22:succinct-trees}
+
+A tree with $n$ nodes uses $O(n \log n)$ bits with pointer-based representations (each pointer is $\log n$ bits). A succinct representation stores the tree in $2n + o(n)$ bits while supporting navigation operations in O(1) time.
+
+\subsection{Balanced Parentheses}
+
+A rooted ordered tree can be encoded as a balanced parentheses sequence: each node is represented by an opening parenthesis \texttt{(} (preorder visit) and a closing parenthesis \texttt{)} (postorder visit). For a tree with $n$ nodes, the sequence has exactly $2n$ parentheses.
+
+\begin{lstlisting}[language=Java]
+Tree:           Encoding:
+      1         ( ( ) ( ( ) ( ) )
+     / \        
+    2   3       Node 1: ( ... )
+   /   / \      
+  4   5   6     Node 2: ( )        -- leaf
+      |   |     
+      7   8     Node 3: ( ( ) ( ) )
+\end{lstlisting}
+
+\textbf{Navigation with rank and select:}
+\begin{itemize}
+\item \textbf{parent(u):} find the matching open-parenthesis before position $u$ using rank and select.
+\item \textbf{first\_child(u):} if $b[u+1] = 1$ (opening), then $u+1$ is the first child. Otherwise, $u$ has no children.
+\item \textbf{next\_sibling(u):} find the matching close-parenthesis of $u$, then the next position is the next sibling.
+\item \textbf{subtree\_size(u):} the number of pairs within the matched parentheses is the subtree size.
+\end{itemize}
+
+All these operations use O(1) rank/select queries, giving O(1) navigation time.
+
+\subsection{LOUDS}
+
+\textbf{Level-Order Unary Degree Sequence} (LOUDS) encodes a tree by listing each node's degree in unary (the degree $d$ is written as $d$ ones followed by a zero). For a tree with $n$ nodes and total degree $\sum d = n-1$, the sequence has $2n$ bits.
+
+\begin{lstlisting}[language=C++]
+class succinct_tree_bp {
+public:
+    succinct_tree_bp(const std::vector<std::vector<int>>& adj,
+                     int root) {
+        n_ = 0;
+        encode(adj, root);
+        build_rank();
+    }
+
+    int parent(int u) const {
+        int match = find_matching(u);
+        return select0(rank0(match)) / 2;
+    }
+
+    int first_child(int u) const {
+        if (parens_[u + 1] == 1) return u + 1;
+        return -1;
+    }
+
+    int subtree_size(int u) const {
+        int match = find_matching(u);
+        return (match - u + 1) / 2;
+    }
+
+    int depth() const { return max_depth_; }
+
+    size_t memory_bits() const {
+        return parens_.size() + block_rank_.size() * 64;
+    }
+
+private:
+    int n_;
+    std::vector<bool> parens_;
+    std::vector<uint64_t> block_rank_;
+    int max_depth_ = 0;
+
+    void encode(const std::vector<std::vector<int>>& adj,
+                int u) {
+        parens_.push_back(true);
+        ++n_;
+        int depth = 0;
+        for (int v : adj[u]) {
+            encode(adj, v);
+            ++depth;
+        }
+        parens_.push_back(false);
+        max_depth_ = std::max(max_depth_, depth);
+    }
+
+    void build_rank() {
+        uint64_t blocks = (parens_.size() + 63) / 64;
+        block_rank_.resize(blocks, 0);
+        uint64_t running = 0;
+        for (uint64_t i = 0; i < blocks; ++i) {
+            block_rank_[i] = running;
+            uint64_t start = i * 64;
+            uint64_t end = std::min(start + 64, parens_.size());
+            for (uint64_t j = start; j < end; ++j)
+                if (parens_[j]) ++running;
+        }
+    }
+
+    uint64_t rank0(uint64_t i) const {
+        return i - rank1(i);
+    }
+
+    uint64_t rank1(uint64_t i) const {
+        uint64_t block = i / 64;
+        uint64_t pos = i % 64;
+        uint64_t r = block > 0 ? block_rank_[block - 1] : 0;
+        uint64_t start = block * 64;
+        uint64_t mask = (pos == 64) ? ~0ULL : (1ULL << pos) - 1;
+        uint64_t word = 0;
+        for (uint64_t j = 0; j < 64 && start + j < parens_.size(); ++j)
+            if (parens_[start + j]) word |= 1ULL << j;
+        r += __builtin_popcountll(word & mask);
+        return r;
+    }
+
+    uint64_t select0(uint64_t k) const {
+        uint64_t lo = 0, hi = parens_.size();
+        while (lo < hi) {
+            uint64_t mid = lo + (hi - lo) / 2;
+            if (rank0(mid) <= k) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    int find_matching(int pos) const {
+        int depth = 0;
+        for (int i = pos; i < (int)parens_.size(); ++i) {
+            if (parens_[i]) ++depth;
+            else {
+                --depth;
+                if (depth == 0) return i;
+            }
+        }
+        return -1;
+    }
+};
+\end{lstlisting}
+
+\textbf{Space comparison:} a pointer-based binary tree uses $O(n \log n)$ bits. The balanced-parentheses and LOUDS representations use exactly $2n$ bits ($2n + o(n)$ with auxiliary structures). For $n = 10^6$, the pointer-based tree uses about 24 MB; the succinct representation uses about 250 KB.
+
+\section{Compressed Suffix Arrays}\label{sec22:compressed-suffix-arrays}
+
+A \textbf{suffix array} stores the lexicographic order of all $n$ suffixes of a string of length $n$. The naive representation uses $n \log n$ bits (one integer per suffix). A \textbf{compressed suffix array} stores this information in O(n) bits while supporting the same queries.
+
+The FM-Index is one form of compressed suffix array: it encodes the suffix array implicitly through the BWT. Other forms include:
+\begin{itemize}
+\item \textbf{SSA} (Succinct Suffix Array): stores the suffix array using a wavelet tree on the BWT, supporting rank, select, and pattern matching.
+\item \textbf{PSA} (Compressed Suffix Array): stores the suffix array as a sequence of differences and compresses using wavelet trees or entropy-bounded integers.
+\item \textbf{LZ-indexes:} based on Lempel-Ziv decomposition rather than suffix arrays, offering different space-time tradeoffs.
+\end{itemize}
+
+All these structures achieve O(n) bits of space and O(m) or O(m log n) pattern matching time, where $m$ is the pattern length.
+
+\section{Applications and Industry Use}\label{sec22:applications}
+
+\begin{itemize}
+\item \textbf{Search engines:} Google and Bing use succinct indexes for web-scale full-text search. The FM-index variant indexes trillions of tokens within memory budgets that would be impossible with naive structures.
+
+\item \textbf{Genome browsers:} tools like BWA and Bowtie use FM-indexes to align short DNA reads to reference genomes. The human genome (3 billion base pairs) is indexed in about 4 GB using an FM-index.
+
+\item \textbf{Compressed databases:} SQLite and LevelDB use succinct bitvectors and wavelet trees for compressed column storage and range queries without decompressing the entire dataset.
+
+\item \textbf{In-memory caches:} Redis modules and Memcached plugins use succinct data structures to increase cache capacity without adding memory hardware.
+
+\item \textbf{Log analysis:} succinct wavelet trees support frequency histograms and range quantiles on compressed log data, enabling analytics without full decompression.
+\end{itemize}
+
+\section{Common Bugs and Pitfalls}\label{sec22:pitfalls}
+
+\begin{itemize}
+\item \textbf{Off-by-one in rank/select:} rank and select may be defined as 0-indexed or 1-indexed depending on the convention. Mixing conventions within the same code produces silent errors. Pick one convention and use it consistently.
+
+\item \textbf{select boundary conditions:} select(k) where $k$ exceeds the number of 1-bits is undefined. Always check that $k < \text{rank}(n)$ before calling select.
+
+\item \textbf{Wavelet tree alphabet partitioning:} if the alphabet is not partitioned correctly at each level, rank and select return wrong values. The split point must divide the current sub-alphabet roughly in half to maintain $O(\log \sigma)$ depth.
+
+\item \textbf{BWT construction with sentinel:} the BWT requires a unique sentinel character (e.g., \texttt{\$}) at the end of the string. Omitting the sentinel causes the first and last rotations to collide in the sorted matrix.
+
+\item \textbf{Block size tuning:} for bitvector rank, block size $\log^2 n$ is theoretically optimal but may be too large for small bitvectors. For bitvectors under 1024 bits, a simple O(n) scan for rank is faster than block decomposition.
+
+\item \textbf{Memory alignment:} succinct data structures pack bits tightly, which can cause unaligned memory access on some architectures. Use compiler intrinsics (\texttt{\_\_builtin\_popcountll}) and ensure arrays are allocated on aligned boundaries.
+\end{itemize}
+
+\section{Complexity Summary}\label{sec22:complexity-summary}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Operation & Time & Space & Structure \\
+\midrule
+Bitvector rank(b, i) & O(1) & O(n / log n) extra & Block decomposition \\
+Bitvector select(b, i) & O(1) & O(n / log n) extra & Block decomposition + table \\
+Wavelet tree access(i) & O(log $\sigma$) & O(n log $\sigma$) bits & Wavelet tree \\
+Wavelet tree rank(c, i) & O(log $\sigma$) & O(n log $\sigma$) bits & Wavelet tree \\
+Wavelet tree select(c, k) & O(log $\sigma$) & O(n log $\sigma$) bits & Wavelet tree \\
+Wavelet tree range count & O(log $\sigma$) & O(n log $\sigma$) bits & Wavelet tree \\
+FM-index pattern count & O(m) & O(n) bits & BWT + rank bitvectors \\
+FM-index locate & O(m + occ) & O(n) bits & BWT + rank bitvectors \\
+Succinct tree parent & O(1) & 2n + o(n) bits & Balanced parentheses \\
+Succinct tree first\_child & O(1) & 2n + o(n) bits & Balanced parentheses \\
+Succinct tree subtree\_size & O(1) & 2n + o(n) bits & Balanced parentheses \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Exercises}\label{sec22:exercises}
+
+\begin{enumerate}
+\item Implement rank and select on a bitvector of 1 million random bits. Measure the space overhead (in bits per element) and verify that rank answers in O(1) time empirically by timing 100{,}000 random queries.
+
+\item Build a wavelet tree for the string \texttt{mississippi}. Verify that rank(\texttt{s}, 7) returns the correct count and that select(\texttt{s}, 3) returns the position of the third \texttt{s}. Trace the algorithm by hand and confirm the result matches.
+
+\item Construct the BWT of the string \texttt{cacao\$} by hand: list all rotations, sort them, and read the last column. Then verify that you can recover the original string using the LF-mapping.
+
+\item Implement an FM-index for a small text (at most 1000 characters). Test pattern matching on \texttt{abracadabra} and verify that the count for \texttt{abra} returns 2.
+
+\item Compare the space of a pointer-based binary tree with $n = 10^5$ nodes to the balanced-parentheses succinct representation. Print both sizes in bytes.
+
+\item Prove that a bitvector of length $n$ with $k$ set bits can be represented in $n H_0 + o(n)$ bits, where $H_0 = -\frac{k}{n}\log_2\frac{k}{n} - \frac{n-k}{n}\log_2\frac{n-k}{n}$ is the zeroth-order entropy. Hint: this is the number of distinct bitvectors with exactly $k$ ones.
+
+\item Implement a succinct bitvector with block size $\log^2 n$ and compare its rank performance with a naive O(n) scan for bitvectors of size $10^4, 10^5, 10^6$. At what size does block decomposition become faster?
+
+\item Given a wavelet tree for a DNA string (alphabet $\{A, C, G, T\}$), implement a function that returns the frequency of each base in a given range $[l, r)$. Analyse the complexity and compare with a prefix-sum approach.
+\end{enumerate}
+
+\section{References and Further Reading}\label{sec22:references}
+
+\begin{itemize}
+\item Jacobson, G. (1989). ``Succinct Static Data Structures.'' PhD thesis, Carnegie Mellon University. The foundational work on succinct data structures, introducing balanced parentheses and LOUDS encodings for trees.
+
+\item Grossi, R., Gupta, A., and Vitter, J. S. (2003). ``High-Order Entropy-Compressed Text Indexes.'' Proceedings of the 14th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA). Introduces the wavelet tree and its applications to text indexing.
+
+\item Ferragina, P. and Manzini, G. (2005). ``An Alphabet-Friendly Succinct Index.'' Journal of the ACM, 52(3). Introduces the FM-index, showing how the BWT combined with rank/select gives O(n) bit full-text indexing.
+
+\item Sadakane, K. (2007). ``Succinct Representations of Large Graphs and Strings.'' Proceedings of the 18th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA). Extends succinct representations to trees, planar graphs, and strings.
+
+\item Navarro, G. and M\"akinen, V. (2011). ``Compressed Full-Text Indexes.'' ACM Computing Surveys, 43(4). A comprehensive survey of compressed indexes including wavelet trees, FM-indexes, and LZ-based indexes.
+
+\item Munro, J. I. and Raman, V. (1997). ``Succinct Representation of Permutations and Functions.'' Proceedings of the 23rd International Colloquium on Automata, Languages, and Programming (ICALP). Shows how permutations and functions can be represented in $n \log n + O(n)$ bits with O(1) query time.
+
+\item Clark, D. (1996). ``Compact Pat Trees.'' PhD thesis, University of Waterloo. Describes succinct representations of tries and pat trees using rank/select.
+\end{itemize}

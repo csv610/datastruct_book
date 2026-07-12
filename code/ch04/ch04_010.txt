@@ -1,0 +1,6 @@
+coeff_ = [7, 0, -2, 0, 0, 3]
+index:    0  1   2  3  4  5
+
+evaluate at x = 2:
+7 + 0$\cdot$2 + (-2)$\cdot$4 + 0$\cdot$8 + 0$\cdot$16 + 3$\cdot$32
+= 7 - 8 + 96 = 95

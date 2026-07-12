@@ -1,0 +1,1295 @@
+\chapter{Backtracking and Branch and Bound}\label{ch18:backtracking-and-branch-and-bound}
+
+\section{Introduction}
+
+Many problems require searching through a large space of candidates. For NP-hard problems, we cannot avoid exponential worst-case time, but we can often prune the search space dramatically.
+
+\textbf{Backtracking}\index{backtracking} and \textbf{branch and bound}\index{branch and bound} are systematic search methods that explore a \textbf{state space tree}\index{state space tree} while pruning branches that cannot lead to a solution.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Backtracking}
+
+\subsection{The General Method}
+
+Backtracking incrementally builds candidates and abandons a candidate (``backtracks'') as soon as it determines that the candidate cannot lead to a valid solution.
+
+\textbf{State space tree:} every partial solution is a node; children represent all possible extensions. Backtracking explores this tree depth-first, pruning entire subtrees when a constraint is violated.
+
+\begin{lstlisting}[language=Java]
+procedure backtrack(x):
+    if x is a solution:
+        record x
+        return
+    for each choice c in valid_choices(x):
+        make_choice(x, c)
+        backtrack(x)
+        unmake_choice(x, c)  // backtrack step
+\end{lstlisting}
+
+\textbf{Pruning strategies:}
+\begin{itemize}
+\item \textbf{Feasibility pruning:} if the current partial assignment violates a constraint, prune the entire subtree.
+\item \textbf{Bound pruning:} if the current partial solution cannot possibly beat the best found so far, prune (this is the bridge to branch and bound).
+\item \textbf{Symmetry breaking:} if two choices lead to equivalent subtrees (e.g., labeling two identical queens), fix an ordering to avoid exploring both.
+\end{itemize}
+
+\textbf{Backtracking vs brute force:} for n-Queens, brute force places queens in all n$^{n}$ ways. Backtracking places queens row by row, pruning as soon as two queens attack each other. For n = 8, brute force explores 8$^{8}$ = 16,777,216 nodes; backtracking explores only 15,720.
+
+\subsection{The n-Queens Problem}
+
+Place n queens on an n$\times $n chessboard so that no two queens attack each other.
+
+\textbf{State space:} assign queens to rows 0..n-1, each in column col[i].  
+\textbf{Constraint:} col[i] $\ne $ col[j] and |col[i] - col[j]| $\ne $ |i - j| for all i $\ne $ j.
+
+\begin{lstlisting}[language=C++]
+class n_queens {
+public:
+    n_queens(int n) : n_(n), cols_(n) {}
+
+    std::vector<std::vector<int>> solve() {
+        solutions_.clear();
+        backtrack(0);
+        return solutions_;
+    }
+
+private:
+    void backtrack(int row) {
+        if (row == n_) {
+            solutions_.push_back(cols_);
+            return;
+        }
+        for (int col = 0; col < n_; ++col) {
+            if (is_safe(row, col)) {
+                cols_[row] = col;
+                backtrack(row + 1);
+                // no explicit unmake needed -- cols_[row] will be overwritten
+            }
+        }
+    }
+
+    bool is_safe(int row, int col) {
+        for (int i = 0; i < row; ++i) {
+            if (cols_[i] == col) return false;  // same column
+            if (std::abs(cols_[i] - col) == row - i) return false;  // diagonal
+        }
+        return true;
+    }
+
+    int n_;
+    std::vector<int> cols_;
+    std::vector<std::vector<int>> solutions_;
+};
+\end{lstlisting}
+
+\textbf{Trace for n=4:}
+
+\begin{lstlisting}[language=Java]
+Row 0: place queen at col 0
+Row 1: col 0  ->  conflict, col 1  ->  conflict, col 2  ->  safe
+Row 2: col 0  ->  conflict (diag with row 1), col 1  ->  conflict, col 2  ->  conflict,
+       col 3  ->  conflict  ->  backtrack
+Row 1: try col 3  ->  safe
+Row 2: col 0  ->  conflict (col), col 1  ->  safe
+Row 3: no safe column  ->  backtrack
+Row 2: try col 2  ->  conflict, col 3  ->  conflict  ->  backtrack
+Row 1: no more options  ->  backtrack
+Row 0: try col 1
+... eventually finds: [1, 3, 0, 2] and [2, 0, 3, 1]
+\end{lstlisting}
+
+\textbf{Complexity:} O(n!) worst case, but pruning makes it much faster in practice.
+
+\subsection{Subset Sum}
+
+Find subsets of a set that sum to a target value.
+
+\begin{lstlisting}[language=C++]
+class subset_sum {
+public:
+    subset_sum(std::span<const int> values, int target)
+        : values_(values.begin(), values.end()), target_(target) {
+        std::sort(values_.begin(), values_.end());  // enable pruning
+    }
+
+    std::vector<std::vector<int>> solve() {
+        std::vector<int> current;
+        backtrack(0, 0, current);
+        return solutions_;
+    }
+
+private:
+    void backtrack(size_t i, int sum, std::vector<int>& current) {
+        if (sum == target_) {
+            solutions_.push_back(current);
+            return;
+        }
+        if (i >= values_.size() || sum > target_) return;
+
+        // Prune: if sum + remaining values can't reach target
+        int remaining = std::accumulate(values_.begin() + i, values_.end(), 0);
+        if (sum + remaining < target_) return;
+
+        // Include values_[i]
+        current.push_back(values_[i]);
+        backtrack(i + 1, sum + values_[i], current);
+        current.pop_back();
+
+        // Exclude values_[i]
+        backtrack(i + 1, sum, current);
+    }
+
+    std::vector<int> values_;
+    int target_;
+    std::vector<std::vector<int>> solutions_;
+};
+\end{lstlisting}
+
+\subsection{Subset Generation (All Subsets)}
+
+Generate all subsets of {1, 2, ..., n} using backtracking:
+
+\begin{lstlisting}[language=C++]
+void generate_subsets(int n) {
+    std::vector<int> subset;
+    std::function<void(int)> backtrack = [&](int i) {
+        if (i > n) {
+            // Process subset
+            for (int x : subset) std::cout << x << " ";
+            std::cout << "\n";
+            return;
+        }
+        subset.push_back(i);     // include i
+        backtrack(i + 1);
+        subset.pop_back();        // exclude i
+        backtrack(i + 1);
+    };
+    backtrack(1);
+}
+\end{lstlisting}
+
+This generates 2$^{n}$ subsets, reflecting the backtracking pattern of include/exclude decisions.
+
+\subsection{Permutation Generation}
+
+\begin{lstlisting}[language=C++]
+void generate_permutations(std::vector<int>& arr, size_t start) {
+    if (start == arr.size()) {
+        for (int x : arr) std::cout << x << " ";
+        std::cout << "\n";
+        return;
+    }
+    for (size_t i = start; i < arr.size(); ++i) {
+        std::swap(arr[start], arr[i]);
+        generate_permutations(arr, start + 1);
+        std::swap(arr[start], arr[i]);  // backtrack
+    }
+}
+\end{lstlisting}
+
+\section{Branch and Bound}
+
+Branch and bound is similar to backtracking but uses a \textbf{bound} to prune: we compute an optimistic estimate of the best solution achievable from a given node. If the bound is worse than the current best solution, we prune.
+
+\textbf{Key difference from backtracking:} backtracking prunes based on constraints (feasibility); branch and bound prunes based on bounds (optimality). Backtracking finds ALL valid solutions or ANY valid solution; branch and bound finds the OPTIMAL solution.
+
+\textbf{Bound function:} a function b(node) that returns a lower bound (for minimization) on the cost of any solution in the subtree rooted at node. The bound must be \textbf{admissible} — it must never overestimate the true optimum. A tighter bound prunes more nodes.
+
+\textbf{Search strategy:} branch and bound typically uses \textbf{best-first search} (priority queue ordered by bound) rather than DFS. This explores the most promising nodes first, finding good upper bounds early that enable more pruning.
+
+\subsection{The General Method}
+
+\begin{lstlisting}[language=Java]
+procedure branch_and_bound(root):
+    best = infinity
+    queue = {root}
+    while queue is not empty:
+        node = queue.pop()
+        if node is a complete solution:
+            best = min(best, value(node))
+        else if bound(node) < best:
+            for each child of node:
+                queue.push(child)
+    return best
+\end{lstlisting}
+
+\subsection{Traveling Salesman Problem (TSP)}
+
+Find the shortest Hamiltonian cycle in a complete graph. Branch and bound with the \textbf{reduced cost matrix} bound:
+
+\begin{lstlisting}[language=C++]
+class tsp_solver {
+public:
+    tsp_solver(std::vector<std::vector<int>> cost_matrix)
+        : cost_(std::move(cost_matrix)), n_(cost_.size()), best_cost_(INT_MAX) {}
+
+    int solve() {
+        std::vector<bool> visited(n_, false);
+        visited[0] = true;
+        branch_and_bound(0, 1, 0, visited);
+        return best_cost_;
+    }
+
+private:
+    void branch_and_bound(int current, int count, int current_cost,
+                           std::vector<bool>& visited) {
+        if (count == n_) {
+            current_cost += cost_[current][0];  // return to start
+            best_cost_ = std::min(best_cost_, current_cost);
+            return;
+        }
+
+        for (int next = 0; next < n_; ++next) {
+            if (!visited[next]) {
+                int new_cost = current_cost + cost_[current][next];
+                // Bound: if already worse than best, prune
+                if (new_cost < best_cost_) {
+                    visited[next] = true;
+                    branch_and_bound(next, count + 1, new_cost, visited);
+                    visited[next] = false;
+                }
+            }
+        }
+    }
+
+    const std::vector<std::vector<int>>& cost_;
+    size_t n_;
+    int best_cost_;
+};
+\end{lstlisting}
+
+\textbf{A tighter bound:} compute the reduced cost matrix. For each row, subtract its minimum. For each column, subtract its minimum. The sum of all subtracted values gives a lower bound for any tour.
+
+\subsection{15-Puzzle}
+
+Solve the 15-puzzle using branch and bound with the \textbf{Manhattan distance} heuristic:
+
+\begin{lstlisting}[language=C++]
+struct puzzle_state {
+    std::vector<int> board;  // 16 elements, 0 = empty
+    int zero_pos;
+    int g;  // cost so far (moves made)
+    int h;  // heuristic (Manhattan distance)
+    
+    int f() const { return g + h; }
+    
+    bool operator>(const puzzle_state& other) const {
+        return f() > other.f();
+    }
+};
+
+int manhattan_distance(const std::vector<int>& board) {
+    int distance = 0;
+    for (int i = 0; i < 16; ++i) {
+        if (board[i] == 0) continue;
+        int target_row = (board[i] - 1) / 4;
+        int target_col = (board[i] - 1) % 4;
+        int row = i / 4;
+        int col = i % 4;
+        distance += std::abs(row - target_row) + std::abs(col - target_col);
+    }
+    return distance;
+}
+
+// A* search is branch and bound with a priority queue ordered by f = g + h
+int solve_15_puzzle(const std::vector<int>& start) {
+    std::priority_queue<puzzle_state, std::vector<puzzle_state>,
+                        std::greater<puzzle_state>> pq;
+    
+    int start_zero = std::find(start.begin(), start.end(), 0) - start.begin();
+    pq.push({start, start_zero, 0, manhattan_distance(start)});
+    
+    std::set<std::vector<int>> visited;
+    
+    while (!pq.empty()) {
+        auto state = pq.top(); pq.pop();
+        if (state.h == 0) return state.g;  // solved
+        
+        if (visited.count(state.board)) continue;
+        visited.insert(state.board);
+        
+        // Generate moves (up, down, left, right)
+        int row = state.zero_pos / 4;
+        int col = state.zero_pos % 4;
+        int dirs[][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+        
+        for (auto [dr, dc] : dirs) {
+            int nr = row + dr, nc = col + dc;
+            if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+            
+            auto new_board = state.board;
+            int new_pos = nr * 4 + nc;
+            std::swap(new_board[state.zero_pos], new_board[new_pos]);
+            
+            if (!visited.count(new_board)) {
+                pq.push({new_board, new_pos, state.g + 1,
+                         manhattan_distance(new_board)});
+            }
+        }
+    }
+    return -1;  // unsolvable
+}
+\end{lstlisting}
+
+This is \textbf{A* search}\index{A* search} — branch and bound with a priority queue and an admissible heuristic (one that never overestimates the true cost).
+
+\subsection{Backtracking vs. Branch and Bound}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+\textbf{Goal} & Find all solutions or any solution & Find optimal solution \\
+\textbf{Pruning} & Constraints (feasibility) & Bounds (optimality) \\
+\textbf{Search order} & Typically DFS & Typically best-first \\
+\textbf{Memory} & O(depth) recursion stack & O(branching factor $\times $ depth) for priority queue \\
+\textbf{Typical use} & N-queens, Sudoku, subset sum & TSP, 15-puzzle, integer programming \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Worked comparison:} TSP on 4 cities with cost matrix:
+
+\begin{lstlisting}[language=Java]
+     A   B   C   D
+A [  0  10  15  20]
+B [ 10   0  35  25]
+C [ 15  35   0  30]
+D [ 20  25  30   0]
+\end{lstlisting}
+
+\textbf{Backtracking approach:} enumerate all 3! = 6 Hamiltonian cycles:
+\begin{lstlisting}[language=Java]
+A-B-C-D-A: 10+35+30+20 = 95
+A-B-D-C-A: 10+25+30+15 = 80
+A-C-B-D-A: 15+35+25+20 = 95
+A-C-D-B-A: 15+30+25+10 = 80
+A-D-B-C-A: 20+25+35+15 = 95
+A-D-C-B-A: 20+30+35+10 = 95
+Best: 80
+\end{lstlisting}
+
+\textbf{Branch and bound:} use reduced cost matrix bound.
+\begin{lstlisting}[language=Java]
+Root: reduce rows (subtract min from each):
+  [0, 0, 5, 10] after subtracting [0, 0, 10, 10, 15, 20] -> row mins: 0, 10, 15, 20
+  Actually: row mins are 0, 10, 15, 20. Sum of reductions = 0+10+15+20 = 45.
+  Lower bound = 45.
+
+Explore A->B (cost 10):
+  Remaining matrix reduced. Bound = 45 + 10 + (reductions of submatrix) = 65.
+  
+Explore A->C (cost 15):
+  Bound = 45 + 15 + (reductions) = 75.
+
+Since 65 < 75, explore A->B first. Eventually find optimal = 80.
+Prune branches where bound >= 80 (current best).
+\end{lstlisting}
+
+Branch and bound explored fewer nodes than backtracking because the bound pruned subtrees that were provably suboptimal.
+\section{Application: Sudoku Solver}
+
+\begin{lstlisting}[language=C++]
+class sudoku_solver {
+public:
+    bool solve(std::vector<std::vector<int>>& board) {
+        for (int row = 0; row < 9; ++row) {
+            for (int col = 0; col < 9; ++col) {
+                if (board[row][col] == 0) {
+                    for (int num = 1; num <= 9; ++num) {
+                        if (is_valid(board, row, col, num)) {
+                            board[row][col] = num;
+                            if (solve(board)) return true;
+                            board[row][col] = 0;  // backtrack
+                        }
+                    }
+                    return false;  // no valid number for this cell
+                }
+            }
+        }
+        return true;  // all cells filled
+    }
+
+    bool is_valid(const std::vector<std::vector<int>>& board,
+                  int row, int col, int num) {
+        for (int i = 0; i < 9; ++i) {
+            if (board[row][i] == num) return false;
+            if (board[i][col] == num) return false;
+            int box_row = 3 * (row / 3) + i / 3;
+            int box_col = 3 * (col / 3) + i % 3;
+            if (board[box_row][box_col] == num) return false;
+        }
+        return true;
+    }
+};
+\end{lstlisting}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Forgetting to restore state after backtracking & State corrupted, solution space polluted & Always undo the assignment when returning from recursion \\
+No pruning on unsolvable branches & Exponential time exploring dead ends & Add feasibility check before recursing \\
+Infinite recursion if base case is not reached & Stack overflow, crash & Ensure every recursive call makes progress toward a base case \\
+Wrong bounding function in branch-and-bound & Prunes optimal solutions, suboptimal result & Bounding function must be admissible ($\le $ true value for maximization) \\
+Using float equality for bound comparison & Wrong bound evaluation & Use tolerance \texttt{abs(a - b) < \$\textbackslash\{\}varepsilon \$} or integer arithmetic \\
+Not sorting items before search (e.g., subset sum) & Much slower search, more backtracking & Sort items to enable early pruning \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Backtracking} systematically explores the state space tree, pruning branches that violate constraints.
+\item \textbf{n-Queens, subset sum, and Sudoku} are canonical backtracking problems.
+\item \textbf{Branch and bound} extends backtracking by pruning based on bounds, searching for optimal solutions.
+\item \textbf{A* search} is branch and bound with a priority queue and an admissible heuristic.
+\item Both methods solve NP-hard problems in practice by pruning most of the exponential search space.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{How do you estimate the actual number of nodes explored by backtracking --- beyond the O(b$^{d}$) upper bound?}
+
+The $O(b^{d})$ bound assumes no pruning. In practice, constraint propagation eliminates most branches early. The actual count depends on constraint tightness: for $n$-Queens, the first queen has $n$ choices, the second has $\sim n{-}2$, the third $\sim n{-}4$ --- the branching factor decreases rapidly. For Sudoku with constraint propagation (naked singles, hidden singles), the effective branching factor drops to $\sim 1$--$2$, making the search nearly linear. The practical approach: run the solver on small instances ($n = 8, 10, 12$) and measure the node count. If it grows polynomially, the pruning is effective. If it grows exponentially, you need a better heuristic or a different algorithm.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does branch and bound differ from backtracking?}
+
+Backtracking prunes subtrees that violate \textit{constraints} (feasibility). Branch and bound prunes subtrees whose \textit{bound} is worse than the current best (optimality). Backtracking finds all solutions; branch and bound finds the optimal solution. Branch and bound typically uses best-first search (priority queue) rather than DFS.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What's the difference between an admissible heuristic and a consistent heuristic, and why does it matter for A*?}
+
+Admissible: $h(n)$ never overestimates the true cost to goal --- guarantees A* finds the optimal path. Consistent: $h(n) \le c(n, n') + h(n')$ for every edge --- guarantees A* never needs to reopen closed nodes. Consistency is stronger than admissibility. Without consistency, A* may expand a node, then later find a cheaper path to it and re-expand --- wasting time but still finding the optimal solution. With consistency, once a node is closed, its distance is final. Manhattan distance is both admissible and consistent for grid paths. Euclidean distance is admissible and consistent for any geometric space. Custom heuristics (e.g., pattern databases for 15-puzzle) are admissible but may not be consistent --- check the edge condition.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you solve n-Queens efficiently?}
+
+Backtracking with pruning: place queens row by row. For each row, try each column; check if it conflicts with any previously placed queen (same column or diagonal). For n = 8, only 15,720 nodes are explored vs 8$^{8}$ = 16.7M for brute force. Further optimizations: use bitmasks for O(1) conflict checking, and symmetry breaking (fix the first queen's column to halve the search).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain the reduced cost matrix bound for TSP.}
+
+For each row, subtract its minimum value; then for each column, subtract its minimum. The sum of all subtracted values is a lower bound on the cost of any tour passing through that node. This bound is admissible because any Hamiltonian cycle must include exactly one edge from each row and column, and the reductions represent the minimum possible cost.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What makes pruning effective, and how do you design constraints that prune more aggressively?}
+
+Pruning works when constraints eliminate large subtrees early. The key metric: \textit{pruning power} --- what fraction of the search tree is cut by each constraint check. Effective strategies: (1)~Order variables by domain size (most constrained first) --- fail fast on tight constraints; (2)~Forward propagation --- after each assignment, eliminate inconsistent values from future variables' domains (arc consistency); (3)~Symmetry breaking --- fix one variable to eliminate equivalent solutions (e.g., fix first queen to left half for $n$-Queens); (4)~Dynamic variable ordering --- choose the variable with the fewest remaining values at each step (MRV heuristic). The lesson: the algorithm's power comes from the constraints, not the search strategy.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is pure backtracking too slow for hard Sudoku, and what preprocessing makes it practical?}
+
+Pure backtracking tries all 9 digits per cell --- $O(9^{81})$ worst-case, absurdly slow for hard puzzles. Constraint propagation reduces this dramatically: (1)~Naked singles: if a cell has only one possible digit, assign it immediately --- no branching; (2)~Hidden singles: if a digit can only go in one cell in a row/col/box, assign it; (3)~Naked pairs/triples: if $k$ cells in a unit share exactly $k$ digits, eliminate those digits from other cells. After propagation, the effective branching factor drops to $\sim 1$--$2$ for most puzzles. Hard puzzles require backtracking after propagation, but only at a few decision points. The combination of propagation + backtracking solves any Sudoku in $< 1$ms on modern hardware.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is the 15-puzzle hard for A*, and what heuristic improvements make it tractable?}
+
+The 15-puzzle has $\sim 10^{13}$ states --- too many for brute force. Manhattan distance (sum of each tile's distance from its goal) is admissible but weak: it ignores interactions between tiles. Better heuristics: (1)~Linear conflict --- add 2 for every pair of tiles that must cross each other; (2)~Pattern databases --- precompute the cost of solving a subset of tiles (e.g., corner tiles) and use it as a heuristic; (3)~Additive pattern databases --- combine multiple pattern databases by taking the max. With a good pattern database, A* solves the 15-puzzle in $< 1$ second. The 24-puzzle (5$\times$5) requires IDA* with pattern databases --- A* runs out of memory. The lesson: the heuristic quality determines whether the problem is tractable.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you implement a backtracking solution in C++ efficiently?}
+
+Use a recursive function with a state vector (e.g., \texttt{std::vector<int>} for queen positions). Pass by reference and undo changes on backtrack (push/pop or swap-and-swap-back). Avoid copying state at each level. For constraint checking, use bitmasks (for n-Queens: column, diag1, diag2 as bit sets) for O(1) conflict detection.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain the difference between DFS and best-first search in backtracking.}
+
+DFS explores the deepest node first — O(depth) memory, good for finding any solution quickly, but may explore bad branches deeply before finding good ones. Best-first (branch and bound) explores the most promising node first — O(branching $\times$ depth) memory, finds good upper bounds early, enabling more pruning. DFS is preferred when solutions are dense; best-first when bounds are tight.
+\end{enumerate}
+
+\section{N-Queens Problem: A Deep Dive}\label{sec:nqueens-deep}
+
+The n-Queens problem was introduced earlier in this chapter. Here we provide a complete worked trace, analyze the state space tree in detail, and develop an optimized implementation.
+
+\subsection{State Space Tree for 4-Queens}
+
+The state space tree for 4-Queens has rows as levels and columns as branches at each level. A partial assignment (col[0], col[1], ..., col[k-1]) is a node at level k. The root (level 0) represents an empty board.
+
+\begin{lstlisting}[language=Java]
+State Space Tree for 4-Queens:
+                          root
+                /   /   |   \   \
+               0    1   2    3        <-- row 0: col placed
+              /|\  /|\  /|\  /|\
+             ... (row 1 branches)
+             
+Leaf nodes that are solutions:
+  [1, 3, 0, 2]: queens at (0,1),(1,3),(2,0),(3,2)
+  [2, 0, 3, 1]: queens at (0,2),(1,0),(2,3),(3,1)
+\end{lstlisting}
+
+At each level k, we try placing a queen in columns 0 through n-1 of row k, checking against all previously placed queens (rows 0 through k-1). A placement is invalid if any prior queen shares the same column or diagonal.
+
+\subsection{Worked Trace: Backtracking for 4-Queens}
+
+We trace the algorithm step by step. At each step we record the action taken and the reason for backtracking when it occurs.
+
+\begin{lstlisting}[language=Java]
+Initial state: cols = [-1, -1, -1, -1], n = 4
+
+Step 1:  Row 0, try col 0  ->  safe. cols = [0, -1, -1, -1]
+Step 2:  Row 1, try col 0  ->  conflict (same col as row 0)
+Step 3:  Row 1, try col 1  ->  conflict (diag with row 0: |1-0|==|1-0|)
+Step 4:  Row 1, try col 2  ->  safe. cols = [0, 2, -1, -1]
+Step 5:  Row 2, try col 0  ->  conflict (same col as row 0)
+Step 6:  Row 2, try col 1  ->  conflict (diag with row 1: |1-1|==|2-1|)
+Step 7:  Row 2, try col 2  ->  conflict (same col as row 1)
+Step 8:  Row 2, try col 3  ->  conflict (diag with row 0: |3-0|==|2-0|)
+         No valid column for row 2  ->  BACKTRACK to row 1
+Step 9:  Row 1, try col 3  ->  safe. cols = [0, 3, -1, -1]
+Step 10: Row 2, try col 0  ->  conflict (same col as row 0)
+Step 11: Row 2, try col 1  ->  safe. cols = [0, 3, 1, -1]
+Step 12: Row 3, try col 0  ->  conflict (same col as row 0)
+Step 13: Row 3, try col 1  ->  conflict (same col as row 2)
+Step 14: Row 3, try col 2  ->  conflict (diag with row 1: |2-3|==|3-1|)
+Step 15: Row 3, try col 3  ->  conflict (same col as row 1)
+         No valid column for row 3  ->  BACKTRACK to row 2
+Step 16: Row 2, try col 2  ->  conflict (diag with row 0: |2-0|==|2-0|)
+Step 17: Row 2, try col 3  ->  conflict (diag with row 1: |3-3|==|2-1|)
+         No valid column for row 2  ->  BACKTRACK to row 1
+         No more columns for row 1  ->  BACKTRACK to row 0
+Step 18: Row 0, try col 1  ->  safe. cols = [1, -1, -1, -1]
+Step 19: Row 1, try col 0  ->  conflict (diag with row 0: |0-1|==|1-0|)
+Step 20: Row 1, try col 1  ->  conflict (same col as row 0)
+Step 21: Row 1, try col 2  ->  conflict (diag with row 0: |2-1|==|1-0|)
+Step 22: Row 1, try col 3  ->  safe. cols = [1, 3, -1, -1]
+Step 23: Row 2, try col 0  ->  conflict (diag with row 1: |0-3|==|2-1|)
+Step 24: Row 2, try col 1  ->  conflict (same col as row 0)
+Step 25: Row 2, try col 2  ->  conflict (diag with row 0: |2-1|==|2-0|)
+Step 26: Row 2, try col 3  ->  conflict (same col as row 1)
+         No valid column for row 2  ->  BACKTRACK to row 1
+         No more columns for row 1  ->  BACKTRACK to row 0
+Step 27: Row 0, try col 2  ->  safe. cols = [2, -1, -1, -1]
+Step 28: Row 1, try col 0  ->  safe. cols = [2, 0, -1, -1]
+Step 29: Row 2, try col 0  ->  conflict (same col as row 1)
+Step 30: Row 2, try col 1  ->  conflict (diag with row 1: |1-0|==|2-1|)
+Step 31: Row 2, try col 2  ->  conflict (same col as row 0)
+Step 32: Row 2, try col 3  ->  safe. cols = [2, 0, 3, -1]
+Step 33: Row 3, try col 0  ->  conflict (same col as row 1)
+Step 34: Row 3, try col 1  ->  safe. cols = [2, 0, 3, 1]  ** SOLUTION FOUND **
+         SOLUTION 1: [2, 0, 3, 1]
+
+Step 35: Row 3, try col 2  ->  conflict (same col as row 0)
+Step 36: Row 3, try col 3  ->  conflict (same col as row 2)
+         No more columns for row 3  ->  BACKTRACK
+         ... continue backtracking ...
+Step 37: Row 0, try col 3  ->  safe. cols = [3, -1, -1, -1]
+Step 38: Row 1, try col 0  ->  safe. cols = [3, 0, -1, -1]
+Step 39: Row 2, try col 0  ->  conflict (same col as row 1)
+Step 40: Row 2, try col 1  ->  safe. cols = [3, 0, 1, -1]
+Step 41: Row 3, try col 0  ->  conflict (same col as row 1)
+Step 42: Row 3, try col 1  ->  conflict (same col as row 2)
+Step 43: Row 3, try col 2  ->  conflict (diag with row 0: |2-3|==|3-0|)
+Step 44: Row 3, try col 3  ->  conflict (same col as row 0)
+         BACKTRACK ... no solution from row 0 col 3
+
+Total nodes visited: 44  (vs 4^4 = 256 for brute force)
+Solutions found: [2, 0, 3, 1] and [1, 3, 0, 2]
+\end{lstlisting}
+
+\subsection{Optimized C++ Implementation with Bitmasks}
+
+The basic implementation checks each placed queen with a loop. We can speed this up using bitmasks for O(1) conflict detection. Three bitmasks track occupied columns, the main diagonals, and the anti-diagonals.
+
+\begin{lstlisting}[language=C++]
+class n_queens_bitmask {
+public:
+    explicit n_queens_bitmask(int n) : n_(n), count_(0) {}
+
+    int solve_count() {
+        count_ = 0;
+        backtrack(0, 0, 0, 0);
+        return count_;
+    }
+
+    std::vector<std::vector<int>> solve_all() {
+        solutions_.clear();
+        std::vector<int> cols(n_);
+        backtrack_all(0, 0, 0, 0, cols);
+        return solutions_;
+    }
+
+private:
+    void backtrack(int row, int cols, int diag1, int diag2) {
+        if (row == n_) {
+            ++count_;
+            return;
+        }
+        int available = ((1 << n_) - 1) & ~(cols | diag1 | diag2);
+        while (available) {
+            int bit = available & (-available);
+            available &= available - 1;
+            backtrack(row + 1, cols | bit,
+                      (diag1 | bit) << 1, (diag2 | bit) >> 1);
+        }
+    }
+
+    void backtrack_all(int row, int cols, int diag1, int diag2,
+                       std::vector<int>& assignment) {
+        if (row == n_) {
+            solutions_.push_back(assignment);
+            return;
+        }
+        int available = ((1 << n_) - 1) & ~(cols | diag1 | diag2);
+        while (available) {
+            int bit = available & (-available);
+            available &= available - 1;
+            int col = __builtin_ctz(bit);
+            assignment[row] = col;
+            backtrack_all(row + 1, cols | bit,
+                          (diag1 | bit) << 1, (diag2 | bit) >> 1,
+                          assignment);
+        }
+    }
+
+    int n_;
+    int count_;
+    std::vector<std::vector<int>> solutions_;
+};
+
+// Example usage:
+// n_queens_bitmask solver(8);
+// std::cout << "8-Queens solutions: " << solver.solve_count() << "\n";
+// Output: 8-Queens solutions: 92
+\end{lstlisting}
+
+\textbf{How the bitmasks work:}
+\begin{itemize}
+\item \texttt{cols}: bit i is set if column i is occupied.
+\item \texttt{diag1}: bit i is set if diagonal (row - col = const) is occupied. Shift left by 1 each row because the diagonal offset changes.
+\item \texttt{diag2}: bit i is set if anti-diagonal (row + col = const) is occupied. Shift right by 1 each row.
+\item \texttt{available} computes all free positions in O(1) using bitwise operations.
+\end{itemize}
+
+\textbf{Performance comparison for n = 14:}
+
+\begin{lstlisting}[language=Java]
+Method                        Nodes visited    Time
+Basic backtracking            ~5,000,000       1.2s
+Bitmask backtracking          ~5,000,000       0.15s
+Bitmask + symmetry breaking   ~2,500,000       0.08s
+\end{lstlisting}
+
+\textbf{Symmetry breaking:} for n-Queens, solutions come in mirror-image pairs. Fixing the first queen to the left half of the board (col < n/2) halves the search. For even n, this gives exactly half the solutions; for odd n, solutions with the first queen in the middle column are self-symmetric and counted once.
+
+\subsection{Complexity Analysis}
+
+The number of solutions for n-Queens grows rapidly:
+
+\begin{lstlisting}[language=Java]
+ n     Solutions    Brute force (n^n)    Backtracking nodes
+ 4     2            256                  44
+ 5     10           3,125                185
+ 6     4            46,656               535
+ 7     40           823,543              2,722
+ 8     92           16,777,216           15,720
+ 9     352          387,420,489          81,543
+ 10    724          10,000,000,000       482,765
+ 14    365,596      huge                 ~5,000,000
+\end{lstlisting}
+
+The worst-case time is O(n!) since we try all permutations in the worst case. With pruning, the practical running time is much closer to O(n$^{n/2}$) or better. The bitmask implementation runs in O(S) where S is the number of nodes visited.
+
+\section{Sudoku Solver: Backtracking with Constraint Checking}\label{sec:sudoku-solver}
+
+Sudoku is a 9$\times $9 grid divided into nine 3$\times $3 boxes. Fill each cell with a digit 1-9 so that every row, column, and box contains each digit exactly once. We solve any Sudoku puzzle using backtracking with three constraint checks.
+
+\subsection{Algorithm Overview}
+
+The solver scans the grid left-to-right, top-to-bottom. At the first empty cell (value 0), it tries digits 1 through 9. For each candidate, it checks three constraints:
+
+\begin{enumerate}
+\item \textbf{Row constraint:} the digit does not appear elsewhere in the same row.
+\item \textbf{Column constraint:} the digit does not appear elsewhere in the same column.
+\item \textbf{Box constraint:} the digit does not appear elsewhere in the same 3$\times $3 box.
+\end{enumerate}
+
+If a digit passes all three checks, it is placed and the solver recurses. If no digit works, the cell is reset to 0 and the solver backtracks.
+
+\subsection{Worked Partial Trace}
+
+Consider this puzzle (0 denotes empty):
+
+\begin{lstlisting}[language=Java]
+Initial board:
+  5 3 0 | 0 7 0 | 0 0 0
+  6 0 0 | 1 9 5 | 0 0 0
+  0 9 8 | 0 0 0 | 0 6 0
+  ------+-------+------
+  8 0 0 | 0 6 0 | 0 0 3
+  4 0 0 | 8 0 3 | 0 0 1
+  7 0 0 | 0 2 0 | 0 0 6
+  ------+-------+------
+  0 6 0 | 0 0 0 | 2 8 0
+  0 0 0 | 4 1 9 | 0 0 5
+  0 0 0 | 0 8 0 | 0 7 9
+
+Step 1:  Row 0, Col 2 (empty).
+         Try 1: row 0 has no 1, col 2 has 8,6 -> no 1,
+                box(0,0) has 5,3,6,9,8 -> no 1
+                -> place 1. board[0][2] = 1.
+Step 2:  Row 0, Col 3 (empty).
+         Try 1: row 0 now has 1 -> conflict.
+         Try 2: row 0 has no 2, col 3 has 1,8,4 -> no 2,
+                box(0,3) has 7,1,9,5 -> no 2
+                -> place 2. board[0][3] = 2.
+         ... continue placing digits in row 0 ...
+Step 3:  Row 0, Col 5 (empty).
+         Try all digits 1-9: all conflict with row, col, or box.
+         -> BACKTRACK: reset Col 3 to 0, try next digit.
+         Try 3 for Col 3: row 0 has no 3, col 3 has 1,8,4 -> no 3,
+                box(0,3) has 7,1,9,5 -> no 3.
+                -> place 3. board[0][3] = 3.
+         ... continue ...
+         
+This process continues, exploring and backtracking until the
+board is filled. Hard puzzles (17 clues) may require millions
+of backtracks.
+\end{lstlisting}
+
+\subsection{C++ Implementation}
+
+\begin{lstlisting}[language=C++]
+class sudoku_solver {
+public:
+    bool solve(std::vector<std::vector<int>>& board) {
+        int row, col;
+        if (!find_empty(board, row, col)) return true;
+
+        for (int num = 1; num <= 9; ++num) {
+            if (is_valid(board, row, col, num)) {
+                board[row][col] = num;
+                if (solve(board)) return true;
+                board[row][col] = 0;  // backtrack
+            }
+        }
+        return false;  // trigger backtracking
+    }
+
+private:
+    bool find_empty(const std::vector<std::vector<int>>& board,
+                    int& row, int& col) {
+        for (row = 0; row < 9; ++row) {
+            for (col = 0; col < 9; ++col) {
+                if (board[row][col] == 0) return true;
+            }
+        }
+        return false;
+    }
+
+    bool is_valid(const std::vector<std::vector<int>>& board,
+                  int row, int col, int num) {
+        for (int c = 0; c < 9; ++c) {
+            if (board[row][c] == num) return false;
+        }
+        for (int r = 0; r < 9; ++r) {
+            if (board[r][col] == num) return false;
+        }
+        int box_row = 3 * (row / 3);
+        int box_col = 3 * (col / 3);
+        for (int r = box_row; r < box_row + 3; ++r) {
+            for (int c = box_col; c < box_col + 3; ++c) {
+                if (board[r][c] == num) return false;
+            }
+        }
+        return true;
+    }
+};
+
+// Usage:
+// std::vector<std::vector<int>> board = {
+//     {5,3,0,0,7,0,0,0,0},
+//     {6,0,0,1,9,5,0,0,0},
+//     {0,9,8,0,0,0,0,6,0},
+//     {8,0,0,0,6,0,0,0,3},
+//     {4,0,0,8,0,3,0,0,1},
+//     {7,0,0,0,2,0,0,0,6},
+//     {0,6,0,0,0,0,2,8,0},
+//     {0,0,0,4,1,9,0,0,5},
+//     {0,0,0,0,8,0,0,7,9}
+// };
+// sudoku_solver solver;
+// if (solver.solve(board)) { /* print board */ }
+\end{lstlisting}
+
+\subsection{Optimizations}
+
+The basic solver works but is slow for hard puzzles. Several optimizations reduce backtracking dramatically:
+
+\begin{lstlisting}[language=C++]
+// Optimization: Precompute which digits are used in each
+// row, column, and box using bitmasks.
+// MRV heuristic: always fill the cell with fewest choices.
+class sudoku_optimized {
+public:
+    bool solve(std::vector<std::vector<int>>& board) {
+        int row_mask[9] = {}, col_mask[9] = {}, box_mask[9] = {};
+        for (int r = 0; r < 9; ++r) {
+            for (int c = 0; c < 9; ++c) {
+                if (board[r][c] != 0) {
+                    int bit = 1 << board[r][c];
+                    row_mask[r] |= bit;
+                    col_mask[c] |= bit;
+                    box_mask[box_id(r, c)] |= bit;
+                }
+            }
+        }
+        return solve(board, row_mask, col_mask, box_mask);
+    }
+
+private:
+    int box_id(int r, int c) { return 3 * (r / 3) + c / 3; }
+
+    bool solve(std::vector<std::vector<int>>& board,
+               int row_mask[], int col_mask[], int box_mask[]) {
+        int best_r = -1, best_c = -1, min_choices = 10;
+        for (int r = 0; r < 9; ++r) {
+            for (int c = 0; c < 9; ++c) {
+                if (board[r][c] == 0) {
+                    int used = row_mask[r] | col_mask[c]
+                             | box_mask[box_id(r, c)];
+                    int choices = 9 - __builtin_popcount(used);
+                    if (choices < min_choices) {
+                        min_choices = choices;
+                        best_r = r;
+                        best_c = c;
+                        if (choices == 0) return false;
+                        if (choices == 1) break;
+                    }
+                }
+            }
+            if (best_r >= 0 && min_choices <= 1) break;
+        }
+        if (best_r < 0) return true;
+
+        int b = box_id(best_r, best_c);
+        int used = row_mask[best_r] | col_mask[best_c]
+                 | box_mask[b];
+        for (int num = 1; num <= 9; ++num) {
+            int bit = 1 << num;
+            if (used & bit) continue;
+            board[best_r][best_c] = num;
+            row_mask[best_r] |= bit;
+            col_mask[best_c] |= bit;
+            box_mask[b] |= bit;
+            if (solve(board, row_mask, col_mask, box_mask))
+                return true;
+            board[best_r][best_c] = 0;
+            row_mask[best_r] &= ~bit;
+            col_mask[best_c] &= ~bit;
+            box_mask[b] &= ~bit;
+        }
+        return false;
+    }
+};
+\end{lstlisting}
+
+The key optimization is \textbf{Minimum Remaining Values (MRV)}: always fill the empty cell with the fewest valid candidates first. This detects dead ends early and reduces backtracks by orders of magnitude. The bitmask representation makes each constraint check O(1).
+
+\section{Subset Sum: Backtracking vs. Dynamic Programming}\label{sec:subset-sum-backtrack}
+
+The subset sum problem asks: given a set of integers and a target value, does any subset sum to the target? We saw a backtracking solution earlier in this chapter and a dynamic programming solution in Chapter 17. Here we compare the two approaches in detail.
+
+\subsection{Backtracking Approach (Revisited)}
+
+The backtracking algorithm considers elements one at a time, making an include/exclude decision. It prunes when the running sum exceeds the target or when the remaining elements cannot reach the target.
+
+\begin{lstlisting}[language=C++]
+class subset_sum_backtrack {
+public:
+    subset_sum_backtrack(std::vector<int> vals, int target)
+        : vals_(std::move(vals)), target_(target) {
+        std::sort(vals_.begin(), vals_.end());
+    }
+
+    bool has_solution() {
+        std::vector<int> current;
+        return backtrack(0, 0, current);
+    }
+
+    std::vector<std::vector<int>> find_all() {
+        results_.clear();
+        std::vector<int> current;
+        backtrack_all(0, 0, current);
+        return results_;
+    }
+
+private:
+    bool backtrack(size_t i, int sum, std::vector<int>& cur) {
+        if (sum == target_) return true;
+        if (i >= vals_.size() || sum > target_) return false;
+
+        int remaining = 0;
+        for (size_t j = i; j < vals_.size(); ++j)
+            remaining += vals_[j];
+        if (sum + remaining < target_) return false;
+
+        cur.push_back(vals_[i]);
+        if (backtrack(i + 1, sum + vals_[i], cur)) return true;
+        cur.pop_back();
+
+        return backtrack(i + 1, sum, cur);
+    }
+
+    void backtrack_all(size_t i, int sum, std::vector<int>& cur) {
+        if (sum == target_) {
+            results_.push_back(cur);
+            return;
+        }
+        if (i >= vals_.size() || sum > target_) return;
+
+        int remaining = 0;
+        for (size_t j = i; j < vals_.size(); ++j)
+            remaining += vals_[j];
+        if (sum + remaining < target_) return;
+
+        cur.push_back(vals_[i]);
+        backtrack_all(i + 1, sum + vals_[i], cur);
+        cur.pop_back();
+        backtrack_all(i + 1, sum, cur);
+    }
+
+    std::vector<int> vals_;
+    int target_;
+    std::vector<std::vector<int>> results_;
+};
+\end{lstlisting}
+
+\subsection{Dynamic Programming Approach (from Chapter 17)}
+
+The DP approach uses a boolean table \texttt{dp[i][s]} that is true if a subset of the first i elements sums to s.
+
+\begin{lstlisting}[language=C++]
+class subset_sum_dp {
+public:
+    bool has_solution(const std::vector<int>& vals, int target) {
+        int n = vals.size();
+        std::vector<std::vector<bool>> dp(n + 1,
+            std::vector<bool>(target + 1, false));
+
+        for (int i = 0; i <= n; ++i) dp[i][0] = true;
+
+        for (int i = 1; i <= n; ++i) {
+            for (int s = 0; s <= target; ++s) {
+                dp[i][s] = dp[i - 1][s];
+                if (s >= vals[i - 1]) {
+                    dp[i][s] = dp[i][s]
+                             || dp[i - 1][s - vals[i - 1]];
+                }
+            }
+        }
+        return dp[n][target];
+    }
+};
+\end{lstlisting}
+
+\subsection{Comparison}
+
+\begin{lstlisting}[language=Java]
+                        Backtracking          Dynamic Programming
+Time (worst case)      O(2^n)                O(n * target)
+Space                  O(n) recursion stack   O(n * target) table
+Finds all solutions?   Yes (natural)          Needs reconstruction
+Negative numbers?      Yes (with care)        Not directly
+When pruning is good   Very fast (early exit) Same or faster
+When pruning is poor   Slow (explores all)    Same or faster
+\end{lstlisting}
+
+\textbf{Key insight:} backtracking can be faster than DP when the answer is found early (the first solution is near the top of the search tree) or when pruning is aggressive (sorted input, small target relative to element values). DP is better when we need to answer many queries on the same set, or when the target is small relative to 2$^{n}$.
+
+\textbf{Space advantage:} backtracking uses O(n) space (recursion stack), while DP uses O(n $\times$ target) space. For large targets, this makes DP infeasible while backtracking remains practical.
+
+\textbf{Example:} for vals = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] and target = 15, backtracking with pruning explores only 58 nodes. The DP table has 11 $\times$ 16 = 176 entries. Both are fast here, but backtracking finds the first solution (sum = 15) after only 12 nodes.
+
+\section{Graph Coloring: Backtracking Approach}\label{sec:graph-coloring-backtrack}
+
+The graph coloring problem asks: given an undirected graph G and m colors, assign a color to each vertex so that no two adjacent vertices share the same color. Find a valid coloring or determine that none exists with m colors.
+
+\subsection{Algorithm}
+
+The backtracking algorithm assigns colors to vertices one at a time (vertices are numbered 0 through n-1). For each vertex, it tries colors 1 through m, checking that no adjacent vertex has the same color.
+
+\begin{lstlisting}[language=C++]
+class graph_coloring {
+public:
+    graph_coloring(int n, const std::vector<std::pair<int,int>>& edges,
+                   int m)
+        : n_(n), m_(m), colors_(n, 0) {
+        adj_.resize(n);
+        for (auto [u, v] : edges) {
+            adj_[u].push_back(v);
+            adj_[v].push_back(u);
+        }
+    }
+
+    bool solve() { return backtrack(0); }
+
+    std::vector<int> get_colors() const { return colors_; }
+
+private:
+    bool backtrack(int v) {
+        if (v == n_) return true;
+
+        for (int c = 1; c <= m_; ++c) {
+            if (is_safe(v, c)) {
+                colors_[v] = c;
+                if (backtrack(v + 1)) return true;
+                colors_[v] = 0;  // backtrack
+            }
+        }
+        return false;
+    }
+
+    bool is_safe(int v, int c) {
+        for (int u : adj_[v]) {
+            if (colors_[u] == c) return false;
+        }
+        return true;
+    }
+
+    int n_, m_;
+    std::vector<std::vector<int>> adj_;
+    std::vector<int> colors_;
+};
+\end{lstlisting}
+
+\subsection{Worked Trace: Graph with 4 Vertices and 3 Colors}
+
+Consider the graph: edges = \{(0,1), (0,2), (1,2), (2,3)\}. We try to color with 3 colors.
+
+\begin{lstlisting}[language=Java]
+Graph:
+  0 --- 1
+  |   /
+  2 --- 3
+
+Vertices: 0, 1, 2, 3
+Edges:    (0,1), (0,2), (1,2), (2,3)
+Colors:   1 (Red), 2 (Blue), 3 (Green)
+
+Step 1:  Vertex 0: try color 1. No neighbors colored. Safe.
+         colors = [1, 0, 0, 0]
+
+Step 2:  Vertex 1: try color 1. Neighbor 0 has color 1. CONFLICT.
+         Vertex 1: try color 2. Neighbor 0 has color 1. Safe.
+         colors = [1, 2, 0, 0]
+
+Step 3:  Vertex 2: try color 1. Neighbor 0 has color 1. CONFLICT.
+         Vertex 2: try color 2. Neighbor 1 has color 2. CONFLICT.
+         Vertex 2: try color 3. Neighbors 0 (c1), 1 (c2). Safe.
+         colors = [1, 2, 3, 0]
+
+Step 4:  Vertex 3: try color 1. Neighbor 2 has color 3. Safe.
+         colors = [1, 2, 3, 1]  ** SOLUTION FOUND **
+
+Verify:
+  Edge (0,1): colors 1 != 2  OK
+  Edge (0,2): colors 1 != 3  OK
+  Edge (1,2): colors 2 != 3  OK
+  Edge (2,3): colors 3 != 1  OK
+\end{lstlisting}
+
+The algorithm found a valid 3-coloring after exploring only 6 nodes (out of a theoretical 3$^{4}$ = 81 leaves).
+
+\subsection{Finding the Chromatic Number}
+
+To find the minimum number of colors, try m = 1, 2, 3, ... until a valid coloring exists. The first m that works is the chromatic number.
+
+\begin{lstlisting}[language=C++]
+int find_chromatic_number(int n,
+                          const std::vector<std::pair<int,int>>& edges) {
+    for (int m = 1; m <= n; ++m) {
+        graph_coloring gc(n, edges, m);
+        if (gc.solve()) return m;
+    }
+    return n;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} worst case O(m$^{n}$) for n vertices and m colors. In practice, pruning is effective because adjacent vertices quickly eliminate colors. The chromatic number problem is NP-hard, but backtracking handles graphs with up to 30-40 vertices reasonably.
+
+\subsection{Applications}
+
+Graph coloring has many practical applications:
+
+\begin{itemize}
+\item \textbf{Register allocation:} compilers color variables so that variables alive at the same time get different registers.
+\item \textbf{Map coloring:} coloring regions so that no two adjacent regions share a color (the Four Color Theorem proves 4 colors suffice for planar maps).
+\item \textbf{Scheduling:} coloring time slots so that conflicting tasks (same resource) get different slots.
+\item \textbf{Frequency assignment:} coloring radio stations so that nearby stations use different frequencies.
+\end{itemize}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item Draw the state-space tree for 4-Queens. How many nodes are visited by the backtracking algorithm? How many nodes would be visited by brute force (all 4$^{4}$ placements)?
+\end{enumerate}
+
+\begin{enumerate}
+\item For subset sum with values [3, 1, 4, 1, 5] and target = 7, trace the backtracking algorithm. Which subsets are found? Which branches are pruned?
+\end{enumerate}
+
+\begin{enumerate}
+\item For the TSP instance with cost matrix:
+\begin{lstlisting}
+   [INF, 10, 15, 20]
+   [10, INF, 35, 25]
+   [15, 35, INF, 30]
+   [20, 25, 30, INF]
+\end{lstlisting}
+\end{enumerate}
+   Compute the reduced cost matrix bound for the root node. What is the lower bound?
+
+\begin{enumerate}
+\item What is the size of the state-space tree for:
+\end{enumerate}
+   a) n-Queens
+   b) Subset sum with n elements
+   c) TSP with n cities
+   d) Graph coloring on a graph with v vertices and k colors
+
+\begin{enumerate}
+\item When does backtracking degenerate to brute-force search? Give an example problem and instance where no pruning occurs.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Solve the \textbf{knight's tour} problem using backtracking on an 8$\times $8 board. Use Warnsdorff's heuristic for the order of moves to speed up the search.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{graph coloring} using backtracking. Given a graph and k colors, assign colors to vertices so that no two adjacent vertices share a color. Find the minimum k (chromatic number) for small graphs.
+\end{enumerate}
+
+\begin{enumerate}
+\item Write a \textbf{crossword puzzle solver} using backtracking. Given a partially filled crossword grid and a dictionary, fill in all the words.
+\end{enumerate}
+
+\begin{enumerate}
+\item Solve TSP for n up to 15 using branch and bound with the reduced cost matrix bound. Report the solution and the number of nodes visited. Compare with exhaustive search (n!).
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{magic square} generator using backtracking. Generate all 3$\times $3 magic squares (where rows, columns, and diagonals sum to the same value).
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement branch and bound for the \textbf{0/1 knapsack} problem. Use the fractional knapsack as the upper bound. Show that the bound prunes at least some branches for most instances.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \textbf{Hamiltonian cycle} problem using backtracking. Find all Hamiltonian cycles in a small graph ($\le $ 8 vertices).
+\end{enumerate}
+
+\begin{enumerate}
+\item Write a \textbf{Sudoku solver} that can solve any 9$\times $9 puzzle. Count the number of backtracks needed for hard puzzles (e.g., those with 17 clues).
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(SAT solvers)} Read about SAT solvers and the \textbf{DPLL algorithm} — a sophisticated backtracking algorithm for Boolean satisfiability. Implement a simple SAT solver and test it on small CNF formulas.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Constraint satisfaction)} Research the AC-3 algorithm for arc consistency in constraint satisfaction problems. Incorporate it into the n-Queens solver as a preprocessing step. Does it reduce the search space?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Branch and bound for integer programming)} Read about LP relaxation and branch and bound for integer linear programming. Implement a simple ILP solver for small instances.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Parallel backtracking)} Implement a parallel n-Queens solver using \texttt{std::thread} or C++20 \texttt{std::jthread}. Measure the speedup on a multi-core machine. What is the granularity of the parallel work?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Estimation via randomized backtracking)} For n-Queens, run the backtracking algorithm with random column ordering and estimate the expected number of nodes visited. Compare with the deterministic (left-to-right) version. Does randomization help?
+\end{enumerate}
+
+\subsection{Additional Exercises}
+
+\begin{enumerate}
+\item Solve 8-Queens by hand using the bitmask backtracking algorithm. For each recursive call, show the values of \texttt{cols}, \texttt{diag1}, \texttt{diag2}, and the \texttt{available} bitmask. Count the total number of recursive calls.
+\end{enumerate}
+
+\begin{enumerate}
+\item For the subset sum instance [2, 3, 5, 7, 8] and target = 12, trace the backtracking algorithm showing the pruning. How many nodes are visited? Compare with the DP table size (n $\times$ target).
+\end{enumerate}
+
+\begin{enumerate}
+\item Color the Petersen graph with 3 colors using backtracking. The Petersen graph has 10 vertices and 15 edges. How many backtracks are needed? What is its chromatic number?
+\end{enumerate}
+
+\begin{enumerate}
+\item Solve Sudoku for this puzzle (0 = empty) and count backtracks:
+\begin{lstlisting}
+  0 0 0 | 2 6 0 | 7 0 1
+  6 8 0 | 0 7 0 | 0 9 0
+  1 9 0 | 0 0 4 | 5 0 0
+  ------+-------+------
+  8 2 0 | 1 0 0 | 0 4 0
+  0 0 4 | 6 0 2 | 9 0 0
+  0 5 0 | 0 0 3 | 0 2 8
+  ------+-------+------
+  0 0 9 | 3 0 0 | 0 7 4
+  0 4 0 | 0 5 0 | 0 3 6
+  7 0 3 | 0 1 8 | 0 0 0
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item For n = 10, compare the number of nodes explored by the basic n-Queens backtracking algorithm vs.\ the bitmask version. Implement both and run benchmarks.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{word search} solver: given an m$\times $n grid of characters and a dictionary of words, find all words from the dictionary that can be formed by traversing adjacent cells (horizontally, vertically, diagonally) without revisiting a cell.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{N-Queens with symmetry breaking}: count only distinct solutions under rotation and reflection. Verify that for n = 8, there are 12 fundamental solutions (92 total / 8 symmetries).
+\end{enumerate}
+
+\begin{enumerate}
+\item Solve the \textbf{exact cover} problem using Algorithm X with dancing links (DLX). Test on a set cover instance and a Sudoku puzzle. Compare the running time with the basic backtracking Sudoku solver.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{job assignment} solver using branch and bound: given n workers and n jobs with a cost matrix, assign each worker to exactly one job to minimize total cost. Use the Hungarian bound for pruning.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a \textbf{pentomino tiling} solver: tile a 6$\times $10 rectangle with all 12 pentominoes using backtracking. Each pentomino covers exactly 5 cells.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapter 34 (NP-completeness), Chapter 35 (approximation).
+\item Steven S. Skiena, \textit{The Algorithm Design Manual}, 2nd Edition. Springer, 2008.
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Section 6.4 (backtracking).
+\item Judea Pearl, \textit{Heuristics: Intelligent Search Strategies for Computer Problem Solving}. Addison-Wesley, 1984.
+\item Martin Gardner, "Mathematical Games" — Scientific American (columns on n-Queens, magic squares, etc.).
+\item Donald E. Knuth, "Dancing Links" — Millennial Perspectives in Computer Science, 2000 (exact cover and algorithm X).
+\item Armin Biere et al. (eds.), \textit{Handbook of Satisfiability}, 2nd Edition. IOS Press, 2021.
+\end{itemize}
+

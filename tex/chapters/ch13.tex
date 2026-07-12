@@ -1,0 +1,1564 @@
+\chapter{String Algorithms and Tries}\label{ch13:string-algorithms-and-tries}
+
+String processing is one of the most common tasks in computing. This chapter covers the fundamental data structures and algorithms for efficient string operations.
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Tries}
+
+A \textbf{trie}\index{trie} (from retrieval, pronounced "try") is a tree where each node represents a prefix. The root is the empty string, and each edge is labeled with a character. Tries support O(m) lookup, insertion, and deletion, where m is the key length — independent of the number of keys.
+
+\subsection{Standard Trie}
+
+\begin{lstlisting}[language=Java]
+Keys: "cat", "car", "dog", "do"
+
+         root
+       /      \
+      c        d
+     /        / \
+    a        o   *
+   / \      / \
+  t   r    g   *
+  *   *    *
+\end{lstlisting}
+
+\subsection{Trie Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename V>
+class trie {
+public:
+    void insert(std::string_view key, const V& value) {
+        node* n = &root_;
+        for (char c : key) {
+            size_t idx = c - 'a';  // assume lowercase letters
+            if (!n->children[idx]) {
+                n->children[idx] = std::make_unique<node>();
+            }
+            n = n->children[idx].get();
+        }
+        n->value = value;
+        n->is_end = true;
+    }
+
+    std::optional<V> find(std::string_view key) const {
+        const node* n = &root_;
+        for (char c : key) {
+            size_t idx = c - 'a';
+            if (!n->children[idx]) return std::nullopt;
+            n = n->children[idx].get();
+        }
+        if (n->is_end) return n->value;
+        return std::nullopt;
+    }
+
+    bool starts_with(std::string_view prefix) const {
+        const node* n = &root_;
+        for (char c : prefix) {
+            size_t idx = c - 'a';
+            if (!n->children[idx]) return false;
+            n = n->children[idx].get();
+        }
+        return true;
+    }
+
+    std::vector<std::string> keys_with_prefix(std::string_view prefix) const {
+        std::vector<std::string> result;
+        const node* n = &root_;
+        for (char c : prefix) {
+            size_t idx = c - 'a';
+            if (!n->children[idx]) return result;
+            n = n->children[idx].get();
+        }
+        collect_keys(n, std::string(prefix), result);
+        return result;
+    }
+
+private:
+    static constexpr size_t alphabet_size = 26;
+
+    struct node {
+        std::array<std::unique_ptr<node>, alphabet_size> children;
+        V value;
+        bool is_end = false;
+    };
+
+    void collect_keys(const node* n, std::string prefix,
+                      std::vector<std::string>& result) const {
+        if (n->is_end) result.push_back(prefix);
+        for (size_t i = 0; i < alphabet_size; ++i) {
+            if (n->children[i]) {
+                collect_keys(n->children[i].get(),
+                             prefix + char('a' + i), result);
+            }
+        }
+    }
+
+    node root_;
+};
+\end{lstlisting}
+
+\subsection{Compressed Trie (Radix Tree)}
+
+A compressed trie merges chains of single-child nodes into single edges labeled with strings. This reduces the number of nodes from O(total characters) to O(number of keys).
+
+\begin{lstlisting}[language=Java]
+Standard:  root  ->  a  ->  p  ->  p  ->  l  ->  e  ->  *
+                                     |
+                                    s  ->  *
+                                    
+Compressed: root  ->  "appl"  ->  "e"  ->  *
+                             |
+                            "s"  ->  *
+\end{lstlisting}
+
+\subsection{Ternary Search Trie (TST)}
+
+A TST is a hybrid between a binary search tree and a trie. Each node has three children: \texttt{left} (char < current char), \texttt{mid} (char == current char), \texttt{right} (char > current char).
+
+\begin{lstlisting}[language=C++]
+template <typename V>
+class tst {
+public:
+    void insert(std::string_view key, const V& value) {
+        root_ = insert(root_, key, 0, value);
+    }
+
+    std::optional<V> find(std::string_view key) const {
+        auto* n = find(root_.get(), key, 0);
+        if (n && n->is_end) return n->value;
+        return std::nullopt;
+    }
+
+private:
+    struct node {
+        char c;
+        std::unique_ptr<node> left, mid, right;
+        V value;
+        bool is_end = false;
+        node(char ch) : c(ch) {}
+    };
+
+    std::unique_ptr<node> insert(std::unique_ptr<node> n,
+                                  std::string_view key, size_t i,
+                                  const V& value) {
+        char c = key[i];
+        if (!n) n = std::make_unique<node>(c);
+        if (c < n->c) n->left = insert(std::move(n->left), key, i, value);
+        else if (c > n->c) n->right = insert(std::move(n->right), key, i, value);
+        else if (i + 1 < key.size()) n->mid = insert(std::move(n->mid), key, i+1, value);
+        else { n->value = value; n->is_end = true; }
+        return n;
+    }
+
+    node* find(node* n, std::string_view key, size_t i) const {
+        if (!n) return nullptr;
+        char c = key[i];
+        if (c < n->c) return find(n->left.get(), key, i);
+        if (c > n->c) return find(n->right.get(), key, i);
+        if (i + 1 < key.size()) return find(n->mid.get(), key, i+1);
+        return n;
+    }
+
+    std::unique_ptr<node> root_;
+};
+\end{lstlisting}
+
+\textbf{TST advantage:} Uses O(3n) space instead of O(n$\cdot $alphabet\_size), making it practical for Unicode strings.
+
+\subsection{Application: Autocomplete}
+
+\begin{lstlisting}[language=C++]
+class autocomplete {
+public:
+    void add_word(std::string_view word, int frequency) {
+        trie_.insert(word, frequency);
+    }
+
+    std::vector<std::string> suggest(std::string_view prefix, int max_suggestions = 5) {
+        auto candidates = trie_.keys_with_prefix(prefix);
+        std::sort(candidates.begin(), candidates.end(),
+            [&](const std::string& a, const std::string& b) {
+                return trie_.find(a).value_or(0) > trie_.find(b).value_or(0);
+            });
+        if (candidates.size() > max_suggestions)
+            candidates.resize(max_suggestions);
+        return candidates;
+    }
+
+private:
+    trie<int> trie_;
+};
+\end{lstlisting}
+
+\section{String Matching}
+
+\subsection{Naive Matching}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> naive_match(std::string_view text, std::string_view pattern) {
+    std::vector<size_t> matches;
+    for (size_t i = 0; i <= text.size() - pattern.size(); ++i) {
+        size_t j = 0;
+        while (j < pattern.size() && text[i + j] == pattern[j]) ++j;
+        if (j == pattern.size()) matches.push_back(i);
+    }
+    return matches;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n$\cdot $m) worst case, where n = text length, m = pattern length.
+
+\subsection{Knuth-Morris-Pratt (KMP)}
+
+KMP\index{Knuth-Morris-Pratt} preprocesses the pattern to build a \textbf{failure function} (also called the prefix function) that allows skipping ahead when a mismatch occurs.
+
+\begin{lstlisting}[language=C++]
+// Compute the prefix function (failure function)
+std::vector<size_t> compute_prefix(std::string_view pattern) {
+    size_t m = pattern.size();
+    std::vector<size_t> pi(m, 0);
+    size_t k = 0;
+
+    for (size_t q = 1; q < m; ++q) {
+        while (k > 0 && pattern[k] != pattern[q]) {
+            k = pi[k - 1];
+        }
+        if (pattern[k] == pattern[q]) ++k;
+        pi[q] = k;
+    }
+    return pi;
+}
+
+std::vector<size_t> kmp_match(std::string_view text, std::string_view pattern) {
+    std::vector<size_t> matches;
+    auto pi = compute_prefix(pattern);
+    size_t q = 0;  // number of matched characters
+
+    for (size_t i = 0; i < text.size(); ++i) {
+        while (q > 0 && pattern[q] != text[i]) {
+            q = pi[q - 1];
+        }
+        if (pattern[q] == text[i]) ++q;
+        if (q == pattern.size()) {
+            matches.push_back(i - pattern.size() + 1);
+            q = pi[q - 1];  // look for next match
+        }
+    }
+    return matches;
+}
+\end{lstlisting}
+
+\textbf{Complexity:} O(n + m) — optimal for linear-time matching.
+
+\subsection{Rabin-Karp Algorithm}
+
+Uses rolling hash to find matches in O(n + m) average time.\index{Rabin-Karp}
+
+\begin{lstlisting}[language=C++]
+constexpr size_t base = 91138233;
+constexpr size_t mod = 97266353;
+
+std::vector<size_t> rabin_karp(std::string_view text, std::string_view pattern) {
+    size_t n = text.size(), m = pattern.size();
+    if (m > n) return {};
+
+    // Precompute base^(m-1) mod mod
+    size_t h = 1;
+    for (size_t i = 0; i < m - 1; ++i) h = (h * base) % mod;
+
+    // Compute hash of pattern and first window
+    size_t pattern_hash = 0;
+    size_t window_hash = 0;
+    for (size_t i = 0; i < m; ++i) {
+        pattern_hash = (pattern_hash * base + pattern[i]) % mod;
+        window_hash = (window_hash * base + text[i]) % mod;
+    }
+
+    std::vector<size_t> matches;
+    for (size_t i = 0; i <= n - m; ++i) {
+        if (pattern_hash == window_hash) {
+            // Verify (in case of hash collision)
+            if (text.substr(i, m) == pattern) {
+                matches.push_back(i);
+            }
+        }
+        // Roll the hash
+        if (i < n - m) {
+            window_hash = (window_hash - text[i] * h % mod + mod) % mod;
+            window_hash = (window_hash * base + text[i + m]) % mod;
+        }
+    }
+    return matches;
+}
+\end{lstlisting}
+
+\subsection{Boyer-Moore Algorithm}
+
+Boyer-Moore scans the pattern from right to left, skipping ahead based on two heuristics (bad character and good suffix). In practice, it is often faster than KMP, especially for large alphabets.
+
+\section{Suffix Arrays and LCP Arrays}
+
+A \textbf{suffix array}\index{suffix array} is a sorted array of all suffixes of a string. It enables O(m log n) substring search and O(n) construction of many string properties.
+
+\textbf{String:} "banana"
+
+\begin{lstlisting}[language=Java]
+Suffixes:
+0: banana
+1: anana
+2: nana
+3: ana
+4: na
+5: a
+
+Sorted suffix array SA = [5, 3, 1, 0, 4, 2]
+                          a  ana anana banana na nana
+\end{lstlisting}
+
+\subsection{Suffix Array Construction}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> build_suffix_array(std::string_view s) {
+    size_t n = s.size();
+    std::vector<size_t> sa(n);
+    std::iota(sa.begin(), sa.end(), 0);
+
+    std::sort(sa.begin(), sa.end(), [&](size_t a, size_t b) {
+        return s.substr(a) < s.substr(b);
+    });
+    return sa;
+}
+\end{lstlisting}
+
+This O(n$^{2}$ log n) naive version is too slow for large strings. The O(n log n) doubling algorithm or SA-IS (linear time) are used in practice.
+
+\subsection{The DC3/Skew Algorithm}
+
+The \emph{DC3 (Difference Cover modulo 3) algorithm}\index{DC3 algorithm}\index{Skew algorithm}, also called the \emph{Skew algorithm}, constructs a suffix array in $O(n)$ time using radix sort. It is one of the simplest linear-time suffix array construction algorithms.
+
+\textbf{Key idea:} Suffixes are divided into two groups based on their starting position mod 3. Group 1 contains positions $i$ where $i \bmod 3 \neq 0$; Group 2 contains positions $i$ where $i \bmod 3 = 0$. Group 1 suffixes are sorted first (using a recursive call on a reduced string), then Group 0 suffixes are sorted by merging with the sorted Group 1 suffixes.
+
+\begin{enumerate}
+    \item \textbf{Base case:} If $n < 3$, sort all suffixes directly.
+    \item \textbf{Reduced problem:} Construct the string $s'$ of triples $(s[i], s[i+1], s[i+2])$ for all positions $i$ where $i \bmod 3 \neq 0$. Recursively compute the suffix array of $s'$.
+    \item \textbf{Radix sort Group 0:} For positions $i$ where $i \bmod 3 = 0$, sort them using (first third, second third) where each third is a rank from the recursive result. Radix sort takes $O(n)$ time.
+    \item \textbf{Merge:} Merge the sorted Group 0 and Group 1 suffixes in $O(n)$ time using the precomputed orderings.
+\end{enumerate}
+
+\begin{lstlisting}[language=C++]
+// DC3/Skew suffix array construction (simplified)
+// Real implementation uses integer alphabet and radix sort
+std::vector<int> dc3_skew(const std::string& s) {
+    int n = s.size();
+    if (n <= 3) {
+        // Base case: sort directly
+        std::vector<int> sa(n);
+        std::iota(sa.begin(), sa.end(), 0);
+        std::sort(sa.begin(), sa.end(),
+            [&](int a, int b) {
+                return s.substr(a) < s.substr(b);
+            });
+        return sa;
+    }
+    // Step 1: Sort suffixes at positions 1,2,4,5,7,8,...
+    // by triples (s[i],s[i+1],s[i+2]) using radix sort
+    // Step 2: Recursively sort the resulting reduced string
+    // Step 3: Sort positions 0,3,6,... by merging with
+    //         sorted positions 1,2,4,5,...
+    // Full implementation ~200 lines with radix sort
+    // See Karkkainen & Sanders (2006)
+    return {};  // placeholder
+}
+\end{lstlisting}
+
+The DC3 algorithm produces the suffix array. The LCP array can then be computed in $O(n)$ time using the Kasai algorithm, giving a complete $O(n)$ suffix array + LCP pipeline.
+
+\subsection{LCP Array}
+
+The \textbf{LCP (Longest Common Prefix) array}\index{LCP array} stores the length of the longest common prefix between consecutive suffixes in the suffix array.
+
+\begin{lstlisting}[language=Java]
+SA:  [5, 3, 1, 0, 4, 2]
+      a  ana anana banana na nana
+LCP: [0, 1, 3, 0, 0, 2]
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+std::vector<size_t> build_lcp(std::string_view s,
+                               const std::vector<size_t>& sa) {
+    size_t n = s.size();
+    std::vector<size_t> rank(n);
+    for (size_t i = 0; i < n; ++i) rank[sa[i]] = i;
+
+    std::vector<size_t> lcp(n, 0);
+    size_t k = 0;
+
+    for (size_t i = 0; i < n; ++i) {
+        if (rank[i] == n - 1) { k = 0; continue; }
+        size_t j = sa[rank[i] + 1];  // next suffix in SA
+        while (i + k < n && j + k < n && s[i + k] == s[j + k]) ++k;
+        lcp[rank[i]] = k;
+        if (k > 0) --k;
+    }
+    return lcp;
+}
+\end{lstlisting}
+
+\textbf{Applications of Suffix Arrays + LCP:}
+\begin{itemize}
+\item \textbf{Pattern matching:} O(m log n)
+\item \textbf{Longest repeated substring:} max LCP value
+\item \textbf{Longest common substring} of two strings
+\item \textbf{Number of distinct substrings:} n(n+1)/2 - sum(LCP)
+\item \textbf{String compression} detection
+\end{itemize}
+
+\section{Application: Longest Repeated Substring}
+
+\begin{lstlisting}[language=C++]
+std::string longest_repeated_substring(std::string_view s) {
+    auto sa = build_suffix_array(s);
+    auto lcp = build_lcp(s, sa);
+
+    size_t max_lcp = 0;
+    size_t max_pos = 0;
+    for (size_t i = 0; i < lcp.size(); ++i) {
+        if (lcp[i] > max_lcp) {
+            max_lcp = lcp[i];
+            max_pos = sa[i];
+        }
+    }
+    return std::string(s.substr(max_pos, max_lcp));
+}
+\end{lstlisting}
+
+\section{Application: Genome Pattern Search}
+
+Searching for a DNA sequence pattern in a genome:
+
+\begin{lstlisting}[language=C++]
+class genome_index {
+public:
+    explicit genome_index(std::string_view genome)
+        : genome_(genome), sa_(build_suffix_array(genome)) {}
+
+    bool contains(std::string_view pattern) const {
+        // Binary search on suffix array
+        auto comp = [&](size_t pos, std::string_view pat) {
+            return genome_.substr(pos, pat.size()) < pat;
+        };
+
+        auto it = std::lower_bound(sa_.begin(), sa_.end(), pattern, comp);
+        if (it == sa_.end()) return false;
+        return genome_.substr(*it, pattern.size()) == pattern;
+    }
+
+    std::vector<size_t> find_all(std::string_view pattern) const {
+        // Find range of matching suffixes
+        auto [lo, hi] = std::equal_range(sa_.begin(), sa_.end(), pattern,
+            [&](size_t a, std::string_view pat) {
+                if (a == SIZE_MAX) return true;
+                return genome_.substr(a, pat.size()) < pat;
+            });
+        return std::vector<size_t>(lo, hi);
+    }
+
+private:
+    std::string genome_;
+    std::vector<size_t> sa_;
+};
+\end{lstlisting}
+
+\section{Suffix Trees}
+
+A \textbf{suffix tree}\index{suffix tree} is a compressed trie containing all suffixes of a string. It supports pattern matching, longest repeated substring, longest common substring, and many other string queries in O(m) time after O(n) preprocessing.
+
+\subsection{Structure}
+
+Given string $S = \text{"banana\$"}$, the suffix tree stores all suffixes along edges labeled with substrings:
+
+\begin{lstlisting}[language=Java]
+Suffix tree for "banana$":
+           (root)
+          / | \
+      a$   |   na$
+     / \   |   / \
+  na$  a$  $  |   $
+  / \      |   |
+ a$  $     $   $
+
+Edges carry substrings (not single characters).
+Internal nodes split where branching occurs.
+\end{lstlisting}
+
+\subsection{Ukkonen's Algorithm}
+
+Ukkonen's algorithm builds the suffix tree online in O(n) time. It processes the string left-to-right, maintaining the implicit suffix tree and extending it at each phase.
+
+\begin{lstlisting}[language=C++]
+struct suffix_tree {
+    struct edge {
+        int start, end;  // edge label = s[start..end]
+        int child;
+    };
+
+    struct node {
+        std::map<char, edge> children;
+        int suffix_link = 0;  // points to node representing suffix
+        int depth = 0;
+    };
+
+    std::string s;
+    std::vector<node> nodes;
+
+    explicit suffix_tree(const std::string& str) : s(str) {
+        nodes.emplace_back();  // root = node 0
+        build_ukkonen();
+    }
+
+    // Find all occurrences of pattern in O(m) time
+    bool contains(std::string_view pattern) const {
+        int u = 0;
+        size_t i = 0;
+        while (i < pattern.size()) {
+            auto it = nodes[u].children.find(pattern[i]);
+            if (it == nodes[u].children.end()) return false;
+            const auto& e = it->second;
+            int len = e.end - e.start + 1;
+            int remaining = pattern.size() - i;
+            int match = std::min(len, remaining);
+            for (int j = 0; j < match; ++j) {
+                if (s[e.start + j] != pattern[i + j]) return false;
+            }
+            i += match;
+            if (match < len) return i == pattern.size();  // partial edge
+            u = e.child;
+        }
+        return true;
+    }
+
+    // Count distinct substrings: sum of (depth[v] - depth[parent]) for all leaves
+    size_t count_distinct_substrings() const {
+        size_t count = 0;
+        for (size_t u = 1; u < nodes.size(); ++u) {
+            // u is a leaf if it has no children
+            if (nodes[u].children.empty()) {
+                count += nodes[u].depth;
+            }
+        }
+        return count;
+    }
+
+private:
+    int active_node = 0, active_edge = 0, active_length = 0;
+    int remaining = 0, leaf_end = -1;
+    int size_ = 0;
+
+    void extend(int pos) {
+        leaf_end = pos;
+        ++remaining;
+
+        int last_internal = -1;
+        while (remaining > 0) {
+            if (active_length == 0) active_edge = pos;
+
+            if (!nodes[active_node].children.count(s[active_edge])) {
+                // Rule 1: no edge starting with active_edge -- create new edge
+                nodes[active_node].children[s[active_edge]] = {pos, leaf_end, ++size_};
+                nodes.emplace_back();
+                nodes.back().depth = nodes[active_node].depth + (leaf_end - pos + 1);
+                if (last_internal != -1) {
+                    nodes[last_internal].suffix_link = active_node;
+                    last_internal = -1;
+                }
+            } else {
+                int split = nodes[active_node].children[s[active_edge]].start;
+                int split_end = split + active_length - 1;
+
+                if (active_length > 0) {
+                    // Rule 2: split edge
+                    node new_node;
+                    new_node.depth = nodes[active_node].depth + active_length;
+                    nodes.push_back(new_node);
+                    int new_idx = size_ + 1;
+
+                    auto& e = nodes[active_node].children[s[active_edge]];
+                    e.end = split_end;
+                    nodes[e.child].children[s[split_end + 1]] = {split_end + 1, e.end, e.child};
+                    e.child = new_idx;
+
+                    nodes[new_idx].children[s[pos]] = {pos, leaf_end, ++size_};
+                    nodes.emplace_back();
+                    nodes.back().depth = new_node.depth + (leaf_end - pos + 1);
+
+                    if (last_internal != -1) nodes[last_internal].suffix_link = new_idx;
+                    last_internal = new_idx;
+                }
+            }
+
+            --remaining;
+            if (remaining == 0) break;
+
+            // Follow suffix link
+            if (active_node == 0 && active_length > 0) {
+                --active_length;
+                active_edge = pos - remaining + 1;
+            } else {
+                active_node = nodes[active_node].suffix_link;
+            }
+        }
+    }
+
+    void build_ukkonen() {
+        for (int i = 0; i < static_cast<int>(s.size()); ++i)
+            extend(i);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{itemize}
+\item \textbf{Build:} O(n) amortized (Ukkonen's algorithm, online)
+\item \textbf{Pattern search:} O(m) where m = pattern length
+\item \textbf{Memory:} O(n) — a suffix tree on n characters has at most n leaves and at most n-1 internal nodes
+\end{itemize}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Longest repeated substring:} deepest internal node with $\ge 2$ leaves
+\item \textbf{Longest common substring:} build generalized suffix tree for two strings, find deepest node with leaves from both
+\item \textbf{Pattern matching:} O(m) search with O(n) preprocessing
+\item \textbf{Distinct substrings:} count = $\sum$ (leaf depth - parent depth) for all leaves
+\end{itemize}
+
+\subsection{Suffix Tree vs Suffix Array}
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Criterion & Suffix Tree & Suffix Array \\
+Build time & O(n) & O(n log n) or O(n) \\
+Space & O(n) but high constant (pointers) & O(n) small constant \\
+Pattern search & O(m) & O(m log n) \\
+Build complexity & Ukkonen's is intricate & Simpler to implement \\
+Memory locality & Poor (pointer-chasing) & Excellent (array-based) \\
+Generalized (k strings) & Generalized suffix tree & Concatenate with separators \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+In practice, suffix arrays with LCP arrays are preferred for their simplicity and cache performance. Suffix trees are preferred when you need rich structural queries (e.g., all occurrences, tree traversal, generalized strings).
+
+\section{Radix Tree (Compressed Trie / Patricia Trie)}
+
+A \textbf{radix tree} (also called a \emph{Patricia trie} or \emph{compressed trie}) is a trie variant that merges chains of single-child nodes into a single edge labeled with a multi-character substring. This eliminates the space wasted on internal nodes that branch only one way, while preserving the trie's O(m) search time. Radix trees are the data structure behind IP routing table lookups, filesystem path indexing, and high-performance string dictionaries.
+
+\subsection{Structure}
+
+In a standard trie, each edge stores exactly one character. This creates long chains of unbranching nodes for keys with shared prefixes. A radix tree compresses each such chain into a single edge whose label is the concatenated substring.
+
+\begin{lstlisting}[language=Java]
+Standard Trie (edges store one char each):
+
+            (root)
+           / | \ \
+          r  .  .  .
+          |
+          o
+          |
+          m
+         / \
+        a   u
+       / \   \
+      n   s   l
+      |       |
+      e       u
+              |
+              s
+
+Radix Tree (same keys, compressed):
+
+                    (root)
+                  /    |    \
+            [roman]  [rub]  [...]
+            /    \     |   \
+        [e]      [us] [en] [icon]
+                               |
+                           [undus]
+\end{lstlisting}
+
+\noindent
+The keys stored are \texttt{romane}, \texttt{romanus}, \texttt{romulus}, \texttt{rubens}, \texttt{ruber}, \texttt{rubicon}, and \texttt{rubicundus}. Notice how \texttt{roman}---a chain of five single-child nodes in the standard trie---becomes a single edge labeled \texttt{roman} in the radix tree. Similarly, \texttt{rub} compresses three levels into one edge.
+
+\subsection{C++ Implementation}
+
+Each edge stores a \texttt{string\_view} label and a pointer to its child node. A node holds a map from the first character of each edge label to the edge itself, plus a flag indicating whether a key ends at this node.
+
+\begin{lstlisting}[language=C++]
+struct RadixNode {
+    std::map<char, std::pair<std::string_view,
+                             RadixNode*>> edges;
+    bool is_end = false;
+};
+
+struct RadixTree {
+    RadixNode* root = new RadixNode();
+
+    void insert(std::string_view key) {
+        RadixNode* node = root;
+        size_t i = 0;
+        while (i < key.size()) {
+            char c = key[i];
+            if (node->edges.count(c) == 0) {
+                // No matching edge: create one
+                node->edges[c] = {key.substr(i),
+                                  new RadixNode()};
+                node->edges[c].second->is_end = true;
+                return;
+            }
+            auto& [label, child] = node->edges[c];
+            // Find length of common prefix
+            size_t j = 0;
+            while (j < label.size() && i + j < key.size()
+                   && label[j] == key[i + j])
+                ++j;
+            if (j == label.size()) {
+                // Full label match: descend
+                i += j;
+                node = child;
+                continue;
+            }
+            // Partial match: split the edge
+            RadixNode* mid = new RadixNode();
+            node->edges[c] = {
+                label.substr(0, j), mid};
+            mid->edges[label[j]] = {
+                label.substr(j), child};
+            size_t remaining = key.size() - i - j;
+            if (remaining == 0) {
+                mid->is_end = true;
+            } else {
+                mid->edges[key[i + j]] = {
+                    key.substr(i + j),
+                    new RadixNode()};
+                mid->edges[key[i+j]].second->is_end
+                    = true;
+            }
+            return;
+        }
+        node->is_end = true;
+    }
+
+    bool search(std::string_view key) const {
+        RadixNode* node = root;
+        size_t i = 0;
+        while (i < key.size()) {
+            char c = key[i];
+            if (node->edges.count(c) == 0)
+                return false;
+            auto& [label, child] = node->edges.at(c);
+            if (key.substr(i).substr(0, label.size())
+                != label)
+                return false;
+            i += label.size();
+            node = child;
+        }
+        return node->is_end;
+    }
+
+    bool prefix_search(
+        std::string_view prefix) const {
+        RadixNode* node = root;
+        size_t i = 0;
+        while (i < prefix.size()) {
+            char c = prefix[i];
+            if (node->edges.count(c) == 0)
+                return false;
+            auto& [label, child] = node->edges.at(c);
+            if (prefix.substr(i).substr(0, label.size())
+                != label)
+                return false;
+            i += label.size();
+            node = child;
+        }
+        return true;
+    }
+};
+\end{lstlisting}
+
+\noindent
+The \texttt{insert} method walks the tree, comparing the incoming key against existing edge labels. On a full label match it descends. On a partial match it splits the edge at the divergence point, creating an intermediate node. On no match it creates a new leaf edge. The \texttt{search} method simply verifies that each substring in the path matches the corresponding edge label.
+
+\subsection{Complexity}
+
+Let $m$ denote the length of the search key and $n$ the number of keys stored.
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Operation & Time \\
+\midrule
+Search & $O(m)$ \\
+Insert & $O(m)$ \\
+Prefix search & $O(m)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The space is $O(n \cdot k)$ where $k$ is the average number of branching points per key, which is typically much smaller than $m$.
+
+\subsection{Comparison with Standard Trie and TST}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Criterion & Standard Trie & Radix Tree & TST \\
+\midrule
+Edge label & 1 char & substring & 1 char (split char) \\
+Space & High (many nodes) & Moderate & Low \\
+Search time & $O(m)$ & $O(m)$ & $O(m)$ (worst case) \\
+Cache performance & Poor & Moderate & Good \\
+Implementation & Simple & Moderate & Simple \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+A radix tree trades implementation complexity for a significant reduction in the number of nodes compared to a standard trie. Compared to a TST, it maintains guaranteed $O(m)$ search (TSTs can degrade to $O(m)$ only with care; unbalanced splits cost more), at the cost of managing variable-length edge labels.
+
+\subsection{Applications}
+
+\paragraph{IP Routing.} Routers use radix trees (specifically \emph{LC-trie} variants) to perform longest-prefix matching on destination addresses. Each edge stores a bit substring of the IP address, and the tree is searched in $O(W)$ time where $W$ is the address width (32 for IPv4, 128 for IPv6).
+
+\paragraph{Filesystem Paths.} Operating systems index directory entries using radix trees keyed on path components. The compressed edges map naturally to path segments like \texttt{/usr/bin/}.
+
+\paragraph{String Dictionaries.} Autocomplete systems, spell checkers, and IP geolocation databases use radix trees for fast prefix lookups with reduced memory overhead compared to uncompressed tries.
+
+\section{Ternary Search Tree}
+
+A \textbf{ternary search tree} (TST) is a trie variant that combines the time efficiency of tries with the space efficiency of binary search trees. Instead of storing an array of children per node (wasteful for sparse alphabets), each TST node has exactly three children: \texttt{low} (less than), \texttt{equal} (match, advance to next character), and \texttt{high} (greater than). TSTs are widely used in spell checkers, autocomplete systems, and word games.
+
+\subsection{Structure}
+
+To store the words ``cat'', ``car'', ``cab'', ``do'', ``dog'', a TST partitions characters using the three-way branching rule. A node stores a split character. If the next input character is less, follow \texttt{low}; if equal, follow \texttt{equal} and advance to the next character; if greater, follow \texttt{high}.
+
+\begin{lstlisting}[language=Java]
+TST for: "cat", "car", "cab", "do", "dog"
+
+              c
+            / | \
+           /  |  \
+          a   |   d
+         /|\  |  /|\
+        b | t | o | \
+       * |  * |  * \ \
+         |    |    |  \
+         r    |    |   g
+          *   |    |    *
+              |    |
+              *    *
+\end{lstlisting}
+
+Searching ``car'' means: at root, 'c' matches -- go equal; next node is 'a', 'a' matches -- go equal; next we look at 'r', 'r' < 't' -- follow low, find 'r' -- match. This is $O(m + \log n)$ on average, where $m$ is the key length and $n$ is the number of keys.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+class ternary_search_tree {
+public:
+    void insert(std::string_view key) {
+        root_ = insert(root_, key, 0);
+    }
+
+    bool search(std::string_view key) const {
+        return search(root_.get(), key, 0);
+    }
+
+    void autocomplete(std::string_view prefix,
+                      std::vector<std::string>& results) const {
+        const node* n = root_.get();
+        for (char c : prefix) {
+            if (!n) return;
+            if (c < n->split_char)      n = n->low.get();
+            else if (c > n->split_char) n = n->high.get();
+            else                         n = n->equal.get();
+        }
+        collect(n, std::string(prefix), results);
+    }
+
+    void range_search(std::string_view lo, std::string_view hi,
+                      std::vector<std::string>& results) const {
+        range_collect(root_.get(), "", lo, hi, results);
+    }
+
+private:
+    struct node {
+        char split_char;
+        std::unique_ptr<node> low;
+        std::unique_ptr<node> equal;
+        std::unique_ptr<node> high;
+        bool is_end = false;
+        explicit node(char c) : split_char(c) {}
+    };
+
+    std::unique_ptr<node> root_;
+
+    std::unique_ptr<node> insert(std::unique_ptr<node> n,
+                                  std::string_view key, size_t i) {
+        if (i >= key.size()) return n;
+        char c = key[i];
+        if (!n) n = std::make_unique<node>(c);
+        if (c < n->split_char)
+            n->low = insert(std::move(n->low), key, i);
+        else if (c > n->split_char)
+            n->high = insert(std::move(n->high), key, i);
+        else if (i + 1 < key.size())
+            n->equal = insert(std::move(n->equal), key, i + 1);
+        else
+            n->is_end = true;
+        return n;
+    }
+
+    bool search(const node* n, std::string_view key, size_t i) const {
+        if (!n) return false;
+        if (i >= key.size()) return n->is_end;
+        char c = key[i];
+        if (c < n->split_char)
+            return search(n->low.get(), key, i);
+        if (c > n->split_char)
+            return search(n->high.get(), key, i);
+        if (i + 1 < key.size())
+            return search(n->equal.get(), key, i + 1);
+        return n->is_end;
+    }
+
+    void collect(const node* n, std::string prefix,
+                 std::vector<std::string>& results) const {
+        if (!n) return;
+        collect(n->low.get(), prefix, results);
+        if (n->is_end) results.push_back(prefix);
+        std::string next = prefix + n->split_char;
+        collect(n->equal.get(), next, results);
+        collect(n->high.get(), prefix, results);
+    }
+
+    void range_collect(const node* n, std::string prefix,
+                       std::string_view lo, std::string_view hi,
+                       std::vector<std::string>& results) const {
+        if (!n) return;
+        range_collect(n->low.get(), prefix, lo, hi, results);
+        std::string next = prefix + n->split_char;
+        if (n->is_end && next >= lo && next <= hi)
+            results.push_back(next);
+        range_collect(n->equal.get(), next, lo, hi, results);
+        range_collect(n->high.get(), prefix, lo, hi, results);
+    }
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Average Case & Worst Case \\
+Insert & $O(m + \log n)$ & $O(m \cdot n)$ \\
+Search & $O(m + \log n)$ & $O(m \cdot n)$ \\
+Autocomplete (k results) & $O(m + \log n + k)$ & $O(m + n)$ \\
+Range search (k results) & $O(\log n + k)$ & $O(n)$ \\
+Space & $O(n \cdot m)$ & $O(n \cdot m)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Here $m$ is the key length and $n$ is the number of keys. The worst case arises when the tree degenerates, but in practice the average case holds for random or natural-language input.
+
+\subsection{Comparison with Standard Trie and Hash Table}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Criterion & Standard Trie & TST & Hash Table \\
+\midrule
+Search time & $O(m)$ & $O(m + \log n)$ avg & $O(m)$ avg \\
+Space per key & $O(R)$ pointers & 3 pointers + 1 char & $O(m)$ chars \\
+Cache performance & Poor (large arrays) & Good (BST-based) & Variable \\
+Prefix search & $O(m + k)$ & $O(m + \log n + k)$ & Not supported \\
+Sorted traversal & Natural & In-order traversal & Requires sort \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The standard trie gives $O(m)$ exact lookup but wastes memory for sparse alphabets. A hash table provides $O(m)$ lookup but cannot enumerate keys in lexicographic order. The TST strikes a practical balance: it degrades the trie's $O(m)$ to $O(m + \log n)$ but uses only three pointers per node and supports sorted traversal and range queries natively.
+
+\subsection{Application: Simple Spell Checker}
+
+\begin{lstlisting}[language=C++]
+class spell_checker {
+public:
+    void load_dictionary(std::istream& dict) {
+        std::string word;
+        while (dict >> word) {
+            std::transform(word.begin(), word.end(), word.begin(),
+                           ::tolower);
+            tst_.insert(word);
+        }
+    }
+
+    bool is_correct(std::string_view word) const {
+        return tst_.search(word);
+    }
+
+    std::vector<std::string> suggest(std::string_view word) const {
+        std::vector<std::string> results;
+        std::string w(word);
+        for (size_t i = 0; i < w.size(); ++i) {
+            char orig = w[i];
+            for (char c = 'a'; c <= 'z'; ++c) {
+                if (c == orig) continue;
+                w[i] = c;
+                if (tst_.search(w)) results.push_back(w);
+            }
+            w[i] = orig;
+        }
+        return results;
+    }
+
+private:
+    ternary_search_tree tst_;
+};
+\end{lstlisting}
+
+The \texttt{suggest} function generates single-character substitutions and checks each against the TST. Production spell checkers use edit-distance ($k = 2$) with early pruning via prefix checks, which the TST supports naturally.
+
+\section{Aho-Corasick Algorithm}
+
+The \textbf{Aho-Corasick}\index{Aho-Corasick} algorithm finds all occurrences of multiple patterns in a text simultaneously in O(n + m + z) time, where n is the text length, m is the total length of all patterns, and z is the number of matches. It builds a trie of all patterns, then adds \textbf{failure links} (analogous to KMP's prefix function) so that the automaton can transition to the longest matching suffix whenever a mismatch occurs.
+
+\subsection{Trie with Failure Links}
+
+\begin{lstlisting}[language=C++]
+#include <array>
+#include <queue>
+#include <string>
+#include <vector>
+
+struct aho_corasick {
+    static constexpr int ALPHA = 26;
+
+    struct node {
+        std::array<int, ALPHA> next{};
+        std::array<int, ALPHA> go{};
+        int link = 0;
+        int dict_link = -1;
+        int pattern_id = -1;
+        node() { next.fill(-1); go.fill(-1); }
+    };
+
+    std::vector<node> t = {node()};
+
+    void add_pattern(const std::string& pat, int id) {
+        int v = 0;
+        for (char c : pat) {
+            int ch = c - 'a';
+            if (t[v].next[ch] == -1) {
+                t[v].next[ch] = t.size();
+                t.emplace_back();
+            }
+            v = t[v].next[ch];
+        }
+        t[v].pattern_id = id;
+    }
+
+    void build() {
+        std::queue<int> q;
+        for (int c = 0; c < ALPHA; ++c) {
+            if (t[0].next[c] != -1) {
+                t[0].go[c] = t[0].next[c];
+                q.push(t[0].next[c]);
+            } else {
+                t[0].go[c] = 0;
+            }
+        }
+        while (!q.empty()) {
+            int v = q.front(); q.pop();
+            for (int c = 0; c < ALPHA; ++c) {
+                if (t[v].next[c] != -1) {
+                    t[t[v].link].go[c] == -1
+                        ? t[v].go[c] = t[v].next[c]
+                        : t[v].go[c] = t[t[v].link].go[c];
+                    t[t[v].next[c]].link =
+                        (v == 0) ? 0
+                                 : t[t[v].link].go[c];
+                    if (t[t[t[v].next[c]].link].pattern_id
+                            != -1)
+                        t[t[v].next[c]].dict_link =
+                            t[t[v].next[c]].link;
+                    else
+                        t[t[v].next[c]].dict_link =
+                            t[t[t[v].next[c]].link]
+                                .dict_link;
+                    q.push(t[v].next[c]);
+                }
+            }
+        }
+    }
+\end{lstlisting}
+
+\subsection{Worked Trace}
+
+Patterns: \texttt{\{"he", "she", "his", "hers"\}}, Text: \texttt{"ahishers"}.
+
+\begin{lstlisting}[language=Java]
+Trie construction:
+  root -> a
+        -> h -> e [*he]
+               -> i -> s [*his]
+        -> s -> h -> e [*she]
+        -> h -> e -> r -> s [*hers]
+
+Failure links:
+  "h"   -> root   (no proper suffix in trie)
+  "he"  -> root   (no suffix)
+  "i"   -> root
+  "his" -> "s"    (suffix "is" not in trie;
+                    suffix "s" not in trie;
+                    actually "is" -- link to root)
+  "sh"  -> "h"    (suffix "h" is in trie)
+  "she" -> "he"   (suffix "he" is in trie)
+  "he"  -> root
+  "her" -> root
+  "hers"-> "rs"   (no match, link chain)
+
+Search in "ahishers":
+  pos 0: 'a' -> root (no match)
+  pos 1: 'h' -> state "h" (no pattern end)
+  pos 2: 'i' -> state "his" -- MATCH "his" at 1
+  pos 3: 's' -> follow link chain to "s"
+  pos 4: 'h' -> state "sh"
+  pos 5: 'e' -> state "she" -- MATCH "she" at 3
+           follow dict_link -> state "he"
+           -- MATCH "he" at 3
+  pos 6: 'r' -> state "her"
+  pos 7: 's' -> state "hers" -- MATCH "hers" at 4
+
+  (pos 2 'i' + 's' also covers "is" but "is"
+   is not in our pattern set)
+\end{lstlisting}
+
+\textbf{Complexity:} O(n + m + z) — linear in input and output sizes. Space O(m $\cdot $ alphabet\_size).
+
+\section{Z-Algorithm}
+
+The \textbf{Z-algorithm} computes the Z-array, where Z[i] is the length of the longest substring starting at position i that is also a prefix of the string. This enables O(n + m) pattern matching by computing Z on the concatenated string pattern\$text.
+
+\subsection{Computing the Z-Array}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> compute_z(const std::string& s) {
+    int n = s.size();
+    std::vector<int> z(n, 0);
+    int l = 0, r = 0;
+    for (int i = 1; i < n; ++i) {
+        if (i < r)
+            z[i] = std::min(r - i, z[i - l]);
+        while (i + z[i] < n && s[z[i]] == s[i + z[i]])
+            ++z[i];
+        if (i + z[i] > r) {
+            l = i;
+            r = i + z[i];
+        }
+    }
+    return z;
+}
+
+std::vector<int> z_search(const std::string& text,
+                           const std::string& pattern) {
+    std::string concat = pattern + "$" + text;
+    auto z = compute_z(concat);
+    int m = pattern.size();
+    std::vector<int> matches;
+    for (int i = m + 1; i < (int)z.size(); ++i) {
+        if (z[i] == m) matches.push_back(i - m - 1);
+    }
+    return matches;
+}
+\end{lstlisting}
+
+\subsection{Worked Trace}
+
+Pattern: \texttt{"abba"}, Text: \texttt{"babaabbabba"}, Concatenated: \texttt{"abba\$babaabbabba"}.
+
+\begin{lstlisting}[language=Java]
+Index:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+Char:   a b b a $ b a b a a  b  b  a  b  b  a
+Z[i]:   - 0 0 0 - 1 0 2 0 1  2  0  0  4  0  0  0
+
+i=1: 'b' vs 'a' -> Z[1]=0
+i=2: 'b' vs 'a' -> Z[2]=0
+i=3: 'a' vs 'a' -> Z[3]=0 ('a'=='a' but 'a'!='b')
+i=5: 'b' vs 'a' -> Z[5]=1 (wait, recheck)
+  Actually "b" vs "a": Z[5]=0. Corrected:
+  i=5: Z[5]=0 ('b'!='a')
+  i=6: 'a'=='a' -> Z[6]=1 ('a'=='a', next 'b'!='b'?)
+  "abba" vs "bab..." -> 'a'!='b' -> Z[6]=0
+
+Corrected Z-array:
+  a b b a $ b a b a a  b  b  a  b  b  a
+  - 0 0 0 - 0 0 2 0 0  3  0  0  4  0  0  0
+
+i=7: "abba" vs "abba" -> Z[7]=2 ('a','b'=='a','b';
+    next 'a'!='i' -- wait, s[2]='b' vs s[9]='a')
+    "ab" match -> Z[7]=2
+
+i=13: "abba" vs "abba" -> Z[13]=4 (full match)
+
+Matches at positions where Z[i] == m (=4):
+  pos 13 - 4 - 1 = 8 (text position 8)
+
+But pattern "abba" occurs at text positions 8 in "babaabbabba"?
+Text:  b a b a a b b a b b a
+       0 1 2 3 4 5 6 7 8 9 10 11
+At pos 8: "abba" = text[8..11] -> a b b a. Yes!
+\end{lstlisting}
+
+\textbf{Complexity:} O(n) for Z-array construction (each character compared at most twice), O(n + m) for search.
+
+\section{Longest Common Substring via Suffix Arrays}
+
+Given two strings $A$ and $B$, their \textbf{longest common substring} is the longest string that appears as a contiguous substring in both. Using a suffix array on the concatenation $A\$B\#$, the longest common substring corresponds to the maximum LCP value between adjacent suffixes that belong to different original strings.
+
+\subsection{Algorithm}
+
+\begin{lstlisting}[language=C++]
+std::string longest_common_substring(
+        std::string_view a, std::string_view b) {
+    std::string concat = std::string(a) + "$"
+                       + std::string(b) + "#";
+    int na = a.size();
+    auto sa = build_suffix_array(concat);
+    auto lcp = build_lcp(concat, sa);
+
+    int best_len = 0, best_pos = 0;
+    for (size_t i = 0; i + 1 < lcp.size(); ++i) {
+        bool left_a = sa[i] < na;
+        bool right_a = sa[i + 1] < na;
+        if (left_a != right_a && lcp[i] > best_len) {
+            best_len = lcp[i];
+            best_pos = sa[i];
+        }
+    }
+    return std::string(concat.substr(best_pos,
+                                     best_len));
+}
+\end{lstlisting}
+
+\textbf{Key idea:} After building the suffix array of the concatenated string, sort all suffixes lexicographically. Adjacent suffixes share the longest prefix. If two adjacent suffixes come from different original strings, their LCP is a candidate for the longest common substring. The maximum over all such pairs gives the answer.
+
+\textbf{Complexity:} O(n log n) with a simple suffix array construction (or O(n) with SA-IS), where n = |A| + |B|.
+
+\section{Exercises}
+
+\begin{enumerate}
+\item \textbf{Aho-Corasick construction.} Build the Aho-Corasick automaton by hand for the patterns \{"the", "this", "that", "his"\}. Draw the trie, label the failure links, and trace the automaton on the text \texttt{"thisthecat"}. List every match found.
+
+\item \textbf{Z-array computation.} Compute the Z-array for the string \texttt{"aabxaabxcaab"}. Show the values of $l$, $r$, and $z[i]$ at each step $i = 1, 2, \ldots$.
+
+\item \textbf{Longest common substring.} Using the suffix-array method, find the longest common substring of $A = \text{"abcdef"}$ and $B = \text{"zabcfgh"}$. Show the concatenated string, the suffix array, the LCP array, and identify the answer.
+
+\item \textbf{Z-algorithm for KMP.} Given a pattern $P$ and text $T$, describe how to use the Z-algorithm to perform KMP-style matching without explicitly building a prefix function. What is the concatenated string, and which Z-values indicate matches?
+
+\item \textbf{Aho-Corasick vs running KMP.} You have 100 patterns each of length 10 and a text of length $10^{6}$. Estimate the total character comparisons for (a) running KMP separately for each pattern, and (b) Aho-Corasick. At what number of patterns does Aho-Corasick break even?
+\end{enumerate}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Trie node array of size R for Unicode (R = 1,114,112) & 4+ MB per node, memory explosion & Use TST, hash map per node, or compressed trie \\
+KMP failure function $\pi $[0] = 0 but $\pi $ needs $\pi $[0] = -1 for shift & Infinite loop on first mismatch & Set $\pi $[0] = -1 and adjust the matching loop \\
+Rabin-Karp hash collision not detected & False positive match, corrupt search result & Verify match character-by-character when hash matches \\
+Suffix array built with \texttt{std::sort} on suffixes (naive) & O(n$^{2}$ log n), infeasible for n > 10$^{4}$ & Use Manber-Myers doubling or SA-IS for O(n) \\
+Forgetting that \texttt{std::string} can contain embedded nulls & Truncated search, missed patterns & Use \texttt{std::string\_view(data, len)} with explicit length \\
+LCP array off-by-one indexing & Wrong longest repeated substring & LCP[i] contains LCP of suffix at SA[i] and SA[i-1] \\
+Using int for suffix array indices when n > 2$^{31}$ & Integer overflow on large genomes & Use \texttt{size\_t} or \texttt{int64\_t} for n > 2$^{31}$ \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Tries} provide O(m) lookup for string keys, independent of the number of keys.
+\item \textbf{Ternary Search Tries} reduce memory for large alphabets.
+\item \textbf{KMP} achieves O(n + m) string matching using the failure function.
+\item \textbf{Rabin-Karp} uses rolling hash for average O(n + m) matching.
+\item \textbf{Suffix arrays} with LCP enable powerful string analysis: longest repeated substring, pattern matching, distinct substrings.
+\item \textbf{Suffix trees} (Ukkonen's) provide O(m) pattern search with O(n) build, supporting rich structural queries.
+\item All these techniques are essential for text processing, genomics, and search.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Why are tries rarely used in practice despite O(m) lookup, and what replaces them?}
+
+Tries waste memory: each node stores a pointer per character (26 for English, 256 for bytes). A trie for 1M URLs with average length 30 uses $\sim$30M nodes $\times$ 256 pointers $\times$ 8 bytes = absurd memory. Production alternatives: (1) Compact/Patricia tries --- merge single-child chains into one edge, reducing nodes dramatically; (2) Hash-based tries (HAT-tries) --- combine a trie root with hash tables at buckets; (3) Succinct tries --- compress the trie structure into bit vectors. In practice, hash tables with good hash functions (SipHash) often beat tries for pure lookup. Tries win for prefix queries, autocomplete, and longest-prefix matching (IP routing).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you optimize a trie for memory efficiency in production?}
+
+Three techniques: (1) Compress single-child chains into edges (Patricia/Radix trie) --- reduces node count from O(total characters) to O(number of strings); (2) Use hash tables instead of arrays at each node --- trades O(1) lookup for O(1) average with much less memory; (3) Store strings inline in edges (burst tries) --- for short strings, avoid node allocation entirely. Google's CEDAR and HAT-trie libraries implement these optimizations. The memory savings can be 10--50x over a naive trie while maintaining comparable lookup speed.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does KMP (Knuth-Morris-Pratt) achieve O(n + m) string matching?}
+
+KMP precomputes a ``failure function'' (prefix function) $\pi$ for the pattern in O(m). $\pi[i]$ is the length of the longest proper prefix of pattern[0..i] that is also a suffix. During matching, when a mismatch occurs at pattern[j], instead of restarting from pattern[0], KMP jumps to pattern[$\pi[j-1]$]. Each character of the text is compared at most twice (once advancing, once on mismatch), giving O(n) total. Combined with O(m) preprocessing, total is O(n + m).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you choose a good rolling hash function to avoid worst-case O(nm) in Rabin-Karp?}
+
+The polynomial hash $h(s) = \sum s[i] \cdot p^{i} \bmod m$ is fast but vulnerable to crafted collisions if $p$ and $m$ are known. Three defenses: (1) Use a random prime $p$ chosen at runtime --- prevents adversarial construction; (2) Use a large modulus ($2^{64}$ via unsigned overflow) --- makes modular arithmetic nearly free; (3) Double hash with two different primes --- collision probability drops to $1/p_1 p_2$. In practice, a single 64-bit polynomial hash with a random base is sufficient for competitive programming. For security-critical applications, use SipHash instead of polynomial hashing.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is a suffix array and why is it useful?}
+
+A suffix array is a sorted array of all suffixes of a string, stored as an array of starting indices. Built in O(n log n) (or O(n) with SA-IS). Combined with the LCP (Longest Common Prefix) array, it enables: (1) pattern search in O(m log n), (2) longest repeated substring in O(n), (3) counting distinct substrings in O(n), (4) longest common substring of two strings in O(n). Suffix arrays are more space-efficient than suffix trees and often faster in practice.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the longest common substring of two strings?}
+
+Approach 1: Binary search on length $L$. For each $L$, hash all substrings of length $L$ from both strings, check for collision. Time O(n log n) with rolling hash.
+
+Approach 2: Build a suffix array on the concatenation (with unique separators). The longest common substring corresponds to the longest common prefix between a suffix of one string and a suffix of the other, found by scanning the LCP array. Time O(n), space O(n).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When does a trie beat a hash table for string lookup, and when does it lose?}
+
+Trie wins: (1) prefix queries --- ``find all strings starting with pre'' is O(m + k) with trie, O(n $\cdot$ m) with hash; (2) ordered iteration --- lexicographic order is free; (3) longest-prefix matching --- IP routers use tries for this; (4) no hash function needed --- no collision attacks, no hash computation cost. Hash table wins: (1) pure exact-match lookup --- O(m) average with better constants and cache locality; (2) memory usage --- a hash table uses O(n $\cdot$ m) total but with smaller constants than a trie; (3) general-purpose --- works for any key type, not just strings. The decision: use hash for exact lookup, tries for prefix/range operations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do production autocomplete systems differ from a naive trie DFS?}
+
+A naive trie DFS returns all words under a prefix --- unranked, potentially millions of results. Production systems: (1) Rank results by frequency --- store click counts at leaf nodes, sort by popularity; (2) Use a top-$k$ heap during DFS to avoid collecting all results; (3) Compress the trie (DAFSA/Radix) to fit billions of keys in memory; (4) Add typo tolerance --- fuzzy matching via edit distance on the trie (BK-trees or symmetric delete); (5) Cache popular prefixes in Redis/Memcached. Apache Lucene uses a finite state transducer (FST) --- a compressed trie that also maps keys to values --- achieving 100x compression over hash tables for term dictionaries.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is Boyer-Moore and why is it fast in practice?}
+
+Boyer-Moore scans the pattern right-to-left (unlike left-to-right). On mismatch, it uses two heuristics: (1) Bad character rule: skip the pattern so the mismatched text character aligns with its rightmost occurrence in the pattern. (2) Good suffix rule: skip based on the matched suffix. In practice, Boyer-Moore is sublinear — it often skips characters without examining them. For natural language text, it examines only $\sim$20--30\% of the text characters. Time: O(nm) worst case, O(n/m) best case.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you count the number of distinct substrings of a string?}
+
+Using a suffix array: total distinct substrings = $\frac{n(n+1)}{2} - \sum \text{LCP}[i]$. The total number of substrings is $n(n+1)/2$, and the LCP array counts the overlaps (shared prefixes between adjacent suffixes). Time O(n) with suffix array + LCP. This is a common interview question that tests understanding of suffix arrays.
+\end{enumerate}
+
+%% ============================================================
+%% DOCUMENT RETRIEVAL (MIT 6.851 coverage)
+%% ============================================================
+
+\section{Document Retrieval}
+\label{sec:document-retrieval}
+
+The \emph{document retrieval} problem asks: given a collection of documents and a query pattern, find all documents that contain the pattern. This problem underpins search engines, legal discovery, and bioinformatics.
+
+\subsection{The Inverted Index}
+
+The most widely used data structure for document retrieval is the \emph{inverted index}. For each distinct term $t$ in the corpus, the index stores a \emph{posting list}: the sorted list of document IDs containing $t$, often augmented with term frequencies and positions.
+
+Given a query with terms $\{t_1, t_2, \ldots, t_k\}$, we intersect the posting lists for all query terms. Building an inverted index from $n$ documents of total size $N$ takes $O(N)$ time with a hash map. Intersecting $k$ posting lists of total length $L$ can be done in $O(L)$ time using a merge-based approach.
+
+\subsection{Suffix Arrays with Document Arrays}
+
+A \emph{suffix array} augmented with a \emph{document array} $DA[i]$ recording which document suffix $SA[i]$ belongs to can answer document retrieval queries. A pattern $P$ of length $m$ appears in document $d$ if and only if $DA[i] = d$ for some $i$ in the suffix array range $[lo, hi]$ where the pattern matches. Using a wavelet tree over the document array, we can answer ``how many occurrences of $P$ are in document $d$?'' in $O(m + \log d)$ time.
+
+\subsection{Top-k Retrieval: WAND and Block-Max WAND}
+
+\emph{WAND} (Weak AND) retrieves the top-$k$ documents by score without scanning every posting list. It maintains a cursor for each query term, advances cursors in document-ID order, and uses upper bounds on term scores to skip documents that cannot enter the top-$k$.
+
+\emph{Block-Max WAND} divides each posting list into blocks, precomputes the maximum score within each block, and uses these block bounds to skip entire blocks. This reduces score evaluations by an order of magnitude compared to basic WAND.
+
+\subsection{BM25 Scoring}
+
+\emph{BM25} is the standard scoring function in Elasticsearch, Lucene, and most commercial search engines:
+\[
+  \text{BM25}(t, d) = \frac{\text{tf}(t,d) \cdot (k_1 + 1)}
+  {\text{tf}(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}
+  \cdot \text{idf}(t).
+\]
+
+\begin{lstlisting}[language=C++]
+struct Posting { int docId; int tf; };
+
+class InvertedIndex {
+    std::unordered_map<std::string,
+        std::vector<Posting>> index;
+    std::unordered_map<int, int> docLen;
+    int totalDocs = 0;
+    double avgDl = 0.0;
+
+public:
+    void addDocument(int docId,
+            const std::vector<std::string>& terms) {
+        std::unordered_map<std::string, int> freq;
+        for (auto& t : terms) freq[t]++;
+        for (auto& [term, count] : freq)
+            index[term].push_back({docId, count});
+        docLen[docId] = terms.size();
+        totalDocs++;
+        avgDl = 0;
+        for (auto& [id, len] : docLen) avgDl += len;
+        avgDl /= totalDocs;
+    }
+
+    double bm25(const std::string& term, int docId,
+            double k1 = 1.2, double b = 0.75) const {
+        auto it = index.find(term);
+        if (it == index.end()) return 0;
+        for (auto& p : it->second) {
+            if (p.docId == docId) {
+                double tf = p.tf;
+                double dl = docLen.at(docId);
+                double num = tf * (k1 + 1);
+                double den = tf + k1 * (1 - b
+                    + b * dl / avgDl);
+                double idf = log((totalDocs
+                    - it->second.size() + 0.5)
+                    / (it->second.size() + 0.5));
+                return (num / den) * idf;
+            }
+        }
+        return 0;
+    }
+};
+\end{lstlisting}
+
+\subsection{Industrial Applications}
+
+\begin{itemize}
+    \item \textbf{Search engines:} Google and Bing use inverted indices at massive scale, distributing posting lists across thousands of machines
+    \item \textbf{E-discovery:} legal document search (Enron email dataset is a canonical benchmark)
+    \item \textbf{Plagiarism detection:} find documents with overlapping passages using suffix-array-based matching
+    \item \textbf{Bioinformatics:} gene sequence search across entire genomes using inverted indices over $k$-mers
+    \item \textbf{Code search:} GitHub and Google Code Search use inverted indices over tokenized source code
+\end{itemize}
+
+\subsection{Comparison}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Structure & Build Time & Query Time & Strengths \\
+\midrule
+Suffix array + DA & $O(N \log N)$ & $O(m + \text{occ})$ & Pattern matching, locality \\
+Inverted index & $O(N)$ & $O(L)$ merge & Top-k, scoring, flexibility \\
+Trie-based & $O(N)$ & $O(m)$ & Prefix queries, autocomplete \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item \textbf{Large alphabet trie.} A trie for Unicode text could have up to 1 million children per node. That's infeasible. Name three alternatives (TST, hash map per node, compressed trie) and estimate the memory per node for each. Which would you use for an autocomplete system and why?
+\end{enumerate}
+
+   \textit{(In production, search engines use compressed trie variants to handle Unicode efficiently.)}
+
+\begin{enumerate}
+\item \textbf{Compressed trie.} Given the words "cat", "catastrophe", "category", "caterpillar", "catfish", draw both a standard trie and a compressed trie (radix tree). Count the nodes in each. What's the memory savings?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{String matching algorithms.} For pattern "aaaa" in text "aaaaaaaaaa", how many character comparisons do naive search, KMP, and Boyer-Moore each make? Show the KMP prefix function.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Hash collision probability.} A rolling hash uses a 32-bit prime modulus. If a document has 1$0^{5}$ hash windows, what is the approximate probability of at least one false positive? What if you use a 64-bit modulus?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Memory for large strings.} A string of length 3 billion needs a suffix array. How much memory does a 32-bit index use? A 64-bit index? What technique could reduce memory for DNA sequence analysis?
+\end{enumerate}
+
+   \textit{(In production, genome aligners use the FM-index (BWT + suffix array compression) to fit human-genome-sized indices in memory.)}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item \textbf{Autocomplete trie.} Implement a trie that supports insert(word, frequency) and top-k suggestions by prefix. Test with 1$0^{5}$ words. Measure memory and query latency for prefixes of length 2, 3, 4, 5. Compare a standard trie vs a compressed trie (merge single-child chains).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Pattern matching comparison.} Implement naive string search, KMP, and Boyer-Moore. Benchmark on a 10 MB text for patterns of length 10, 50, 100. Report comparisons per pattern length. Which algorithm wins and when?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Suffix array.} Implement the suffix array of a string (use the simple O(n$^{2}$ log n) method first, then the O(n log n) doubling method). Use it to find the longest repeated substring. Benchmark both methods for n = 1$0^{3}$, 1$0^{4}$, 1$0^{5}$.
+\end{enumerate}
+
+   \textit{(In production, plagiarism detectors like Stanford Moss use suffix arrays to find copied passages between documents.)}
+
+\begin{enumerate}
+\item \textbf{Multi-pattern matching (Aho-Corasick).} Implement Aho-Corasick for searching 1000 patterns in a text simultaneously. Compare with running KMP for each pattern separately. Measure build time and search speed. At what number of patterns does Aho-Corasick become faster?
+\end{enumerate}
+
+   \textit{(In production, intrusion detection systems like Snort use Aho-Corasick to match thousands of attack signatures against network traffic in real time.)}
+
+\begin{enumerate}
+\item \textbf{Document similarity.} Implement a program that finds the longest common substring between two documents using a suffix array. Test on two 1$0^{5}$-character documents. Compare runtime with a naive O(n$^{2}$) approach.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{Burrows-Wheeler compression.} Implement the BWT using a suffix array, then the inverse BWT. Combine with move-to-front encoding and Huffman coding to create a simple compressor. Compare compression ratio and speed with \texttt{gzip} on a 10 MB text file.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Suffix automaton.} Implement a suffix automaton (SAM) — a minimal DFA accepting all substrings of a string. Use it to count occurrences of a pattern in O(m) time. Compare the number of states vs the suffix array size for n = 1$0^{5}$, 1$0^{6}$. Why is SAM useful for real-time genome search?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{String matching for version strings.} A system processes 1$0^{6}$ version string lookups per second (e.g., "2.1.3" $\ge $ "2.1.14"). Implement a pattern matcher using the Z-algorithm. Compare throughput with KMP and \texttt{std::string::find} for exact match, prefix match, and wildcard match.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Compressed string dictionary.} A serialization library stores field name $\to $ integer mappings. Build a Patricia trie (compressed radix tree) for this dictionary. Compare memory and lookup speed with \texttt{std::unordered\_map<string, int>} for 1$0^{4}$ field names. Which is better for read-heavy deserialization?
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Donald E. Knuth, James H. Morris, and Vaughan R. Pratt, "Fast Pattern Matching in Strings" — SIAM Journal on Computing, 1977.
+\item Richard M. Karp and Michael O. Rabin, "Efficient Randomized Pattern-Matching Algorithms" — IBM Journal of R\&D, 1987.
+\item Robert S. Boyer and J. Strother Moore, "A Fast String Searching Algorithm" — CACM, 1977.
+\item Udi Manber and Gene Myers, "Suffix Arrays: A New Method for On-Line String Searches" — SIAM Journal on Computing, 1993.
+\item Dan Gusfield, \textit{Algorithms on Strings, Trees, and Sequences}. Cambridge University Press, 1997.
+\item Michael Burrows and David J. Wheeler, "A Block-Sorting Lossless Data Compression Algorithm" — DEC SRC Technical Report, 1994.
+\item Alfred V. Aho and Margaret J. Corasick, "Efficient String Matching: An Aid to Bibliographic Search" — CACM, 1975.
+\item Esko Ukkonen, "On-Line Construction of Suffix Trees" — Algorithmica, 1995 (Ukkonen's O(n) algorithm).
+\item Peter Weiner, "Linear Pattern Matching Algorithms" — FOCS, 1973 (first O(n) suffix tree construction).
+\item Robert Sedgewick and Kevin Wayne, \textit{Algorithms}, 4th Edition. Section 5.3 (substring search).
+\end{itemize}
+

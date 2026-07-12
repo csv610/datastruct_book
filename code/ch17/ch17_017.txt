@@ -1,0 +1,3 @@
+dp[c] = min coins needed to make amount c
+dp[c] = min over all coins  <=  c of (dp[c - coin] + 1)
+dp[0] = 0

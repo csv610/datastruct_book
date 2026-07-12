@@ -1,0 +1,15 @@
+Min-max heap (levels alternate min/max):
+
+Level 0 (min):           [2]               <-- min of all
+                        /   \
+Level 1 (max):      [9]     [8]             <-- max of descendants
+                    / \     / \
+Level 2 (min):  [4]  [7] [5]  [3]           <-- min of descendants
+                / \   |
+Level 3 (max): [6][5] [12]
+
+Parent-child ordering:
+  Min-level node v:  v < all descendants
+  Max-level node v:  v > all descendants
+  Grandchild shortcut: min-level node also < all grandchildren
+                       max-level node also > all grandchildren

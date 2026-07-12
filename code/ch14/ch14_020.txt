@@ -1,0 +1,13 @@
+persistent_seg_tree pst(arr);
+
+// Version 0: original array
+pst.query(0, 2, 5);   // sum of arr[2..5]
+
+// Update position 3 to value 100
+int v1 = pst.update(0, 3, 100);
+
+// Query version 1: includes the update
+pst.query(v1, 2, 5);  // sum with new value at pos 3
+
+// Original version 0 is unchanged
+pst.query(0, 2, 5);   // original sum

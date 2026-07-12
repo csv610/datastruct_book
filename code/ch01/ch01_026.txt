@@ -1,0 +1,3 @@
+int x = 5;
+decltype(x) y = 10;  // int
+decltype((x)) z = x; // int&

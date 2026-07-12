@@ -1,0 +1,1382 @@
+\chapter{Arrays, Matrices, and Sparse Representations}\label{ch05:arrays-matrices-and-sparse-representations}
+
+\section{Introduction}
+
+In Chapter 4 we used one-dimensional arrays to represent linear lists. In this chapter we generalize to multi-dimensional arrays and matrices, including techniques for representing \textbf{special matrices} (triangular, diagonal) and \textbf{sparse matrices} where most elements are zero.
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{Multi-Dimensional Arrays}
+
+\subsection{Row-Major and Column-Major Ordering}
+
+A 2D array with r rows and c columns is stored linearly in memory. Two standard mappings exist:
+
+\textbf{Row-major order} (used by C++): elements of row 0, then row 1, etc.
+\begin{lstlisting}[language=Java]
+Index(i, j) = i * c + j
+\end{lstlisting}
+
+\textbf{Column-major order} (used by Fortran): elements of column 0, then column 1, etc.
+\begin{lstlisting}[language=Java]
+Index(i, j) = j * r + i
+\end{lstlisting}
+
+C++ uses row-major order. For a 3$\times $4 matrix:
+
+\begin{lstlisting}[language=Java]
+a[0][0] a[0][1] a[0][2] a[0][3] a[1][0] a[1][1] ...
+  0       1       2       3       4       5
+\end{lstlisting}
+
+\subsection{Multi-Dimensional Arrays in C++}
+
+\begin{lstlisting}[language=C++]
+// 2D array on stack (fixed size)
+int matrix[3][4];
+
+// 2D array on heap (C++ style)
+auto matrix = std::make_unique<int[]>(rows * cols);
+
+// Access: matrix[i * cols + j]
+
+// Using vector of vectors
+std::vector<std::vector<int>> matrix(rows, std::vector<int>(cols));
+\end{lstlisting}
+
+\subsection{A Generic Matrix Class}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class matrix {
+public:
+    matrix(size_t rows, size_t cols)
+        : rows_(rows), cols_(cols), data_(std::make_unique<T[]>(rows * cols)) {}
+
+    T& operator()(size_t i, size_t j) {
+        return data_[i * cols_ + j];
+    }
+    const T& operator()(size_t i, size_t j) const {
+        return data_[i * cols_ + j];
+    }
+
+    size_t rows() const noexcept { return rows_; }
+    size_t cols() const noexcept { return cols_; }
+    size_t size() const noexcept { return rows_ * cols_; }
+
+    matrix operator+(const matrix& other) const {
+        matrix result(rows_, cols_);
+        for (size_t k = 0; k < size(); ++k) {
+            result.data_[k] = data_[k] + other.data_[k];
+        }
+        return result;
+    }
+
+    matrix operator*(const matrix& other) const {
+        matrix result(rows_, other.cols_);
+        for (size_t i = 0; i < rows_; ++i) {
+            for (size_t k = 0; k < cols_; ++k) {
+                T aik = (*this)(i, k);
+                if (aik != T(0)) {  // skip zero multiplies
+                    for (size_t j = 0; j < other.cols_; ++j) {
+                        result(i, j) += aik * other(k, j);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+private:
+    size_t rows_, cols_;
+    std::unique_ptr<T[]> data_;
+};
+\end{lstlisting}
+
+\section{Bit Arrays and Bitmaps}
+
+A \textbf{bit array} (or bit vector, bitmap) stores one bit per element, enabling compact representation of sets of small integers. A bit array of size n uses only $\lceil n/8 \rceil$ bytes — 32$\times$ less than a \texttt{bool[]} array.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+class bit_array {
+public:
+    explicit bit_array(size_t n)
+        : data_((n + 63) / 64, 0), size_(n) {}
+
+    bool get(size_t i) const {
+        return (data_[i / 64] >> (i % 64)) & 1;
+    }
+
+    void set(size_t i, bool val = true) {
+        if (val)
+            data_[i / 64] |= (1ULL << (i % 64));
+        else
+            data_[i / 64] &= ~(1ULL << (i % 64));
+    }
+
+    void clear(size_t i) { set(i, false); }
+
+    // Count set bits (population count) using hardware intrinsic
+    size_t count() const {
+        size_t total = 0;
+        for (auto word : data_)
+            total += std::popcount(word);
+        return total;
+    }
+
+    // Bitwise operations
+    bit_array operator&(const bit_array& o) const {
+        bit_array result(size_);
+        for (size_t i = 0; i < data_.size(); ++i)
+            result.data_[i] = data_[i] & o.data_[i];
+        return result;
+    }
+    bit_array operator|(const bit_array& o) const { /* similar */ }
+    bit_array operator~() const {
+        bit_array result(size_);
+        for (size_t i = 0; i < data_.size(); ++i)
+            result.data_[i] = ~data_[i];
+        return result;
+    }
+
+    size_t size() const noexcept { return size_; }
+
+private:
+    std::vector<uint64_t> data_;
+    size_t size_;
+};
+\end{lstlisting}
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{Set of integers:} represent a subset\index{subset} of $\{0, 1, \ldots, n-1\}$ in $n/8$ bytes. Insert, delete, and membership test are all O(1).
+\item \textbf{Bloom filters} (Chapter 19): a bit array of size m with k hash functions. False positives possible, false negatives not.
+\item \textbf{Bitmap in databases:} Oracle and PostgreSQL use bitmaps for index intersections — combining two bitmaps with AND/OR answers range queries in O(n/64) word operations.
+\item \textbf{Image masks:} alpha channels in PNG are single-channel bitmaps. Facebook's TAO uses bitmaps to represent friendship sets for fast intersection.
+\end{itemize}
+
+\textbf{Complexity:} All operations (get, set, count, AND, OR) run in O(n/w) time where w is the word size (64 bits). Hardware \texttt{popcount} and \texttt{ctz} instructions make bit operations extremely fast in practice.
+
+\section{Dynamic Arrays}
+
+A \textbf{dynamic array} (e.g., \texttt{std::vector}) provides O(1) indexed access with automatic resizing. The key insight is \textbf{amortized doubling}: when the array grows, it allocates twice the needed space, so most insertions are O(1) and only occasional resizes cost O(n).
+
+\subsection{Growth Factor}
+
+The growth factor determines how much extra space to allocate on resize:
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Library & Growth Factor & Rationale \\
+GCC libstdc++ \texttt{std::vector} & 2 & Classic doubling \\
+MSVC \texttt{std::vector} & 1.5 & Better memory utilization (smaller waste on resize) \\
+Java \texttt{ArrayList} & 1.5 & Same as MSVC \\
+Rust \texttt{Vec} & 2 (then $\sim$1.5) & Aggressive then conservative \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Amortized Analysis}
+
+With doubling, n insertions into an initially empty array cost:
+\begin{itemize}
+\item Copies at capacities 1, 2, 4, 8, ..., $2^{\lceil \log_2 n \rceil}$: total $< 2n$
+\item n insertions at unit cost: $n$
+\item Total: $< 3n$, so \textbf{amortized O(1) per insertion}
+\end{itemize}
+
+With growth factor $g > 1$, the wasted space on the last resize is $\frac{g-1}{g}$ of the total capacity. Factor 2 wastes at most 50\%; factor 1.5 wastes at most 33\%.
+
+\textit{Cross-reference:} See Chapter 2, Section "Amortized Analysis" for the formal proof using the accounting and potential methods.
+
+\section{Sorted Arrays}
+
+A \textbf{sorted array} maintains elements in sorted order, enabling O(log n) search via binary search at the cost of O(n) insertion and deletion.
+
+\subsection{Operations}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class sorted_array {
+public:
+    void insert(const T& value) {
+        auto pos = std::lower_bound(data_.begin(), data_.end(), value);
+        data_.insert(pos, value);  // O(n) shift
+    }
+
+    bool contains(const T& value) const {
+        return std::binary_search(data_.begin(), data_.end(), value);  // O(log n)
+    }
+
+    void erase(const T& value) {
+        auto pos = std::lower_bound(data_.begin(), data_.end(), value);
+        if (pos != data_.end() && *pos == value)
+            data_.erase(pos);  // O(n) shift
+    }
+
+    // Range query: all elements in [lo, hi]
+    auto range(const T& lo, const T& hi) const {
+        auto first = std::lower_bound(data_.begin(), data_.end(), lo);
+        auto last = std::upper_bound(data_.begin(), data_.end(), hi);
+        return std::pair(first, last);  // O(log n) to find, O(k) to iterate
+    }
+
+    const T& operator[](size_t i) const { return data_[i]; }
+    size_t size() const noexcept { return data_.size(); }
+
+private:
+    std::vector<T> data_;
+};
+\end{lstlisting}
+
+\subsection{Complexity}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Sorted Array & Unsorted Array \\
+Search & O(log n) & O(n) \\
+Insert & O(n) & O(1) \\
+Delete & O(n) & O(1) \\
+Min/Max & O(1) & O(n) \\
+Range query & O(log n + k) & O(n) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{When to use:} sorted arrays are ideal for \textbf{read-heavy, write-rarely} workloads — e.g., lookup tables that are built once and queried millions of times. The contiguous memory layout gives excellent cache performance, often beating balanced BSTs for search despite the same O(log n) asymptotic complexity.
+
+\section{Circular Buffers}
+
+A \textbf{circular buffer} (ring buffer) is a fixed-size array with two pointers (head and tail) that wrap around. It implements a FIFO queue in O(1) time with O(1) space — no shifting, no dynamic allocation.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class circular_buffer {
+public:
+    explicit circular_buffer(size_t capacity)
+        : buf_(capacity), head_(0), tail_(0), size_(0) {}
+
+    void push(const T& val) {
+        if (size_ == buf_.size())
+            throw std::overflow_error("buffer full");
+        buf_[tail_] = val;
+        tail_ = (tail_ + 1) % buf_.size();
+        ++size_;
+    }
+
+    T pop() {
+        if (size_ == 0)
+            throw std::underflow_error("buffer empty");
+        T val = buf_[head_];
+        head_ = (head_ + 1) % buf_.size();
+        --size_;
+        return val;
+    }
+
+    const T& front() const { return buf_[head_]; }
+    bool empty() const { return size_ == 0; }
+    size_t size() const { return size_; }
+
+private:
+    std::vector<T> buf_;
+    size_t head_, tail_, size_;
+};
+\end{lstlisting}
+
+\textbf{Wrap-around arithmetic:} head\_ = (head\_ + 1) \% capacity. The modulo ensures the pointer wraps to index 0 after reaching the end.
+
+\subsection{Applications}
+
+\begin{itemize}
+\item \textbf{CPU cache lines:} modern CPUs use circular buffers for instruction prefetch queues.
+\item \textbf{Streaming data:} the last N events (e.g., server logs, sensor readings) are kept in a ring buffer of size N — O(1) append, oldest automatically evicted.
+\item \textbf{Producer-consumer queues:} lock-free circular buffers are the foundation of high-performance queues (e.g., LMAX Disruptor, Linux kfifo).
+\item \textbf{Buffered I/O:} \texttt{std::cin} and file streams use circular buffers internally to batch system calls.
+\end{itemize}
+
+\textbf{Fixed vs. dynamic:} A fixed-size circular buffer wastes no memory on pointers or allocation, but cannot grow. A dynamic ring buffer (e.g., doubling the capacity) combines the benefits but requires copying on resize.
+
+\textit{Cross-reference:} Chapter 7 implements queues using linked lists and arrays. The circular buffer is the most cache-efficient array-based queue.
+
+\section{Gap Buffers}
+
+A \textbf{gap buffer} is a text-editing data structure: a contiguous array with a "gap" (empty region) at the cursor position. Inserts and deletes near the cursor are O(1); operations far from the cursor require moving the gap.
+
+\subsection{Implementation}
+
+\begin{lstlisting}[language=C++]
+class gap_buffer {
+public:
+    explicit gap_buffer(size_t initial = 128)
+        : buf_(initial), gap_start_(0), gap_end_(initial) {}
+
+    // Insert character at cursor position -- O(1) amortized
+    void insert(char c) {
+        if (gap_start_ == gap_end_) grow_gap();
+        buf_[gap_start_++] = c;
+    }
+
+    // Delete character before cursor -- O(1)
+    char delete_back() {
+        if (gap_start_ == 0) return '\0';
+        return buf_[--gap_start_];
+    }
+
+    // Move cursor left -- O(1)
+    void move_left() {
+        if (gap_start_ > 0)
+            buf_[--gap_end_] = buf_[--gap_start_];
+    }
+
+    // Move cursor right -- O(1)
+    void move_right() {
+        if (gap_end_ < buf_.size())
+            buf_[gap_start_++] = buf_[gap_end_++];
+    }
+
+    // Get full text
+    std::string text() const {
+        return std::string(buf_.begin(), buf_.begin() + gap_start_) +
+               std::string(buf_.begin() + gap_end_, buf_.end());
+    }
+
+    size_t cursor_pos() const { return gap_start_; }
+
+private:
+    void grow_gap() {
+        size_t new_size = buf_.size() * 2;
+        std::vector<char> new_buf(new_size);
+        // Copy before gap
+        std::copy(buf_.begin(), buf_.begin() + gap_start_, new_buf.begin());
+        // Copy after gap
+        size_t after = buf_.size() - gap_end_;
+        size_t new_gap_end = new_size - after;
+        std::copy(buf_.begin() + gap_end_, buf_.end(), new_buf.begin() + new_gap_end);
+        gap_end_ = new_gap_end;
+        buf_ = std::move(new_buf);
+    }
+
+    std::vector<char> buf_;
+    size_t gap_start_, gap_end_;
+};
+\end{lstlisting}
+
+\textbf{Why it works for text editors:} Most typing happens at the cursor. The gap sits at the cursor, so every insert/delete is O(1). Moving the cursor shifts the gap — O(distance), but since users type locally, the amortized cost is low.
+
+\subsection{Comparison with Alternatives}
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+Structure & Insert at cursor & Move cursor & Memory \\
+Gap buffer & O(1) amortized & O(distance) & Contiguous, cache-friendly \\
+Doubly-linked list (per char) & O(1) & O(1) & High overhead per node \\
+Rope (tree of strings) & O(log n) & O(log n) & Moderate overhead \\
+Piece table & O(1) amortized & O(log n) & Two buffers + log \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Emacs uses gap buffers. Most modern editors (VS Code, Sublime) use piece tables or ropes.
+
+\section{Special Matrices}
+
+Many problems involve matrices with a known structure. We can save space by storing only the unique elements.
+
+\subsection{Diagonal Matrix}
+
+A diagonal matrix has non-zero entries only on the main diagonal:
+
+\begin{lstlisting}[language=Java]
+[d$_{0}$  0   0 ]
+[ 0  d$_{1}$  0 ]
+[ 0   0  d$_{2}$]
+\end{lstlisting}
+
+Store as a 1D array of size n: \texttt{d[i]} stores the element at (i, i).
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class diagonal_matrix {
+public:
+    explicit diagonal_matrix(size_t n) : n_(n), data_(std::make_unique<T[]>(n)) {}
+
+    T& operator()(size_t i, size_t j) {
+        if (i != j) throw std::logic_error("non-diagonal access");
+        return data_[i];
+    }
+    const T& operator()(size_t i, size_t j) const {
+        if (i != j) return zero_;
+        return data_[i];
+    }
+
+private:
+    size_t n_;
+    std::unique_ptr<T[]> data_;
+    static constexpr T zero_ = T(0);
+};
+\end{lstlisting}
+
+\subsection{Triangular Matrices}
+
+Upper triangular: all entries below the main diagonal are zero.
+Lower triangular: all entries above the main diagonal are zero.
+
+\begin{lstlisting}[language=Java]
+Lower triangular (n=4):
+[a$_{0}$$_{0}$  0    0    0  ]
+[a$_{1}$$_{0}$  a$_{1}$$_{1}$  0    0  ]
+[a$_{2}$$_{0}$  a$_{2}$$_{1}$  a$_{2}$$_{2}$  0  ]
+[a$_{3}$$_{0}$  a$_{3}$$_{1}$  a$_{3}$$_{2}$  a$_{3}$$_{3}$]
+\end{lstlisting}
+
+Store in a 1D array of size n(n+1)/2:
+
+\begin{lstlisting}[language=Java]
+Row-major mapping for lower triangular: index(i, j) = i(i+1)/2 + j   for i  >=  j
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class lower_triangular_matrix {
+public:
+    explicit lower_triangular_matrix(size_t n)
+        : n_(n), data_(std::make_unique<T[]>(n * (n + 1) / 2)) {}
+
+    T& operator()(size_t i, size_t j) {
+        if (i < j) throw std::logic_error("below diagonal");
+        return data_[i * (i + 1) / 2 + j];
+    }
+    const T& operator()(size_t i, size_t j) const {
+        if (i < j) return zero_;
+        return data_[i * (i + 1) / 2 + j];
+    }
+
+private:
+    size_t n_;
+    std::unique_ptr<T[]> data_;
+    static constexpr T zero_ = T(0);
+};
+\end{lstlisting}
+
+\textbf{Space comparison for n=1000:}
+\begin{itemize}
+\item Full array: 1,000,000 elements
+\item Triangular: 500,500 elements — \textasciitilde{}50\% savings
+\end{itemize}
+
+\subsection{Tridiagonal Matrix}
+
+Non-zero only on the main diagonal, first super-diagonal, and first sub-diagonal:
+
+\begin{lstlisting}[language=Java]
+[a$_{0}$  b$_{0}$  0   0   0 ]
+[c$_{0}$  a$_{1}$  b$_{1}$  0   0 ]
+[ 0  c$_{1}$  a$_{2}$  b$_{2}$  0 ]
+[ 0   0  c$_{2}$  a$_{3}$  b$_{3}$]
+[ 0   0   0  c$_{3}$  a$_{4}$]
+\end{lstlisting}
+
+Store in three 1D arrays (a, b, c) or interleaved: 3n-2 elements.
+
+\subsection{Thomas Algorithm}
+
+A tridiagonal system Ax = d can be solved in O(n) by forward elimination and back substitution — the Thomas algorithm:
+
+\begin{lstlisting}[language=C++]
+// Solve tridiagonal system:
+// a[i]*x[i-1] + b[i]*x[i] + c[i]*x[i+1] = d[i]
+// a[0] = 0 (no sub-diagonal for first row)
+// c[n-1] = 0 (no super-diagonal for last row)
+std::vector<double> thomas_solve(
+    std::vector<double> a,  // sub-diagonal (size n, a[0] unused)
+    std::vector<double> b,  // main diagonal (size n)
+    std::vector<double> c,  // super-diagonal (size n, c[n-1] unused)
+    std::vector<double> d   // right-hand side (size n)
+) {
+    size_t n = b.size();
+
+    // Forward elimination
+    for (size_t i = 1; i < n; ++i) {
+        double m = a[i] / b[i - 1];
+        b[i] -= m * c[i - 1];
+        d[i] -= m * d[i - 1];
+    }
+
+    // Back substitution
+    std::vector<double> x(n);
+    x[n - 1] = d[n - 1] / b[n - 1];
+    for (int i = n - 2; i >= 0; --i) {
+        x[i] = (d[i] - c[i] * x[i + 1]) / b[i];
+    }
+    return x;
+}
+\end{lstlisting}
+
+\textbf{Worked trace for n=4:}
+\begin{lstlisting}[language=Java]
+System:
+  4x[0] + 1x[1]              = 6
+  1x[0] + 4x[1] + 1x[2]     = 14
+           1x[1] + 4x[2] + 1x[3] = 16
+                   1x[2] + 4x[3] = 12
+
+a = [0, 1, 1, 1]  (sub-diagonal)
+b = [4, 4, 4, 4]  (main diagonal)
+c = [1, 1, 1, 0]  (super-diagonal)
+d = [6, 14, 16, 12]
+
+Forward elimination:
+  i=1: m = 1/4 = 0.25
+       b[1] = 4 - 0.25*1 = 3.75
+       d[1] = 14 - 0.25*6 = 12.5
+  i=2: m = 1/3.75 = 0.2667
+       b[2] = 4 - 0.2667*1 = 3.7333
+       d[2] = 16 - 0.2667*12.5 = 12.667
+  i=3: m = 1/3.7333 = 0.2679
+       b[3] = 4 - 0.2679*1 = 3.7321
+       d[3] = 12 - 0.2679*12.667 = 8.619
+
+Back substitution:
+  x[3] = 8.619 / 3.7321 = 2.310
+  x[2] = (12.667 - 1*2.310) / 3.7333 = 2.776
+  x[1] = (12.5 - 1*2.776) / 3.75 = 2.593
+  x[0] = (6 - 1*2.593) / 4 = 0.852
+\end{lstlisting}
+
+\textbf{Complexity:} O(n) time, O(n) space. This is optimal — any algorithm must read all n elements at least once.
+
+\textbf{Applications:} solving discretized differential equations (heat equation, beam bending), cubic spline interpolation, and any system where each variable depends only on its neighbors.
+
+\subsection{Symmetric Matrices}
+
+A symmetric matrix satisfies A(i,j) = A(j,i). Only the upper (or lower) triangle needs storage — n(n+1)/2 elements, same as triangular matrices.
+
+\begin{lstlisting}[language=C++]
+// Access element (i, j) in compact storage
+// Using lower triangle: index = i*(i+1)/2 + j   for i >= j
+// Symmetric: A(i,j) = A(j,i), so swap if i < j
+T symmetric_access(const T* data, size_t i, size_t j, size_t n) {
+    if (i < j) std::swap(i, j);
+    return data[i * (i + 1) / 2 + j];
+}
+\end{lstlisting}
+
+Applications: distance matrices (symmetric by definition), correlation matrices in statistics, stiffness matrices in finite element analysis.
+
+\section{Sparse Matrices}
+
+When a matrix has few non-zero elements (e.g., <5\%), storing all zeros is wasteful. We instead store only the non-zero entries, each with its position.
+
+\subsection{Coordinate Storage (COO)}
+
+Store a list of (row, col, value) triples:
+
+\begin{lstlisting}[language=C++]
+struct triple {
+    size_t row;
+    size_t col;
+    double value;
+};
+
+class sparse_matrix_coo {
+public:
+    sparse_matrix_coo(size_t rows, size_t cols)
+        : rows_(rows), cols_(cols) {}
+
+    void add_entry(size_t row, size_t col, double value) {
+        if (value != 0.0) {
+            entries_.push_back({row, col, value});
+        }
+    }
+
+    double operator()(size_t row, size_t col) const {
+        for (const auto& e : entries_) {
+            if (e.row == row && e.col == col) return e.value;
+        }
+        return 0.0;
+    }
+
+    size_t nonzero_count() const noexcept { return entries_.size(); }
+    size_t rows() const noexcept { return rows_; }
+    size_t cols() const noexcept { return cols_; }
+
+private:
+    size_t rows_, cols_;
+    std::vector<triple> entries_;  // unsorted; sort by (row, col) for efficiency
+};
+\end{lstlisting}
+
+\subsection{Compressed Sparse Row (CSR)}
+
+CSR is the most widely used sparse format for linear algebra. It stores:
+\begin{itemize}
+\item \textbf{values}: non-zero values, in row-major order
+\item \textbf{col\_indices}: column index of each value
+\item \textbf{row\_ptr}: start index of each row in values/col\_indices
+\end{itemize}
+
+\begin{lstlisting}[language=Java]
+Matrix:
+[1 0 2]
+[0 3 0]
+[4 0 5]
+
+values:      [1, 2, 3, 4, 5]
+col_indices: [0, 2, 1, 0, 2]
+row_ptr:     [0, 2, 3, 5]
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class csr_matrix {
+public:
+    csr_matrix(size_t rows, size_t cols)
+        : rows_(rows), cols_(cols), row_ptr_(rows + 1, 0) {}
+
+    void finalize() {
+        // Convert from COO to CSR
+        std::sort(coo_.begin(), coo_.end(),
+            [](const auto& a, const auto& b) {
+                return std::tie(a.row, a.col) < std::tie(b.row, b.col);
+            });
+
+        // Build CSR
+        size_t nnz = coo_.size();
+        values_.reserve(nnz);
+        col_indices_.reserve(nnz);
+
+        for (const auto& t : coo_) {
+            values_.push_back(t.value);
+            col_indices_.push_back(t.col);
+        }
+
+        // Build row_ptr
+        size_t idx = 0;
+        for (size_t i = 0; i < rows_; ++i) {
+            row_ptr_[i] = idx;
+            while (idx < nnz && coo_[idx].row == i) ++idx;
+        }
+        row_ptr_[rows_] = nnz;
+
+        coo_.clear();  // free temporary storage
+    }
+
+    T operator()(size_t row, size_t col) const {
+        for (size_t i = row_ptr_[row]; i < row_ptr_[row + 1]; ++i) {
+            if (col_indices_[i] == col) return values_[i];
+        }
+        return T(0);
+    }
+
+    // Sparse matrix-vector multiplication: result = A * x
+    std::vector<T> multiply(const std::vector<T>& x) const {
+        std::vector<T> result(rows_, T(0));
+        for (size_t i = 0; i < rows_; ++i) {
+            T sum = T(0);
+            for (size_t j = row_ptr_[i]; j < row_ptr_[i + 1]; ++j) {
+                sum += values_[j] * x[col_indices_[j]];
+            }
+            result[i] = sum;
+        }
+        return result;
+    }
+
+    size_t rows() const noexcept { return rows_; }
+    size_t cols() const noexcept { return cols_; }
+    size_t nonzero_count() const noexcept { return values_.size(); }
+
+private:
+    size_t rows_, cols_;
+    std::vector<T> values_;
+    std::vector<size_t> col_indices_;
+    std::vector<size_t> row_ptr_;
+    std::vector<triple> coo_;  // temporary during construction
+};
+\end{lstlisting}
+
+\subsection{Complexity Comparison}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Operation & Dense O(n$^{2}$) & CSR Sparse \\
+Access A(i,j) & O(1) & O(k) where k = nonzeros per row \\
+Matrix-vector multiply & O(n$^{2}$) & O(nnz) \\
+Memory & O(n$^{2}$) & O(n + nnz) \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Example:} A 10,000 $\times $ 10,000 matrix with 50,000 non-zeros (0.05\% density)
+\begin{itemize}
+\item Dense: 800 MB (double precision)
+\item CSR: \textasciitilde{}1.2 MB (values + indices + row\_ptr)
+\end{itemize}
+
+\section{Application: PageRank}
+
+The PageRank algorithm computes the importance of web pages using sparse matrix-vector multiplication. The web graph is represented as a sparse matrix where A(i,j) = 1 if page j links to page i.
+
+\begin{lstlisting}[language=C++]
+std::vector<double> pagerank(const csr_matrix<double>& web_graph,
+                              size_t iterations = 100,
+                              double damping = 0.85) {
+    size_t n = web_graph.rows();
+    std::vector<double> rank(n, 1.0 / n);
+    std::vector<double> new_rank(n, 0.0);
+    double teleport = (1.0 - damping) / n;
+
+    for (size_t iter = 0; iter < iterations; ++iter) {
+        // Sparse matrix-vector multiply
+        new_rank = web_graph.multiply(rank);
+        
+        // Apply damping and teleportation
+        double sum = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            new_rank[i] = damping * new_rank[i] + teleport;
+            sum += new_rank[i];
+        }
+        
+        // Normalize
+        for (size_t i = 0; i < n; ++i) new_rank[i] /= sum;
+        
+        std::swap(rank, new_rank);
+    }
+    return rank;
+}
+\end{lstlisting}
+
+\section{Application: Image Processing}
+
+Images are 2D arrays (or 3D for color). Matrix operations form the foundation of image processing:
+
+\begin{lstlisting}[language=C++]
+// Grayscale image as a matrix
+using image = matrix<uint8_t>;
+
+// Convolution: apply a kernel to every pixel
+image apply_filter(const image& img, const matrix<double>& kernel) {
+    image result(img.rows(), img.cols());
+    int k_half = kernel.rows() / 2;
+
+    for (size_t i = k_half; i < img.rows() - k_half; ++i) {
+        for (size_t j = k_half; j < img.cols() - k_half; ++j) {
+            double sum = 0.0;
+            for (size_t ki = 0; ki < kernel.rows(); ++ki) {
+                for (size_t kj = 0; kj < kernel.cols(); ++kj) {
+                    sum += kernel(ki, kj) * img(i + ki - k_half, j + kj - k_half);
+                }
+            }
+            result(i, j) = static_cast<uint8_t>(std::clamp(sum, 0.0, 255.0));
+        }
+    }
+    return result;
+}
+\end{lstlisting}
+
+\section{STL Connection: std::mdspan (C++23)}
+
+C++23 introduces \texttt{std::mdspan} — a non-owning multi-dimensional array view:
+
+\begin{lstlisting}[language=C++]
+#include <mdspan>
+#include <vector>
+
+std::vector<int> data = {1, 2, 3, 4, 5, 6};
+std::mdspan<int, std::dextents<int, 2>> matrix_2x3(data.data(), 2, 3);
+// matrix_2x3[i, j] gives row-major access
+\end{lstlisting}
+
+While \texttt{std::mdspan} is not yet widely available, our \texttt{matrix} class follows a similar design.
+
+\section{Sparse Arrays}\label{sec:sparse-arrays}
+
+A \textbf{sparse array} is an array in which most elements are zero (or share a common default value). Storing every element wastes memory; instead we store only the non-default entries.
+
+\subsection{Coordinate (COO) Representation}
+
+The simplest approach stores each non-default element as a (index, value) pair:
+
+\begin{lstlisting}[language=C++]
+struct SparseEntry {
+    int index;
+    int value;
+};
+
+class SparseArray {
+    std::vector<SparseEntry> entries;
+    int size;
+public:
+    SparseArray(int n) : size(n) {}
+
+    void set(int idx, int val) {
+        for (auto& e : entries) {
+            if (e.index == idx) {
+                e.value = val;
+                return;
+            }
+        }
+        entries.push_back({idx, val});
+    }
+
+    int get(int idx) const {
+        for (const auto& e : entries) {
+            if (e.index == idx) return e.value;
+        }
+        return 0;
+    }
+
+    int nnz() const { return entries.size(); }
+};
+\end{lstlisting}
+
+If the entries are kept \emph{sorted by index}, both \texttt{get} and \texttt{set} can use binary search, giving $O(\log k)$ where $k$ is the number of stored entries.
+
+\subsection{Map-Based Representation}
+
+A \texttt{std::unordered\_map<int, int>} gives amortised $O(1)$ access:
+
+\begin{lstlisting}[language=C++]
+std::unordered_map<int, int> sparse;
+sparse[1000] = 42;
+sparse[5000] = 7;
+
+int val = sparse.count(1000) ? sparse[1000] : 0;
+\end{lstlisting}
+
+\textbf{Complexity comparison:}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Operation & Sorted vector & unordered\_map \\
+\midrule
+Get & $O(\log k)$ & $O(1)$ avg \\
+Set (existing) & $O(\log k)$ & $O(1)$ avg \\
+Set (insert) & $O(k)$ & $O(1)$ avg \\
+Memory & $2k$ ints & $\sim 4k$ ints (hash overhead) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+When $k \ll n$, both representations save substantial memory over a dense array of size $n$.
+
+\section{Array Rotations}\label{sec:array-rotations}
+
+Given an array of $n$ elements, \textbf{rotation} by $d$ positions shifts every element $d$ places to the right (wrapping around). For example, rotating \texttt{\{1, 2, 3, 4, 5, 6, 7\}} right by $d = 2$ yields \texttt{\{6, 7, 1, 2, 3, 4, 5\}}. We require $0 \le d < n$.
+
+\subsection{Juggling Algorithm}
+
+The juggling algorithm moves elements in cycles. For rotation by $d$, there are $\gcd(n, d)$ independent cycles, each of length $n / \gcd(n, d)$. We pick up one element and shift it $d$ positions forward until we return to the start.
+
+\textbf{Worked trace} for $n = 7$, $d = 2$ ($\gcd(7,2) = 1$, one cycle of length 7):
+
+\begin{center}
+\begin{tabular}{c|ccccccc}
+Start  & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+Cycle 1: move $a[0]$ to $a[2]$ & 1 & 2 & \textbf{1} & 4 & 5 & 6 & 7 \\
+Move $a[2]$(=3) to $a[4]$ & 1 & 2 & 1 & 4 & \textbf{3} & 6 & 7 \\
+Move $a[4]$(=5) to $a[6]$ & 1 & 2 & 1 & 4 & 3 & 6 & \textbf{5} \\
+Move $a[6]$(=7) to $a[1]$ & 1 & \textbf{7} & 1 & 4 & 3 & 6 & 5 \\
+Move $a[1]$(=2) to $a[3]$ & 1 & 7 & 1 & \textbf{2} & 3 & 6 & 5 \\
+Move $a[3]$(=4) to $a[5]$ & 1 & 7 & 1 & 2 & 3 & \textbf{4} & 5 \\
+Move $a[5]$(=6) to $a[0]$ & \textbf{6} & 7 & 1 & 2 & 3 & 4 & 5 \\
+\end{tabular}
+\end{center}
+
+Result: \texttt{\{6, 7, 1, 2, 3, 4, 5\}}.
+
+\begin{lstlisting}[language=C++]
+void jugglingRotate(std::vector<int>& a, int d) {
+    int n = a.size();
+    d = ((d % n) + n) % n;  // normalise
+    int g = std::gcd(n, d);
+    for (int i = 0; i < g; ++i) {
+        int tmp = a[i];
+        int j = i;
+        while (true) {
+            int k = (j + d) % n;
+            if (k == i) break;
+            a[j] = a[k];
+            j = k;
+        }
+        a[j] = tmp;
+    }
+}
+\end{lstlisting}
+
+\textbf{Complexity:} $O(n)$ time, $O(1)$ extra space.
+
+\subsection{Reversal Algorithm}
+
+The key insight is three reversals:
+\begin{enumerate}
+\item Reverse the last $d$ elements.
+\item Reverse the first $n - d$ elements.
+\item Reverse the entire array.
+\end{enumerate}
+
+\textbf{Worked trace} for $n = 7$, $d = 2$:
+
+\begin{verbatim}
+Original :  1  2  3  4  5  |  6  7
+Step 1   :  1  2  3  4  5  |  7  6       (reverse last d)
+Step 2   :  5  4  3  2  1  |  7  6       (reverse first n-d)
+Step 3   :  6  7  1  2  3  4  5          (reverse whole)
+\end{verbatim}
+
+\begin{lstlisting}[language=C++]
+void reverse(std::vector<int>& a, int lo, int hi) {
+    while (lo < hi) std::swap(a[lo++], a[hi--]);
+}
+
+void reversalRotate(std::vector<int>& a, int d) {
+    int n = a.size();
+    d = ((d % n) + n) % n;
+    reverse(a, n - d, n - 1);
+    reverse(a, 0, n - d - 1);
+    reverse(a, 0, n - 1);
+}
+\end{lstlisting}
+
+\textbf{Complexity:} $O(n)$ time, $O(1)$ extra space. This is the most widely used in-place rotation algorithm.
+
+\subsection{Block Swap Algorithm}
+
+Block swap treats the rotation as swapping two blocks: $A[0 \ldots d{-}1]$ and $A[d \ldots n{-}1]$.
+
+\textbf{Worked trace} for $n = 7$, $d = 3$ (swap blocks \texttt{1 2 3} and \texttt{4 5 6 7}):
+
+\begin{verbatim}
+Step 1: A=123, B=4567  |  swap min(3,4) = 3: 4561237
+Step 2: now have 456|123|7  |  swap min(3,1) = 1: 476|123|5   ... simplified:
+Final: 4 5 6 7 1 2 3
+\end{verbatim}
+
+\begin{lstlisting}[language=C++]
+void blockSwap(std::vector<int>& a, int d) {
+    int n = a.size();
+    d = ((d % n) + n) % n;
+    if (d == 0 || d == n) return;
+    int i = d, j = n - d;
+    while (i != j) {
+        if (i < j) {
+            std::swap_ranges(a.begin() + d - i, a.begin() + d,
+                             a.begin() + d + j - i);
+            j -= i;
+        } else {
+            std::swap_ranges(a.begin() + d, a.begin() + d + i - j,
+                             a.begin() + d + i);
+            i -= j;
+        }
+    }
+    std::swap_ranges(a.begin() + d - i, a.begin() + d,
+                     a.begin() + d + i);
+}
+\end{lstlisting}
+
+\textbf{Complexity:} $O(n)$ time, $O(1)$ extra space. The number of swaps equals the number of elements moved.
+
+\section{Kadane's Algorithm: Maximum Subarray}\label{sec:kadanes-algorithm}
+
+The \textbf{maximum subarray problem} asks for a contiguous subarray $A[i \ldots j]$ whose sum is maximum. Kadane's algorithm solves it in $O(n)$ time using a single pass.
+
+\subsection{Core Idea}
+
+Maintain a running sum \texttt{cur} of the best subarray \emph{ending at the current position}. If \texttt{cur} drops below zero, discard it and start fresh:
+
+\begin{lstlisting}[language=C++]
+int maxSubarraySum(const std::vector<int>& a) {
+    int cur = 0, best = INT_MIN;
+    for (int x : a) {
+        cur = std::max(x, cur + x);
+        best = std::max(best, cur);
+    }
+    return best;
+}
+\end{lstlisting}
+
+\subsection{Recovery of Subarray Indices}
+
+To find the actual subarray boundaries, track where each run begins:
+
+\begin{lstlisting}[language=C++]
+struct SubarrayResult {
+    int sum;
+    int start;
+    int end;
+};
+
+SubarrayResult maxSubarray(const std::vector<int>& a) {
+    int cur = 0, best = INT_MIN;
+    int curStart = 0, bestStart = 0, bestEnd = 0;
+    for (int i = 0; i < (int)a.size(); ++i) {
+        if (cur < 0) {
+            cur = a[i];
+            curStart = i;
+        } else {
+            cur += a[i];
+        }
+        if (cur > best) {
+            best = cur;
+            bestStart = curStart;
+            bestEnd = i;
+        }
+    }
+    return {best, bestStart, bestEnd};
+}
+\end{lstlisting}
+
+\subsection{Worked Trace}
+
+Input: \texttt{a = \{-2, 1, -3, 4, -1, 2, 1, -5, 4\}}
+
+\begin{center}
+\begin{tabular}{cccccc}
+\toprule
+$i$ & $a[i]$ & $\texttt{cur}$ & $\texttt{curStart}$ & $\texttt{best}$ & $\texttt{bestStart, bestEnd}$ \\
+\midrule
+0 & $-2$ & $-2 \to 0$ (reset) & 1 & $-2$ & (0, 0) \\
+1 & 1 & $0 + 1 = 1$ & 1 & 1 & (1, 1) \\
+2 & $-3$ & $1 - 3 = -2$ & 1 & 1 & (1, 1) \\
+3 & 4 & $-2 \to 4$ (reset) & 3 & 4 & (3, 3) \\
+4 & $-1$ & $4 - 1 = 3$ & 3 & 4 & (3, 3) \\
+5 & 2 & $3 + 2 = 5$ & 3 & 5 & (3, 5) \\
+6 & 1 & $5 + 1 = 6$ & 3 & 6 & (3, 6) \\
+7 & $-5$ & $6 - 5 = 1$ & 3 & 6 & (3, 6) \\
+8 & 4 & $1 + 4 = 5$ & 3 & 6 & (3, 6) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Result:} maximum sum $= 6$, subarray $A[3 \ldots 6] = \{4, -1, 2, 1\}$.
+
+\textbf{Complexity:} $O(n)$ time, $O(1)$ extra space.
+
+\section{Exercises}
+
+\begin{enumerate}
+\item Implement a \textbf{sparse array} using a sorted vector of (index, value) pairs with binary search for $O(\log k)$ get/set. Write unit tests comparing it with \texttt{std::unordered\_map<int,int>} for arrays of size $10^6$ with 1000 non-zero entries.
+\item Given a sorted sparse array of (index, value) pairs and a second sparse array, compute their \textbf{element-wise sum} in $O(k_1 + k_2)$ time, producing a new sorted sparse array.
+\item Implement the \textbf{juggling rotation algorithm} and the \textbf{reversal rotation algorithm} in C++. Verify both produce the same output on random arrays of size 100 with random rotation amounts. Measure wall-clock time for $n = 10^6$.
+\item Prove that the \textbf{reversal algorithm} correctly rotates any array by $d$ positions. Hint: show that reversing $A[d \ldots n{-}1]$, then $A[0 \ldots d{-}1]$, then $A[0 \ldots n{-}1]$ yields a left rotation by $d$.
+\item Modify \textbf{Kadane's algorithm} to handle arrays containing \emph{all negative numbers} and return the maximum single element. Test with \texttt{\{-5, -3, -1, -4, -2\}} and verify it returns $-1$ with indices $(2, 2)$.
+\end{enumerate}
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Row-major vs column-major confusion & Wrong element accessed, silent data corruption & Be explicit: \texttt{i * cols + j} for row-major \\
+Out-of-bounds on \texttt{std::mdspan} or raw arrays & No bounds checking in release builds & Use \texttt{at()} or add assertions in debug builds \\
+Memory overhead of COO sparse format (3 arrays) & 3$\times $ storage vs CSR for no benefit & Use CSR for matrices with many rows per non-zero \\
+Not checking dimension compatibility in multiply & Wrong result size, index out of range & Always validate \texttt{A.cols == B.rows} before multiply \\
+Assuming C-style arrays decay to \texttt{std::mdspan} & Losing dimension info, wrong strides & Wrap in \texttt{std::mdspan} or \texttt{std::span} to carry extents \\
+Using \texttt{vector<vector<T>>} for 2D data & Poor cache locality, fragmentation & Use flat 1D array with \texttt{i * cols + j} indexing \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Row-major order} is the standard C++ memory layout for 2D arrays: index(i,j) = i$\cdot $c + j.
+\item \textbf{Bit arrays} store one bit per element, enabling O(1) set membership, compact Bloom filters, and bitmap index intersections.
+\item \textbf{Dynamic arrays} (\texttt{std::vector}) provide O(1) amortized insertion via geometric growth; the growth factor (1.5 vs 2) trades memory waste for resize frequency.
+\item \textbf{Sorted arrays} enable O(log n) binary search at the cost of O(n) insertion — ideal for read-heavy workloads.
+\item \textbf{Circular buffers} implement FIFO queues in O(1) time with fixed memory — used in CPU caches, streaming, and lock-free queues.
+\item \textbf{Gap buffers} provide O(1) text insertion at the cursor, making them the classic data structure for text editors.
+\item \textbf{Special matrices} (diagonal, triangular, tridiagonal) can be stored in O(n) space instead of O(n$^{2}$).
+\item The \textbf{Thomas algorithm} solves tridiagonal systems in O(n) time — optimal for banded linear systems.
+\item \textbf{Sparse matrices} (CSR, COO) store only non-zero elements, enabling operations on matrices too large for dense storage.
+\item \textbf{Sparse matrix-vector multiplication} runs in O(nnz) time — essential for iterative methods like PageRank.
+\item The \textbf{operator()(i,j)} convention is standard for C++ matrix classes.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Why is row-major order faster than column-major for row-wise traversal?}
+
+In row-major layout, consecutive elements in a row are stored in contiguous memory. Traversing row-wise means sequential memory access, which triggers hardware prefetching and maximizes cache line utilization. Column-major traversal jumps by the row stride on each access, causing cache misses. On a typical 64-byte cache line with 8-byte doubles, row-major row traversal loads 8 useful elements per cache miss, while column-major loads only 1.
+
+\textit{Real-world:} This is why BLAS and LAPACK use column-major (Fortran convention) but traverse by column internally.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When should you use a sparse matrix format (CSR/COO) over a dense matrix?}
+
+When the number of non-zero elements nnz $\ll n^{2}$ (less than $\sim$10--20\% of total entries). CSR format uses O(nnz) space instead of O(n$^{2}$), and sparse matrix-vector multiply runs in O(nnz) instead of O(n$^{2}$). However, random element access in CSR requires binary search on the column index array — O(log(nnz/row)) per access vs O(1) for dense. Use dense when the matrix is mostly full or when you need frequent random access.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the time complexity of multiplying two sparse matrices? Can you do better than O(n$^{3}$)?}
+
+Naive: for each non-zero in A, look up matching non-zeros in B. With CSR, this is O(nnz$_{A}$ $\times$ avg\_row\_nnz$_{B}$) in the worst case, but typically much less. The theoretical best for sparse matrix multiply is O(nnz$_{A}$ $\cdot$ nnz$_{B}$ / n) using a hash-based approach. For very sparse matrices (nnz = O(n)), this approaches O(n) — far better than the dense O(n$^{3}$).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is manual index arithmetic for multi-dimensional arrays error-prone, and how does mdspan fix it?}
+
+Manual indexing for a 3D array requires \texttt{data[i * cols * depth + j * depth + k]} — get the stride wrong and you access the wrong element with no compiler error. mdspan encapsulates the layout policy (row-major, column-major, strided) into the type system, so the compiler generates the correct index arithmetic. The real benefit: you can change the memory layout (e.g., from row-major to column-major for Fortran interop) by changing the template parameter, without rewriting any access code. C++23 mdspan is to multi-dimensional arrays what \texttt{std::string\_view} is to \texttt{char*} — a safe, zero-overhead abstraction.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a matrix class that supports O(1) row and column swaps.}
+
+Store the matrix in row-major order but add an indirection layer: maintain a row permutation\index{permutation} vector \texttt{row\_map} and column permutation vector \texttt{col\_map}. Accessing element (i,j) reads from \texttt{data[row\_map[i] * cols + col\_map[j]]}. Swapping two rows or columns is O(1) — just swap two entries in the permutation vector. This technique is used in LAPACK's row/column permutation routines.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why is matrix multiplication O(n$^{3}$) and can it be done faster?}
+
+The naive triple loop performs n$^{3}$ multiply-add operations. Strassen's algorithm (1969) reduces this to O(n$^{2.807})$ by recursively computing 7 products instead of 8. The Coppersmith--Winograd algorithm achieves O(n$^{2.376})$ but is not practical due to large constants. In practice, cache-oblivious algorithms and SIMD vectorization of the naive O(n$^{3}$) approach outperform Strassen for matrices that fit in L2 cache.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When should you use a banded matrix format instead of dense storage, and what operations become harder?}
+
+Use banded storage when the bandwidth $b$ is much smaller than $n$ ($b \ll n$) — you save from O(n$^{2}$) to O(n $\cdot$ b) space. Band-diagonal, tridiagonal, and pentadiagonal matrices all qualify. The tradeoff: element access becomes O(1) with index arithmetic (\texttt{data[(i-j+b) * (2b+1) + j]}), but operations like matrix-vector multiply need careful boundary handling at the band edges. In HPC, LAPACK's \texttt{gbmv} (banded matrix-vector multiply) is the workhorse. The key insight: banded formats are worth it when $b < n/4$ — below that threshold, the index overhead and boundary handling complexity outweigh the memory savings.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does PageRank use sparse matrix operations?}
+
+PageRank represents the web as a sparse adjacency matrix $M$ where $M_{ij}$ = 1/out\_degree(j) if page $j$ links to page $i$. The PageRank vector is the stationary distribution: $r = dM r + (1-d)/n \cdot \mathbf{1}$. This is computed by repeated sparse matrix-vector multiplication ($M r$) until convergence. With billions of pages and $\sim$10 links per page, nnz $\approx 10n$, so each iteration is O(n) — feasible only because $M$ is sparse.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does transpose-then-reverse work for 90° rotation, and how does this generalize to other angles?}
+
+A 90° clockwise rotation is the composition of two symmetries: transpose (reflect over main diagonal) then reverse each row (reflect horizontally). For 180°: reverse each row then reverse each column (or equivalently, rotate 90° twice). For 270°: transpose then reverse each column. The unifying principle: any rotation by $k \cdot 90°$ is a composition of two reflections. This generalizes to arbitrary rotations via the rotation matrix, but those don't preserve the grid structure (elements land between cells). For images and matrices, the 90° decomposition is the standard technique because it's in-place (O(1) extra space) and cache-friendly.
+
+\begin{lstlisting}[language=C++]
+void rotate90(std::vector<std::vector<int>>& m) {
+    int n = m.size();
+    // transpose
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            std::swap(m[i][j], m[j][i]);
+    // reverse each row
+    for (int i = 0; i < n; ++i)
+        std::reverse(m[i].begin(), m[i].end());
+}
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the difference between COO and CSR formats, and when would you use each?}
+
+COO stores a simple list of (row, column, value) triples — easy to build, easy to append to, but slow for arithmetic (must sort or scan to find elements). CSR stores three arrays (values, column indices, row pointers) — requires a sort during construction but enables O(log(nnz/row)) random access and efficient row slicing. Use COO for construction and streaming; convert to CSR for computation. Most sparse linear algebra libraries (Eigen, SciPy) accept COO input and convert internally.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why use a bit array instead of a \texttt{std::vector<bool>} or \texttt{std::set<int>?}}
+
+A bit array uses 1 bit per element — 8$\times$ less than \texttt{vector<char>} and 32$\times$ less than \texttt{vector<int>}. For a set of integers in [0, 10$^{6}$], a bit array uses 125 KB; a \texttt{set<int>} uses 32 MB (32 bytes per node). Bit arrays also support O(1) membership via a single bitwise AND, while \texttt{set} requires O(log n) tree traversal with pointer chasing (cache-unfriendly). Note: \texttt{std::vector<bool>} is a partial specialization that stores bits, but its proxy-reference semantics make it error-prone.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Explain amortized O(1) for dynamic array insertion. Why not just use O(n) always?}
+
+With doubling, most insertions write to pre-allocated space — O(1). Every $2^k$-th insertion triggers a resize copying $2^k$ elements. Over n insertions, total copies: $1 + 2 + 4 + ... + 2^{\lfloor \log_2 n \rfloor} < 2n$. So total work is O(n) for n insertions, giving O(1) amortized. The worst-case single insertion is O(n), but this happens so rarely that the average is constant. For real-time systems requiring worst-case O(1), use a pre-allocated array or a linked list of fixed-size blocks.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{When would you use a circular buffer over a \texttt{std::queue?}}
+
+A circular buffer is ideal when: (1) the maximum size is known or bounded — no allocation overhead; (2) you need O(1) worst-case (not amortized) per operation — no resizing pauses; (3) you want minimal memory overhead — no node pointers. \texttt{std::queue} backed by \texttt{std::deque} dynamically allocates in chunks, adding pointer overhead and potential allocation stalls. The circular buffer is used in real-time audio (JACK), high-frequency trading (LMAX Disruptor), and kernel networking (Linux \texttt{sk\_buff} ring).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does a gap buffer work, and why is it good for text editors?}
+
+A gap buffer is a contiguous array with an empty region (gap) at the cursor. Inserting a character at the cursor places it at gap\_start and advances the gap -- O(1). Deleting backs up gap\_start -- O(1). Moving the cursor requires shifting the gap -- O(distance). Since typing is overwhelmingly local (users type at the cursor), the amortized cost per keystroke is O(1). The contiguous layout gives excellent cache performance for rendering. Emacs uses gap buffers; modern editors use piece tables or ropes for better O(log n) cursor movement.
+
+\begin{lstlisting}[language=C++]
+class gap_buffer {
+    std::vector<char> buf_;
+    int gap_start_ = 0, gap_end_ = 0;
+public:
+    explicit gap_buffer(int cap) : buf_(cap), gap_end_(cap) {}
+
+    void insert(char c) {
+        if (gap_start_ == gap_end_) grow_gap();
+        buf_[gap_start_++] = c;
+    }
+
+    void move_cursor(int pos) {
+        while (gap_start_ < pos) buf_[--gap_end_] = buf_[gap_start_++];
+        while (gap_start_ > pos) buf_[gap_start_++] = buf_[gap_end_++];
+    }
+
+    void erase() {
+        if (gap_start_ > 0) --gap_start_;
+    }
+
+    std::string text() const {
+        return std::string(buf_.begin(), buf_.begin() + gap_start_)
+             + std::string(buf_.begin() + gap_end_, buf_.end());
+    }
+
+private:
+    void grow_gap() {
+        int sz = gap_start_ + (int)buf_.size() - gap_end_ + 1;
+        std::vector<char> new_buf(sz * 2);
+        std::copy(buf_.begin(), buf_.begin() + gap_start_, new_buf.begin());
+        int new_gap_end = (int)new_buf.size() - ((int)buf_.size() - gap_end_);
+        std::copy(buf_.begin() + gap_end_, buf_.end(), new_buf.begin() + new_gap_end);
+        buf_ = std::move(new_buf);
+        gap_end_ = new_gap_end;
+    }
+};
+\end{lstlisting}
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Design a fixed-size LRU cache using a sorted array and a circular buffer.}
+
+Use a circular buffer of size N to store (key, value) pairs in access order — most recent at tail. For O(log n) lookup, maintain a sorted array of (key, circular\_buffer\_index) pairs. On access, remove the key from the sorted array (O(log n) binary search + O(n) shift), move the entry in the circular buffer (O(1) by writing to tail), and re-insert in the sorted array (O(log n) + O(n) shift). The O(n) shift on the sorted array can be avoided using a self-balancing BST instead, giving O(log n) for all operations.
+\end{enumerate}
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For a 5$\times $4 matrix stored in row-major order, what is the offset of element (2, 3) from the start of the array? What about for column-major order?
+\end{enumerate}
+
+\begin{enumerate}
+\item How many non-zero elements must a 1000$\times $1000 matrix have before the sparse representation (using CSR) uses more memory than the dense representation? Assume 8 bytes per value, 8 bytes per column index, 4 bytes per row pointer, and a 64-bit machine.
+\end{enumerate}
+
+\begin{enumerate}
+\item Show the storage layout (in memory) for the special matrices:
+\end{enumerate}
+   a) A 5$\times $5 diagonal matrix with values [1, 2, 3, 4, 5]
+   b) A 4$\times $4 lower triangular matrix
+   c) A 4$\times $4 tridiagonal matrix
+
+\begin{enumerate}
+\item What is the number of non-zero elements in an n$\times $n tridiagonal matrix? An n$\times $n upper triangular matrix? An n$\times $n symmetric matrix where only the lower triangle is stored?
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Implement \texttt{tridiagonal\_matrix<T>} storing only the three non-zero diagonals. Provide a \texttt{solve} method using the Thomas algorithm (O(n) time). Test it on a random tridiagonal system.
+\end{enumerate}
+
+\begin{enumerate}
+\item Write a function to multiply two CSR matrices A (m$\times $k) and B (k$\times $n). Analyze its time complexity in terms of non-zero counts. Compare with standard dense multiplication.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \texttt{toeplitz\_matrix} class where each diagonal is constant. What is the minimal storage? Implement matrix-vector multiply.
+\end{enumerate}
+
+\begin{enumerate}
+\item Benchmark dense vs CSR matrix-vector multiply for matrices of varying sparsity (0.1\%, 1\%, 10\%, 50\%) at size 1000$\times $1000. At what density does dense become faster?
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the Floyd-Warshall all-pairs shortest path algorithm on a dense matrix. Then implement it using CSR. Compare performance for sparse graphs with 1\%, 5\%, and 20\% edge density.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement matrix transposition for CSR format — produce $A^{T}$ from A in O(nnz) time.
+\end{enumerate}
+
+\begin{enumerate}
+\item Write a function to convert a dense matrix to CSR format and back. Verify correctness by comparing original and round-tripped matrices.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the PageRank algorithm using sparse matrix-vector multiplication. Test on a graph with 1000 nodes and \textasciitilde{}5000 edges.
+\end{enumerate}
+
+\begin{enumerate}
+\item Write a function \texttt{add\_sparse} that adds two CSR matrices. What is the complexity?
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(SuiteSparse)} Read about the SuiteSparse Matrix Collection. Pick a real sparse matrix (e.g., from circuit simulation or web graphs) and compare CSR vs dense performance for a computation of your choice.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Cache-oblivious matrices)} Research the recursive (cache-oblivious) matrix multiplication algorithm (Z-Morton order, or recursive block decomposition). Implement it and compare with the standard triple-loop for large matrices.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(SIMD matrix multiply)} Study how BLAS libraries (like Intel MKL or OpenBLAS) use SIMD instructions (AVX, AVX-512) to accelerate matrix multiplication. Implement a tiled matrix multiply that uses AVX intrinsics.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(GraphBLAS)} The GraphBLAS standard defines graph algorithms in terms of linear algebra operations over semirings. Read the GraphBLAS specification and implement breadth-first search using sparse matrix-vector multiplication.
+\end{enumerate}
+
+\subsection{Bit Array Exercises}
+
+\begin{enumerate}
+\item Implement a set of integers $\{0, 1, \ldots, 10^{6}\}$ using a bit array. Compare insertion time and memory usage with \texttt{std::unordered\_set<int>} for 10$^{5}$ random insertions and 10$^{6}$ lookups.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a Bloom filter using a bit array and k = 3 hash functions (MurmurHash). Insert 10$^{5}$ strings and measure the false positive rate for m = 10$^{6}$ bits. Compare with the theoretical bound $(1 - e^{-kn/m})^k$.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement bitwise AND, OR, and population count for bit arrays. Benchmark against \texttt{std::bitset} for arrays of size 10$^{6}$.
+\end{enumerate}
+
+\subsection{Circular Buffer Exercises}
+
+\begin{enumerate}
+\item Implement a single-producer single-consumer lock-free circular buffer. Test correctness with 2 threads: one producing integers 0..10$^{6}$, one consuming and verifying order. Measure throughput in MB/s.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement a circular buffer that supports \texttt{push\_front}, \texttt{push\_back}, \texttt{pop\_front}, and \texttt{pop\_back} — a double-ended circular buffer. What is the capacity constraint compared to a single-ended ring buffer?
+\end{enumerate}
+
+\subsection{Gap Buffer Exercises}
+
+\begin{enumerate}
+\item Implement a gap buffer text editor: support \texttt{insert(char)}, \texttt{backspace()}, \texttt{move\_left()}, \texttt{move\_right()}, and \texttt{text()}. Test on a 10,000-character document with random cursor movements and insertions. Compare editing speed with \texttt{std::string} (which requires O(n) shifts on every insert).
+\end{enumerate}
+
+\subsection{Sorted Array Exercises}
+
+\begin{enumerate}
+\item Implement a sorted array and benchmark binary search against \texttt{std::set} for 10$^{6}$ lookups on 10$^{6}$ elements. Which is faster and why? (Hint: cache locality.)
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the merge of two sorted arrays into a single sorted array in O(n + m) time. Use it as the merge step in merge sort. Compare performance with \texttt{std::merge}.
+\end{enumerate}
+
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Gene H. Golub and Charles F. Van Loan, \textit{Matrix Computations}, 4th Edition. JHU Press, 2013.
+\item Tim Davis, \textit{Direct Methods for Sparse Linear Systems}. SIAM, 2006.
+\item Tim Davis, "Algorithm 832: UMFPACK V4.3 — an unsymmetric-pattern multifrontal method" — ACM TOMS, 2004.
+\item Yousef Saad, \textit{Iterative Methods for Sparse Linear Systems}, 2nd Edition. SIAM, 2003.
+\item James W. Demmel, \textit{Applied Numerical Linear Algebra}. SIAM, 1997.
+\item Jeremy Kepner and John Gilbert (eds.), \textit{Graph Algorithms in the Language of Linear Algebra}. SIAM, 2011.
+\item SuiteSparse Matrix Collection — https://sparse.tamu.edu/
+\end{itemize}
+

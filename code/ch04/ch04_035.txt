@@ -1,0 +1,14 @@
+node* merge(node* a, node* b) {
+    node dummy(0);
+    node* tail = &dummy;
+    while (a && b) {
+        if (a->data <= b->data) {
+            tail->next = a; a = a->next;
+        } else {
+            tail->next = b; b = b->next;
+        }
+        tail = tail->next;
+    }
+    tail->next = a ? a : b;
+    return dummy.next;
+}

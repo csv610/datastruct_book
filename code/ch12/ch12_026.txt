@@ -1,0 +1,19 @@
+Winged edge record for edge e in a triangle mesh:
+
+  Vertices:     v1, v2          (endpoints)
+  Faces:        f1, f2          (adjacent faces, f2 = boundary if only one)
+  Edge links:   eCW1, eCCW1    (edges CW/CCW around f1 from e)
+                eCW2, eCCW2    (edges CW/CCW around f2 from e)
+
+         f1
+        /   \
+    eCCW1   eCW1
+      /       \
+    v1 ---e--- v2
+      \       /
+    eCW2   eCCW2
+        \   /
+         f2
+
+  Around face f1 (clockwise):  ... -> eCCW1 -> e -> eCW1 -> ...
+  Around face f2 (clockwise):  ... -> eCW2  -> e -> eCCW2 -> ...

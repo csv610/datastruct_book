@@ -1,0 +1,195 @@
+\ProvidesPackage{dsbook}
+
+%% ---- Page layout ----
+\usepackage[letterpaper,top=1in,bottom=1in,left=1.3in,right=1in,headheight=14pt]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+%% ---- Fonts (pdflatex-compatible) ----
+\usepackage{mathptmx}   % Times Roman for text and math
+\usepackage{courier}    % Courier for monospace
+
+%% ---- Page style ----
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textsc{\nouppercase\leftmark}}
+\fancyhead[R]{\textsc{\nouppercase\rightmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\chaptermark}[1]{\markboth{\chaptername\ \thechapter.\ #1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+%% ---- Chapter titles (textbook style) ----
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\filcenter}
+  {\fontsize{14pt}{14pt}\selectfont\textsc{\chaptername\ \thechapter}}
+  {3pt}
+  {\fontsize{22pt}{26pt}\selectfont\bfseries}
+  [\vspace{-2pt}\rule{\textwidth}{0.5pt}]
+
+\titlespacing*{\chapter}{0pt}{-20pt}{24pt}
+
+\titleformat{\section}
+  {\bfseries\Large}
+  {\thesection}
+  {0.5em}
+  {}
+
+\titleformat{\subsection}
+  {\bfseries\large}
+  {\thesubsection}
+  {0.5em}
+  {}
+
+\titleformat{\subsubsection}
+  {\bfseries\normalsize}
+  {\thesubsubsection}
+  {0.5em}
+  {}
+
+%% ---- Math ----
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{lemma}{Lemma}[chapter]
+\newtheorem{corollary}{Corollary}[chapter]
+\newtheorem{example}{Example}[chapter]
+% proof is already defined by amsthm
+
+%% ---- Example environment (boxed) ----
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,xparse}
+\DeclareTColorBox[auto counter,number within=chapter]{examplebox}{O{}}
+  {enhanced,sharp corners,boxrule=0.5pt,
+   colback=gray!3,colframe=gray!70,
+   fonttitle=\bfseries,title={Example~\thetcbcounter~#1},
+   attach boxed title to top left={yshift=-\tcboxedtitleheight},
+   boxed title style={empty,boxrule=0pt},
+   before skip=12pt,after skip=12pt}
+
+%% ---- Algorithm environment (numbered, framed) ----
+\newcounter{algorithm}[chapter]
+\renewcommand{\thealgorithm}{\thechapter.\arabic{algorithm}}
+\newenvironment{Algorithm}[1][]
+  {\refstepcounter{algorithm}%
+   \begin{tcolorbox}[enhanced,sharp corners,
+     colback=white,colframe=black!40,boxrule=0.5pt,
+     left=8pt,right=8pt,top=6pt,bottom=6pt,
+     before skip=12pt,after skip=12pt,
+     title={\bfseries Algorithm~\thealgorithm.~#1},
+     fonttitle=\normalsize]}
+  {\end{tcolorbox}}
+
+%% ---- Code listings (textbook style) ----
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\definecolor{codeblue}{rgb}{0.15,0.15,0.6}
+\definecolor{codegreen}{rgb}{0,0.45,0}
+\definecolor{codered}{rgb}{0.55,0,0}
+\definecolor{codegray}{gray}{0.5}
+
+\lstdefinestyle{cppstyle}{
+    language=C++,
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{codeblue},
+    stringstyle=\color{codered},
+    commentstyle=\itshape\color{codegreen},
+    numberstyle=\tiny\color{codegray},
+    numbers=left,
+    numbersep=6pt,
+    frame=none,
+    aboveskip=8pt,
+    belowskip=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    columns=fullflexible,
+    keepspaces=true,
+    xleftmargin=24pt,
+    framexleftmargin=24pt,
+    linewidth=\dimexpr\textwidth-24pt\relax,
+}
+\lstset{style=cppstyle}
+
+%% ---- Figure captions ----
+\usepackage{caption}
+\captionsetup{labelfont={bf,small},textfont=small,labelsep=period}
+
+%% ---- Table captions ----
+\captionsetup[table]{position=top}
+
+%% ---- Tables ----
+\usepackage{booktabs}
+\usepackage{array}
+\newcolumntype{L}{>{\raggedright\arraybackslash}p{0.45\textwidth}}
+
+%% ---- Tikz diagrams ----
+\usepackage{tikz}
+\usetikzlibrary{%
+    shapes.geometric, arrows, positioning, fit, calc,
+    trees, graphs, matrix, patterns, decorations.pathreplacing,
+    backgrounds, shadows
+}
+
+%% ---- Common tikz styles ----
+\tikzset{boxnode/.style={draw, rectangle, minimum width=0.8cm, minimum height=0.6cm}}
+\tikzset{listnode/.style={draw, rectangle, minimum width=0.7cm, minimum height=0.6cm, inner sep=2pt}}
+\tikzset{treenode/.style={draw, circle, minimum size=0.6cm, inner sep=2pt}}
+\tikzset{nullnode/.style={draw, circle, minimum size=0.3cm, inner sep=1pt, fill=black!20}}
+\tikzset{ptr/.style={->, >=stealth, thick}}
+\tikzset{dblptr/.style={<->, >=stealth, thick}}
+\tikzset{edge/.style={-, thick}}
+\tikzset{diredge/.style={->, >=stealth, thick}}
+
+%% ---- Graphics ----
+\usepackage{graphicx}
+
+%% ---- Links ----
+\usepackage[colorlinks=true,linkcolor=black,citecolor=blue,urlcolor=blue]{hyperref}
+
+%% ---- Table of contents ----
+\usepackage{tocloft}
+\setlength{\cftbeforechapskip}{10pt}
+\renewcommand{\cftchapfont}{\bfseries}
+\setlength{\cftsecindent}{1.5em}
+\setlength{\cftsubsecindent}{3em}
+\setlength{\cftbeforesecskip}{4pt}
+\setlength{\cftbeforesubsecskip}{3pt}
+
+%% ---- Exercise environments (textbook three-tier) ----
+\usepackage{enumitem}
+
+\newlist{drill}{enumerate}{1}
+\setlist[drill]{label=\textbf{D\arabic*.},
+  ref=D\arabic*,leftmargin=*,itemsep=4pt}
+
+\newlist{applicationex}{enumerate}{1}
+\setlist[applicationex]{label=\textbf{A\arabic*.},
+  ref=A\arabic*,leftmargin=*,itemsep=4pt}
+
+\newlist{researchex}{enumerate}{1}
+\setlist[researchex]{label=\textbf{R\arabic*.},
+  ref=R\arabic*,leftmargin=*,itemsep=4pt}
+
+%% ---- Section-level heading for exercise tiers ----
+\newcommand{\exercisedrill}{\subsection*{Drill}\addcontentsline{toc}{subsection}{Drill}}
+\newcommand{\exerciseapp}{\subsection*{Application}\addcontentsline{toc}{subsection}{Application}}
+\newcommand{\exerciseresearch}{\subsection*{Research}\addcontentsline{toc}{subsection}{Research}}
+
+%% ---- Summary environment ----
+\newenvironment{summarybox}
+  {\begin{tcolorbox}[enhanced,sharp corners,
+    colback=gray!3,colframe=gray!50,boxrule=0.5pt,
+    before skip=12pt,after skip=12pt,
+    fonttitle=\bfseries,title=Summary]%
+   \begin{itemize}[leftmargin=1.5em]}
+  {\end{itemize}\end{tcolorbox}}
+
+%% ---- Index ----
+\usepackage{makeidx}
+\makeindex

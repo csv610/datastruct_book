@@ -1,0 +1,10 @@
+State Space Tree for 4-Queens:
+                          root
+                /   /   |   \   \
+               0    1   2    3        <-- row 0: col placed
+              /|\  /|\  /|\  /|\
+             ... (row 1 branches)
+             
+Leaf nodes that are solutions:
+  [1, 3, 0, 2]: queens at (0,1),(1,3),(2,0),(3,2)
+  [2, 0, 3, 1]: queens at (0,2),(1,0),(2,3),(3,1)

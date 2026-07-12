@@ -1,0 +1,7 @@
+Index:  0  1  2  3  4  5  6
+Data:  [A, B, C, D, E, F, G]
+
+For node at index i:
+  left child:  2i + 1
+  right child: 2i + 2
+  parent:      (i - 1) / 2

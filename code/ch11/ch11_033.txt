@@ -1,0 +1,29 @@
+BSP tree for 2D line segments:
+
+          v1-----------v4
+          |             |
+          |      A      |
+          |             |
+          v2-------v3   |
+                    |   |
+            B       |   |
+                    |   |
+  ------------------|---|------  splitting line L1
+                    |   |
+              C     |   |
+                    |   |
+  v5---------------v6---v7
+          |       |
+          |   D   |
+          |       |
+          v8------v9
+
+  Root partitions on L1:
+    Back subtree (below L1): polygons C, D
+    Front subtree (above L1): polygons A, B
+  Each subtree is further partitioned.
+
+  Traversal order for camera above L1:
+    Draw back subtree first (C, D)
+    Draw splitting polygon (on L1)
+    Draw front subtree second (A, B)

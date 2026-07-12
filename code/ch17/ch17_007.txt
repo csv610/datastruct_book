@@ -1,0 +1,3 @@
+M[i][j] = 0                                   if i = j
+          min { M[i][k] + M[k+1][j] + d(i-1) * d(k) * d(j) }
+          i  <=  k < j

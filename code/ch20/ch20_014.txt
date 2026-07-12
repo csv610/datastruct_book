@@ -1,0 +1,57 @@
+Edges (u -> v : capacity, cost):
+  s -> a : cap=4, cost=2
+  s -> b : cap=2, cost=3
+  a -> b : cap=2, cost=1
+  a -> t : cap=3, cost=4
+  b -> t : cap=5, cost=2
+
+Desired flow value: F = 5
+
+==============================================================
+Round 1: Potentials = [0, 0, 0, 0] for (s, a, b, t).
+  Reduced costs = original costs.
+  Dijkstra shortest path: s -> a -> b -> t, cost = 2+1+2 = 5.
+  Bottleneck = min(4, 2, 5) = 2.
+  Push 2 units along s -> a -> b -> t.
+  Cost so far = 2 * 5 = 10.
+
+  Residual after:
+    s -> a : cap=2, cost=2     a -> s : cap=2, cost=-2
+    s -> b : cap=2, cost=3     (unchanged)
+    a -> b : cap=0, cost=1     b -> a : cap=2, cost=-1
+    a -> t : cap=3, cost=4     (unchanged)
+    b -> t : cap=3, cost=2     t -> b : cap=2, cost=-2
+
+  Distances from s: dist(a)=2, dist(b)=3, dist(t)=5.
+  New potentials: pi(s)=0, pi(a)=2, pi(b)=3, pi(t)=5.
+
+==============================================================
+Round 2: Reduced costs w'(u,v) = w(u,v) + pi(u) - pi(v)
+  s -> a: 2 + 0 - 2 = 0
+  s -> b: 3 + 0 - 3 = 0
+  a -> t: 4 + 2 - 5 = 1
+  b -> t: 2 + 3 - 5 = 0
+
+  Dijkstra: s -> b -> t has reduced cost 0 + 0 = 0.
+  s -> a -> t has reduced cost 0 + 1 = 1.
+  Shortest path: s -> b -> t.
+  Bottleneck = min(2, 3) = 2.
+  Push 2 units. Cost += 2 * 3 = 6. Total cost = 16.
+  Flow = 4.
+
+  Residual: s->b(0), b->t(1). Reverse: b->s(2,-3).
+
+  Update potentials: dist(s)=0, dist(a)=0, dist(t)=1.
+  pi(a)=2, pi(b)=3 (unchanged), pi(t)=5+1=6.
+
+==============================================================
+Round 3: Reduced costs:
+  s -> a: 2 + 0 - 2 = 0
+  a -> t: 4 + 2 - 6 = 0
+
+  Shortest path: s -> a -> t. Reduced cost = 0 + 0 = 0.
+  Push min(2, 3, 5-4) = 1 unit. Cost += 1 * 4 = 4.
+  Total cost = 20. Flow = 5. Done.
+
+==============================================================
+RESULT: Flow = 5, Total cost = 20.

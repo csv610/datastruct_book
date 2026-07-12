@@ -1,0 +1,19 @@
+Project 1: profit +50, no prerequisites
+Project 2: profit +30, requires Project 1
+Project 3: profit -10 (cost 10), no prerequisites
+Project 4: profit +40, requires Project 3
+
+Flow network:
+s -> 1 (cap 50), s -> 2 (cap 30), s -> 4 (cap 40)
+3 -> t (cap 10)
+2 -> 1 (cap INF), 4 -> 3 (cap INF)
+
+Total positive profit = 50 + 30 + 40 = 120.
+Min cut: either {s} vs {1,2,3,4,t} (cut = 50+30+40 = 120, profit = 0)
+  or {s,1,2} vs {3,4,t} (cut = 10 + 40 = 50, profit = 70)
+  or {s,1,2,3} vs {4,t} (cut = INF, too expensive)
+  or {s,1,2,4} vs {3,t} (cut = 10, profit = 110) -- but 4->3 is INF!
+  Wait: if 4 is in S, 3 must be in S (edge 4->3 has capacity INF).
+  So {s,1,2,4,3} vs {t}: cut = 10, profit = 120 - 10 = 110.
+
+Optimal: select projects 1, 2, 3, 4. Profit = 50+30-10+40 = 110.

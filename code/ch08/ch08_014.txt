@@ -1,0 +1,11 @@
+Insert 39: h(39)=0  ->  occupied by 26 (probe distance 0)
+           Compare: 39 has distance 0, 26 has distance 0  ->  keep going
+           Try 1  ->  empty  ->  insert 39 (distance 1)
+
+Insert 13: h(13)=0  ->  26 (dist 0)  ->  compare equal  ->  keep going
+           1  ->  39 (dist 1)  ->  compare equal  ->  keep going
+           2  ->  empty  ->  insert (dist 2)
+
+Insert 1:  h(1)=1  ->  39 (dist 1)  ->  1 has dist 0 < 39's dist 1  ->  keep going
+           2  ->  13 (dist 2)  ->  1 has dist 1 < 13's dist 2  ->  keep going
+           3  ->  empty  ->  insert (dist 3)

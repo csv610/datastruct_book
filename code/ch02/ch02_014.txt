@@ -1,0 +1,8 @@
+int factorial(int n) {
+    int acc = 1;
+    while (n > 1) {
+        acc = n * acc;
+        --n;
+    }
+    return acc;
+}

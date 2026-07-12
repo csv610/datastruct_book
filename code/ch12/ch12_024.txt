@@ -1,0 +1,18 @@
+ROBDD for f = (x1 AND x2) OR (x3 AND x4)
+
+Variable ordering: x1 < x2 < x3 < x4
+
+              x1
+             / \
+            0   x2
+               / \
+              0   x3
+                 / \
+                0   x4
+                   / \
+                  0   1
+
+  Nodes tested top-down: x1, x2, x3, x4
+  Each 0-edge goes left,  1-edge goes right
+  Terminal 1 reached only via path: x1=1, x2=1
+                                   or x3=1, x4=1

@@ -1,0 +1,9 @@
+Set A = {a, c, d, f, g}    Set B = {b, c, e, f, g}
+
+  h1:  min(h1(A)) = h1(f)     min(h1(B)) = h1(b)
+  h2:  min(h2(A)) = h2(c)     min(h2(B)) = h2(c)
+  h3:  min(h3(A)) = h3(d)     min(h3(B)) = h3(e)
+
+  Sig(A) = [h1(f), h2(c), h3(d)]
+  Sig(B) = [h1(b), h2(c), h3(e)]
+  Matches: 1 out of 3 => J estimate = 0.33

@@ -1,0 +1,1 @@
+Index(i, j) = i * c + j

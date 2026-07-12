@@ -1,0 +1,11 @@
+Algorithm push_relabel(G, s, t):
+    for each edge (u, v): f(u,v) = 0
+    for each edge (s, v):  f(s,v) = c(s,v)
+    height[s] = V
+    height[v] = 0 for all other v
+    excess[v] = inflow - outflow for each v
+    
+    while EXISTS  active vertex v (v != s,t with excess[v] > 0):
+        push(v)     -- send flow along admissible edges
+        relabel(v)  -- if no admissible edge, increase height[v]
+    return excess[t]

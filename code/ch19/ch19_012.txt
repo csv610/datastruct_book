@@ -1,0 +1,7 @@
+Hash(A||B)
+                 /          \
+            Hash(A)       Hash(B)
+           /      \      /      \
+     Hash(d0) Hash(d1) Hash(d2) Hash(d3)
+       |        |        |        |
+      d0       d1       d2       d3

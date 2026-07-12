@@ -1,0 +1,1094 @@
+\chapter{Maximum Flow and Matching}\label{ch20:maximum-flow-and-matching}
+
+\section{Introduction}
+
+> \textbf{Complete compilable implementations of the data structures in this chapter are in \texttt{code/}.}
+
+\section{The Maximum Flow Problem}
+
+A \textbf{flow network} is a directed graph G = (V, E) with:
+\begin{itemize}
+\item A \textbf{source} s with no incoming edges
+\item A \textbf{sink} t with no outgoing edges
+\item \textbf{Capacity} c(u, v) $\ge $ 0 for each edge
+\end{itemize}
+
+A \textbf{flow} f satisfies:
+\begin{itemize}
+\item \textbf{Capacity constraint:} f(u, v) $\le $ c(u, v) for all edges
+\item \textbf{Flow conservation:} $\Sigma $ f(u, v) = $\Sigma $ f(v, u) for all v $\ne $ s, t
+\end{itemize}
+
+The \textbf{maximum flow problem} finds the maximum possible flow from s to t.
+
+\section{Dinic's Algorithm}
+
+Ford-Fulkerson\index{Ford-Fulkerson} is the general method: repeatedly find an augmenting path in the residual network and push flow along it. The algorithm's complexity depends on how paths are chosen. \textbf{Dinic's algorithm}\index{Dinic's algorithm} uses BFS to build a \textbf{level graph} (layered network), then sends \textbf{blocking flow} via DFS — achieving O(E$\cdot $V$^{2}$) time in general and O(E$\cdot $$\sqrt {V}$) for bipartite matching\index{bipartite matching}. The residual capacity c\_f(u, v) = c(u, v) - f(u, v) + f(v, u).
+
+\begin{lstlisting}[language=C++]
+struct edge {
+    size_t to, rev;
+    int capacity;
+};
+
+class dinic {
+public:
+    dinic(size_t n) : graph_(n) {}
+
+    void add_edge(size_t from, size_t to, int capacity) {
+        graph_[from].push_back({to, graph_[to].size(), capacity});
+        graph_[to].push_back({from, graph_[from].size() - 1, 0});  // reverse edge
+    }
+
+    int max_flow(size_t s, size_t t) {
+        int flow = 0;
+        std::vector<int> level;
+        std::vector<size_t> it;
+
+        while (bfs(s, t, level)) {
+            it.assign(graph_.size(), 0);
+            while (int pushed = dfs(s, t, INT_MAX, level, it)) {
+                flow += pushed;
+            }
+        }
+        return flow;
+    }
+
+private:
+    bool bfs(size_t s, size_t t, std::vector<int>& level) {
+        level.assign(graph_.size(), -1);
+        std::queue<size_t> q;
+        level[s] = 0;
+        q.push(s);
+        while (!q.empty()) {
+            size_t v = q.front(); q.pop();
+            for (const auto& e : graph_[v]) {
+                if (e.capacity > 0 && level[e.to] < 0) {
+                    level[e.to] = level[v] + 1;
+                    q.push(e.to);
+                }
+            }
+        }
+        return level[t] >= 0;
+    }
+
+    int dfs(size_t v, size_t t, int f, std::vector<int>& level,
+            std::vector<size_t>& it) {
+        if (v == t) return f;
+        for (size_t& i = it[v]; i < graph_[v].size(); ++i) {
+            edge& e = graph_[v][i];
+            if (e.capacity > 0 && level[v] < level[e.to]) {
+                int pushed = dfs(e.to, t, std::min(f, e.capacity), level, it);
+                if (pushed > 0) {
+                    e.capacity -= pushed;
+                    graph_[e.to][e.rev].capacity += pushed;
+                    return pushed;
+                }
+            }
+        }
+        return 0;
+    }
+
+    std::vector<std::vector<edge>> graph_;
+};
+\end{lstlisting}
+
+\textbf{Dinic's Complexity:} O(E$\cdot $V$^{2}$) general, O(E$\cdot $$\sqrt {V}$) for bipartite matching, O(min(V\textasciicircum{}(2/3), $\sqrt {E}$)$\cdot $E) for unit capacities.
+
+\section{Edmonds-Karp Algorithm}
+
+Ford-Fulkerson with BFS for augmenting path selection guarantees O(V$\cdot $E$^{2}$) time — each augmentation saturates at least one edge, and the distance from s to any vertex increases monotonically.
+
+\begin{lstlisting}[language=C++]
+int edmonds_karp(const std::vector<edge>& graph, size_t s, size_t t) {
+    int flow = 0;
+    // Build residual adjacency on the fly; same edge struct as Dinic
+    while (true) {
+        std::vector<edge*> parent(graph.size(), nullptr);
+        std::queue<size_t> q;
+        q.push(s);
+        while (!q.empty() && parent[t] == nullptr) {
+            size_t v = q.front(); q.pop();
+            for (auto& e : graph[v]) {
+                if (e.capacity > 0 && parent[e.to] == nullptr && e.to != s) {
+                    parent[e.to] = &e;
+                    q.push(e.to);
+                }
+            }
+        }
+        if (parent[t] == nullptr) break;
+        int aug = INT_MAX;
+        for (size_t v = t; v != s; v = parent[v]->to)
+            aug = std::min(aug, parent[v]->capacity);
+        for (size_t v = t; v != s; v = parent[v]->to) {
+            parent[v]->capacity -= aug;
+            graph[parent[v]->to][parent[v]->rev].capacity += aug;
+        }
+        flow += aug;
+    }
+    return flow;
+}
+\end{lstlisting}
+
+In practice, Dinic outperforms Edmonds-Karp\index{Edmonds-Karp} on most graphs, but Edmonds-Karp remains important for its theoretical guarantees and simplicity.
+
+\section{Push-Relabel Algorithm}
+
+Instead of augmenting paths, Push-Relabel\index{push-relabel} (Goldberg–Tarjan) works by \textbf{pushing} flow locally from overflowing nodes and maintaining a \textbf{height label} that guides flow towards t.
+
+\begin{lstlisting}[language=Java]
+Algorithm push_relabel(G, s, t):
+    for each edge (u, v): f(u,v) = 0
+    for each edge (s, v):  f(s,v) = c(s,v)
+    height[s] = V
+    height[v] = 0 for all other v
+    excess[v] = inflow - outflow for each v
+    
+    while EXISTS  active vertex v (v != s,t with excess[v] > 0):
+        push(v)     -- send flow along admissible edges
+        relabel(v)  -- if no admissible edge, increase height[v]
+    return excess[t]
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++]
+class push_relabel {
+public:
+    push_relabel(size_t n) : graph_(n), excess_(n), height_(n) {}
+
+    int max_flow(size_t s, size_t t) {
+        height_[s] = graph_.size();
+        for (auto& e : graph_[s]) {
+            excess_[e.to] += e.capacity;
+            graph_[e.to][e.rev].capacity = e.capacity;
+            e.capacity = 0;
+        }
+        while (true) {
+            auto it = std::find_if(excess_.begin(), excess_.end(),
+                [&](int x) { return x > 0; });
+            if (it == excess_.end()) break;
+            size_t v = it - excess_.begin();
+            if (!discharge(v)) break;
+        }
+        return excess_[t];
+    }
+
+private:
+    bool push(size_t v) {
+        for (auto& e : graph_[v]) {
+            if (e.capacity > 0 && height_[v] == height_[e.to] + 1) {
+                int d = std::min(excess_[v], e.capacity);
+                e.capacity -= d;
+                graph_[e.to][e.rev].capacity += d;
+                excess_[v] -= d;
+                excess_[e.to] += d;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool discharge(size_t v) {
+        while (excess_[v] > 0) {
+            if (!push(v)) {
+                int min_h = INT_MAX;
+                for (const auto& e : graph_[v])
+                    if (e.capacity > 0)
+                        min_h = std::min(min_h, height_[e.to]);
+                if (min_h >= static_cast<int>(graph_.size()))
+                    return false;
+                height_[v] = min_h + 1;
+            }
+        }
+        return true;
+    }
+
+    std::vector<std::vector<edge>> graph_;
+    std::vector<int> excess_, height_;
+};
+\end{lstlisting}
+
+\textbf{Complexity:} O(V$^{2}$$\cdot $$\sqrt {E}$) with gap heuristic and global relabeling. Push-Relabel is often the fastest max-flow algorithm in practice for dense graphs.
+
+\section{Minimum Cut}
+
+The \textbf{minimum s-t cut} partitions V into S (containing s) and T (containing t) to minimize the total capacity of edges from S to T.
+
+\textbf{Max-Flow\index{max-flow} Min-Cut\index{min-cut} Theorem\index{max-flow min-cut theorem}:} The maximum flow equals the minimum cut capacity. This is one of the most important theorems in combinatorial optimization.
+
+\textbf{Finding the min-cut:} After computing max flow, find all vertices reachable from s in the residual graph. Let S = reachable vertices, T = all others. The edges from S to T in the original graph form the minimum cut.
+
+\textbf{Worked example:} Network: s$\to$a(10), s$\to$b(5), a$\to$b(15), a$\to$t(5), b$\to$t(10).
+
+After max flow = 15: the residual graph has s reachable, a reachable (via s$\to$a with residual 5), but b is NOT reachable (s$\to$b is saturated, a$\to$b is saturated going forward, b$\to$a has residual but we came from s). Wait — let me trace more carefully.
+
+\begin{lstlisting}[language=Java]
+Augmenting path s->a->t: flow 5. Residual: s->a(5), a->t(0).
+Augmenting path s->b->t: flow 5. Residual: s->b(0), b->t(5).
+Augmenting path s->a->b->t: flow 5. Residual: s->a(0), a->b(10), b->t(0).
+
+Max flow = 15.
+
+Residual graph reachable from s: {s, a} (s->a has residual 5).
+Min cut: edges from {s,a} to {b,t} = s->b(capacity 5) + a->t(capacity 5) = 10?
+Wait: a->t is saturated (capacity 5, flow 5). s->b is saturated (capacity 5, flow 5).
+But max flow = 15, so min cut = 15.
+
+Let me recheck: edges from S={s,a} to T={b,t}:
+  s->b: capacity 5, flow 5 (contributes 5 to cut)
+  a->b: capacity 15, flow 10 (contributes 5 to cut)
+  a->t: capacity 5, flow 5 (contributes 5 to cut)
+Total cut capacity: 5 + 15 + 5 = 25? No, cut capacity counts CAPACITY, not residual.
+
+Min cut capacity = sum of original capacities of edges from S to T:
+  s->b: 5, a->b: 15, a->t: 5 = 25. That's not 15.
+
+Hmm, let me recompute. Actually S should be vertices reachable from s in the RESIDUAL graph:
+  s->a: residual 5 (reachable)
+  s->b: residual 0 (NOT reachable)
+  a->b: residual 10 (a is reachable, b via a->b? a->b forward residual = 15-10 = 5. YES b is reachable!)
+  So S = {s, a, b}, T = {t}.
+  Edges from S to T: a->t(5), b->t(10) = 15. Correct!
+\end{lstlisting}
+
+So the min cut is \{a$\to$t, b$\to$t\} with capacity 5 + 10 = 15 = max flow. $\checkmark$
+
+\textbf{Applications of min-cut:}
+\begin{itemize}
+\item \textbf{Image segmentation:} pixels are nodes; source = foreground, sink = background. Min-cut separates foreground from background.
+\item \textbf{Network reliability:} the min-cut is the minimum number of edges whose failure disconnects s from t — the edge connectivity.
+\item \textbf{Community detection:} in social networks, the min-cut between two communities reveals the weakest connection.
+\item \textbf{VLSI design:} min-cut placement divides a circuit into two halves with minimum wire crossing.
+\end{itemize}
+
+\section{Bipartite Matching}
+
+Find the maximum set of edges in a bipartite graph with no shared vertices.
+
+\textbf{Reduction to max flow:} create source s connected to all left vertices (capacity 1), all right vertices connected to sink t (capacity 1), and original edges with capacity 1. The max flow equals the maximum matching size.
+
+\textbf{Worked example:} Left = \{A, B, C\}, Right = \{X, Y, Z\}. Edges: A-X, A-Y, B-Y, C-Z.
+
+\begin{lstlisting}[language=Java]
+Flow network:
+s -> A(1), s -> B(1), s -> C(1)
+A -> X(1), A -> Y(1), B -> Y(1), C -> Z(1)
+X -> t(1), Y -> t(1), Z -> t(1)
+
+Augmenting path s->A->X->t: flow 1. Match: A-X.
+Augmenting path s->B->Y->t: flow 1. Match: B-Y.
+Augmenting path s->C->Z->t: flow 1. Match: C-Z.
+
+Max flow = 3. Maximum matching: {A-X, B-Y, C-Z}. All 3 left vertices matched.
+\end{lstlisting}
+
+\textbf{Worked example (non-trivial):} Left = \{A, B, C\}, Right = \{X, Y\}. Edges: A-X, A-Y, B-X, C-X.
+
+\begin{lstlisting}[language=Java]
+Augmenting path s->A->X->t: flow 1. Match: A-X.
+Augmenting path s->B->Y->t: no path (B has no edge to Y).
+  Try augmenting: s->B->X... X is matched to A. 
+  Residual: X->A(1) (undo edge). A->Y(1). Y->t(1).
+  Path: s->B->X->A->Y->t: flow 1. 
+  New matching: B-X, A-Y. (A switched from X to Y.)
+
+Max flow = 2. Maximum matching: {B-X, A-Y}. C unmatched.
+\end{lstlisting}
+
+\textbf{Complexity:} Dinic's algorithm on the bipartite flow network runs in O(E$\cdot$$\sqrt {V}$) — faster than general max flow.
+
+\textbf{Applications:}
+\begin{itemize}
+\item \textbf{Job assignment:} workers to tasks, applicants to jobs
+\item \textbf{Kidney exchange:} incompatible donor-patient pairs form a bipartite graph; cycles in the matching enable swaps
+\item \textbf{Ad assignment:} match ads to user sessions based on targeting criteria
+\item \textbf{Stable matching:} the Gale-Shapley algorithm (Chapter 4) solves a related problem
+\end{itemize}
+
+\section{Min-Cost Max-Flow}
+
+Find a flow of a given amount through a network where each edge has both capacity and per-unit cost. The goal is to minimize total cost while achieving the required flow.
+
+\textbf{Approach:} Successive Shortest Augmenting Path (SSP) with potentials (Johnson's). Replace residual edge costs with reduced costs to keep them nonnegative, then run Dijkstra to find the cheapest augmenting path.
+
+\begin{lstlisting}[language=C++]
+struct mincost_edge {
+    size_t to, rev;
+    int capacity, cost;
+};
+
+class mincost_flow {
+public:
+    mincost_flow(size_t n) : graph_(n), potential_(n, 0) {}
+
+    void add_edge(size_t from, size_t to, int cap, int cost) {
+        graph_[from].push_back({to, graph_[to].size(), cap, cost});
+        graph_[to].push_back({from, graph_[from].size() - 1, 0, -cost});
+    }
+
+    std::pair<int, int> flow(size_t s, size_t t, int maxf) {
+        int flow = 0, cost = 0;
+        while (flow < maxf) {
+            std::vector<int> dist(graph_.size(), INT_MAX);
+            std::vector<mincost_edge*> prev(graph_.size(), nullptr);
+            dist[s] = 0;
+            std::priority_queue<std::pair<int, size_t>,
+                std::vector<std::pair<int, size_t>>, std::greater<>> pq;
+            pq.push({0, s});
+
+            while (!pq.empty()) {
+                auto [d, v] = pq.top(); pq.pop();
+                if (dist[v] < d) continue;
+                for (auto& e : graph_[v]) {
+                    if (e.capacity > 0) {
+                        int nd = d + e.cost + potential_[v] - potential_[e.to];
+                        if (nd < dist[e.to]) {
+                            dist[e.to] = nd;
+                            prev[e.to] = &e;
+                            pq.push({nd, e.to});
+                        }
+                    }
+                }
+            }
+            if (dist[t] == INT_MAX) break;
+
+            for (size_t v = 0; v < graph_.size(); ++v)
+                if (dist[v] < INT_MAX)
+                    potential_[v] += dist[v];
+
+            int add = maxf - flow;
+            for (size_t v = t; v != s; ) {
+                auto& e = *prev[v];
+                add = std::min(add, e.capacity);
+                v = graph_[e.to][e.rev].to;  // previous vertex
+            }
+            for (size_t v = t; v != s; ) {
+                auto& e = *prev[v];
+                e.capacity -= add;
+                graph_[e.to][e.rev].capacity += add;
+                cost += add * e.cost;
+                v = graph_[e.to][e.rev].to;
+            }
+            flow += add;
+        }
+        return {flow, cost};
+    }
+
+private:
+    std::vector<std::vector<mincost_edge>> graph_;
+    std::vector<int> potential_;
+};
+\end{lstlisting}
+
+\textbf{Application:} Transportation problems (minimize shipping cost with supply/demand constraints), optimal task assignment, min-cost matching, and network design.
+
+\section{Application: Project Selection}
+
+Given projects with profits (positive or negative) and prerequisites, select the set of projects that maximizes total profit.
+
+\textbf{Reduction to min-cut:} 
+\begin{enumerate}
+\item Create source s and sink t.
+\item For each project with positive profit p: add edge s$\to$project with capacity p.
+\item For each project with negative profit (cost c): add edge project$\to$t with capacity $|$c$|$.
+\item For each prerequisite (project A requires project B): add edge A$\to$B with capacity $\infty$.
+\item The minimum s-t cut partitions projects into S (selected, reachable from s) and T (not selected, reachable from t).
+\item Optimal profit = total positive profit $-$ min-cut capacity.
+\end{enumerate}
+
+\textbf{Worked example:} 4 projects:
+\begin{lstlisting}[language=Java]
+Project 1: profit +50, no prerequisites
+Project 2: profit +30, requires Project 1
+Project 3: profit -10 (cost 10), no prerequisites
+Project 4: profit +40, requires Project 3
+
+Flow network:
+s -> 1 (cap 50), s -> 2 (cap 30), s -> 4 (cap 40)
+3 -> t (cap 10)
+2 -> 1 (cap INF), 4 -> 3 (cap INF)
+
+Total positive profit = 50 + 30 + 40 = 120.
+Min cut: either {s} vs {1,2,3,4,t} (cut = 50+30+40 = 120, profit = 0)
+  or {s,1,2} vs {3,4,t} (cut = 10 + 40 = 50, profit = 70)
+  or {s,1,2,3} vs {4,t} (cut = INF, too expensive)
+  or {s,1,2,4} vs {3,t} (cut = 10, profit = 110) -- but 4->3 is INF!
+  Wait: if 4 is in S, 3 must be in S (edge 4->3 has capacity INF).
+  So {s,1,2,4,3} vs {t}: cut = 10, profit = 120 - 10 = 110.
+
+Optimal: select projects 1, 2, 3, 4. Profit = 50+30-10+40 = 110.
+\end{lstlisting}
+
+\textbf{Why it works:} the infinite-capacity edges enforce prerequisites: if project A requires B, the min-cut cannot put A in S and B in T (that would cost $\infty$). So any feasible selection respects all prerequisites. The cut capacity measures the ``cost'' of the selection: positive-profit projects in T (forgone profit) plus negative-profit projects in S (incurred costs).
+
+\section{Common Bugs and Pitfalls}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Pitfall & Consequence & Solution \\
+Forgetting to add reverse edges in residual graph & Flow can't be undone, wrong max flow value & Always add edge(v, u, 0) for each edge(u, v, cap) \\
+Integer overflow on large capacity networks & Negative flow values, wrong result & Use \texttt{int64\_t} or \texttt{long long} for capacities \\
+Not resetting \texttt{visited} between BFS/DFS phases & Algorithm terminates early, suboptimal flow & Clear the visited array at the start of each BFS/DFS \\
+Infinite loop if blocking flow makes no progress & No termination & Track whether any augmenting path was found; break if not \\
+Dinic's level graph not rebuilt after a blocking flow & Stale levels, wrong augmenting paths & Rebuild level graph each phase \\
+Using adjacency matrix for large sparse flow graphs & O(V$^{2}$) memory where O(E) would suffice & Use adjacency list \\
+Assuming min-cost flow costs are non-negative & Negative cycles exploited, unbounded flow & Use potentials (Johnson's) to reweigh edges, or detect negative cycles \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\section{Summary}
+
+\begin{enumerate}
+\item \textbf{Maximum flow} finds the maximum throughput in a network.
+\item \textbf{Dinic's algorithm} with level graph + blocking flow is the most practical general algorithm.
+\item \textbf{The max-flow min-cut theorem} connects flow to graph partitioning.
+\item \textbf{Bipartite matching} reduces to flow.
+\item \textbf{Min-cost max-flow} extends the model with edge costs, supporting transportation and assignment problems.
+\item Applications range from transportation to image segmentation to team assignment.
+\end{enumerate}
+
+\section{Interview FAQs}
+
+\begin{enumerate}
+\item \textbf{Explain the max-flow min-cut theorem.}
+
+The maximum flow from s to t equals the minimum capacity of any s-t cut. This means: (1) the flow is bounded by the bottleneck — any cut is an upper bound; (2) there exists a cut achieving this bound. The proof constructs a min-cut from the max flow: the min-cut is the set of edges from reachable to unreachable vertices in the residual graph.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does Dinic's algorithm improve on Ford-Fulkerson?}
+
+Ford-Fulkerson finds one augmenting path at a time — O(E $\cdot$ max\_flow) in the worst case. Dinic's algorithm finds a BLOCKING FLOW in each phase: it builds a level graph via BFS and sends flow along all shortest augmenting paths simultaneously via DFS. Each phase takes O(E) time, and there are O(V) phases, giving O(E $\cdot$ V$^{2}$) total. For bipartite matching, Dinic runs in O(E$\cdot$$\sqrt {V}$).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why does the integral flow theorem guarantee that the flow-based bipartite matching gives a valid matching?}\label{faq:bipartite-integrality}
+
+The integrality theorem says: if all capacities are integers, there exists an integral max flow. Since all capacities here are 1, the flow is 0/1 on every edge. Each unit of flow from left-vertex to right-vertex corresponds to picking that edge in the matching. The source$\to$left and right$\to$sink edges being capacity 1 enforces the matching constraint (each vertex matched at most once) — if a left vertex sends $\geq$2 units, its source edge would need capacity $\geq$2. The reduction is tight precisely because the integrality theorem converts a continuous optimization (LP) into a discrete combinatorial solution.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{What is the push-relabel algorithm and when is it faster than Dinic?}
+
+Push-relabel maintains a ``preflow'' (excess flow at vertices) and ``height labels'' that guide flow toward the sink. Instead of finding augmenting paths, it pushes flow locally and relabels vertices. It runs in O(V$^{2} \cdot \sqrt{E}$) and is often faster than Dinic for dense graphs because it avoids the BFS/DFS phases.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How does the project selection problem reduce to min-cut?}
+
+Each project with profit p gets an edge from source (capacity p). Each project with cost c gets an edge to sink (capacity c). Prerequisites become infinite-capacity edges (A$\to$B if A requires B). The min-cut partitions projects into ``selected'' (S) and ``not selected'' (T). The infinite edges prevent selecting A without B. The cut capacity equals the total profit minus the optimal selection's profit.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{Why do you need potentials in min-cost max-flow, and what breaks if you just use plain Dijkstra each time?}\label{faq:mcmf-potentials}
+
+When you augment along a path, you add reverse edges with negative cost (the negation of the forward cost). After a few iterations, the residual graph has negative-cost edges, which makes Dijkstra's assumption of non-negative weights invalid. Potentials solve this by reweighting: each vertex $v$ gets a potential $\pi(v)$, and the reduced cost $w'(u,v) = w(u,v) + \pi(u) - \pi(v)$ is always $\geq 0$. Dijkstra runs on reduced costs, and the potentials are updated after each round ($\pi(v) \mathrel{+}= \text{dist}(v)$). This is essentially Johnson's reweighting trick applied iteratively — it's the same idea used for all-pairs shortest paths with negative edges.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you find the edge connectivity of a graph using max flow?}
+
+The edge connectivity $\lambda$(s,t) between vertices s and t is the minimum s-t cut. To find the global edge connectivity, run max flow from vertex 1 to each other vertex; the minimum over all these is the edge connectivity. Alternatively, Stoer-Wagner's algorithm finds the global min-cut in O(V $\cdot$ E) without flow.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you recognize when a problem secretly reduces to max flow?}\label{faq:max-flow-recognition}
+
+True max-flow problems share these properties: (1) you have a fixed source of supply and a fixed sink of demand; (2) each unit of flow is fungible (carrying 1 unit through edge A then edge B is the same as through C then D); (3) the goal is to maximize/minimize a global quantity, not optimize per-unit decisions; (4) edge constraints are capacity bounds, not costs. Red flags it's NOT max flow: flow units are heterogeneous (multi-commodity), decisions have side effects (``if you use this route, that route becomes unavailable''), or the objective is non-linear. The baseball elimination problem is a classic non-obvious reduction — the key insight is modeling ``remaining games between team i and j'' as a game node that must be assigned to one team or the other.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{How do you handle capacities that are very large (e.g., 10$^{18}$)?}
+
+Use \texttt{int64\_t} or \texttt{long long} for capacities. Ford-Fulkerson with integer capacities takes O(E $\cdot$ f) where f is the max flow — for large capacities this is slow. Use Dinic's algorithm instead: O(E $\cdot$ V$^{2}$) is independent of capacity values. For capacity scaling variants, the complexity depends on log(max capacity).
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{A ride-sharing platform needs to match riders to drivers in real-time. How would you model this, and where does max flow break down?}\label{faq:ridesharing-flow}
+
+Max flow handles the bipartite matching (drivers $\leftrightarrow$ riders) and capacity constraints (driver takes at most 1 ride). Min-cost max-flow adds optimization (minimize total pickup distance). But max flow breaks down for: (1) dynamic matching — rides arrive continuously, needing online algorithms, not batch flow computation; (2) multi-objective — minimize wait time AND maximize earnings AND ensure fairness; (3) spatial constraints — drivers and riders are in different zones, so the graph structure changes as people move. In practice, ride-sharing companies use max flow for initial batch matching within a zone, then local search (Hungarian algorithm or auction-based) for real-time adjustments. The lesson: max flow is the starting point, not the complete solution.
+\end{enumerate}
+
+
+\section{Edmonds-Karp in Depth}
+
+The Edmonds-Karp algorithm is the simplest guaranteed-efficient max-flow algorithm. It is Ford-Fulkerson with a specific rule: always choose the \textbf{shortest} augmenting path (fewest edges), found via BFS. This seemingly minor change transforms the worst-case from O(E $\cdot$ max\_flow) to a clean O(V $\cdot$ E$^{2}$), independent of capacity values.
+
+\textbf{Key insight:} After each augmentation, the shortest-path distance from s to every vertex in the residual graph is monotonically non-decreasing. Each edge can be the critical (bottleneck) edge in at most O(V) augmentations, giving the O(V $\cdot$ E$^{2}$) bound.
+
+\textbf{Worked trace on a small network:}
+
+Consider a 6-vertex network: s, a, b, c, d, t.
+
+\begin{lstlisting}[language=Java]
+Original edges (u -> v : capacity):
+  s -> a : 7       s -> b : 4
+  a -> b  : 3       a -> c : 6
+  b -> d  : 5       c -> d : 8
+  c -> t  : 9       d -> t : 6
+
+We run Edmonds-Karp (BFS always picks shortest path in hops).
+
+--------------------------------------------------------------
+Round 1: BFS finds s -> a -> c -> t (3 hops)
+  Bottleneck = min(7, 6, 9) = 6
+  Push 6 units along s -> a -> c -> t.
+
+  Residual capacities after:
+    s -> a : 1       s -> b : 4
+    a -> b : 3       a -> c : 0  (saturated)
+    b -> d : 5       c -> d : 8
+    c -> t : 3       d -> t : 6
+    (reverse edges carry flow back: c -> a : 6, t -> c : 6)
+
+  Total flow = 6
+--------------------------------------------------------------
+Round 2: BFS finds s -> b -> d -> t (3 hops)
+  Bottleneck = min(4, 5, 6) = 4
+  Push 4 units along s -> b -> d -> t.
+
+  Residual capacities after:
+    s -> a : 1       s -> b : 0  (saturated)
+    a -> b : 3       a -> c : 0
+    b -> d : 1       c -> d : 8
+    c -> t : 3       d -> t : 2
+    (reverse edges: b -> s : 4, d -> b : 4, t -> d : 4)
+
+  Total flow = 10
+--------------------------------------------------------------
+Round 3: BFS finds s -> a -> b -> d -> t (4 hops)
+  Bottleneck = min(1, 3, 1, 2) = 1
+  Push 1 unit along s -> a -> b -> d -> t.
+
+  Residual capacities after:
+    s -> a : 0       s -> b : 0  (both saturated)
+    a -> b : 2       a -> c : 0
+    b -> d : 0       c -> d : 8
+    c -> t : 3       d -> t : 1
+    (reverse edges: a -> s : 7, b -> a : 4, d -> b : 5, t -> d : 5)
+
+  Total flow = 11
+--------------------------------------------------------------
+Round 4: BFS from s finds no path to t. s -> a has
+  residual 0, s -> b has residual 0. Terminate.
+
+  MAX FLOW = 11.
+--------------------------------------------------------------
+\end{lstlisting}
+
+Verify: the min-cut is S = \{s\}, T = \{a, b, c, d, t\} with capacity 7 + 4 = 11. The max-flow min-cut theorem checks out.
+
+\textbf{Complete C++ implementation:}
+
+\begin{lstlisting}[language=C++]
+#include <vector>
+#include <queue>
+#include <climits>
+#include <algorithm>
+
+struct ek_edge {
+    int to, rev;
+    int cap;
+};
+
+class edmonds_karp {
+public:
+    edmonds_karp(int n) : graph_(n) {}
+
+    void add_edge(int from, int to, int cap) {
+        graph_[from].push_back({to, (int)graph_[to].size(), cap});
+        graph_[to].push_back({from, (int)graph_[from].size() - 1, 0});
+    }
+
+    int max_flow(int s, int t) {
+        int flow = 0;
+        int n = graph_.size();
+
+        while (true) {
+            std::vector<int> parent(n, -1);
+            std::vector<int> parent_edge(n, -1);
+            std::queue<int> q;
+            q.push(s);
+            parent[s] = s;
+
+            while (!q.empty() && parent[t] == -1) {
+                int v = q.front(); q.pop();
+                for (int i = 0; i < (int)graph_[v].size(); ++i) {
+                    ek_edge& e = graph_[v][i];
+                    if (e.cap > 0 && parent[e.to] == -1) {
+                        parent[e.to] = v;
+                        parent_edge[e.to] = i;
+                        q.push(e.to);
+                    }
+                }
+            }
+
+            if (parent[t] == -1) break;
+
+            int aug = INT_MAX;
+            for (int v = t; v != s; v = parent[v]) {
+                int u = parent[v];
+                int idx = parent_edge[v];
+                aug = std::min(aug, graph_[u][idx].cap);
+            }
+
+            for (int v = t; v != s; v = parent[v]) {
+                int u = parent[v];
+                int idx = parent_edge[v];
+                graph_[u][idx].cap -= aug;
+                int rev = graph_[u][idx].rev;
+                graph_[v][rev].cap += aug;
+            }
+
+            flow += aug;
+        }
+        return flow;
+    }
+
+private:
+    std::vector<std::vector<ek_edge>> graph_;
+};
+\end{lstlisting}
+
+\textbf{Complexity analysis:} BFS runs in O(E) per augmentation. Each augmentation saturates at least one edge. An edge can be saturated at most O(V) times (because each re-saturation requires the s-to-u distance to increase, and distances are bounded by V). So the total number of augmentations is O(V $\cdot$ E), giving O(V $\cdot$ E$^{2}$) overall. In practice, Dinic's algorithm is faster because it processes a blocking flow (many paths) per BFS phase, but Edmonds-Karp's simplicity makes it useful for correctness proofs and small instances.
+
+\section{Maximum Bipartite Matching (Full Treatment)}
+
+A \textbf{bipartite graph} G = (L $\cup$ R, E) partitions vertices into two sets with all edges crossing between them. The \textbf{maximum bipartite matching} problem finds the largest set of edges with no shared vertices.
+
+\textbf{Reduction to max flow:} Given bipartite graph (L, R, E):
+\begin{enumerate}
+\item Create source s and sink t.
+\item Add edge s $\to$ u for every u in L, capacity 1.
+\item Add edge v $\to$ t for every v in R, capacity 1.
+\item For each edge (u, v) in E, add edge u $\to$ v, capacity 1.
+\end{enumerate}
+The max flow equals the maximum matching. Each unit of flow corresponds to a matched edge. All capacities are 1, so Dinic's algorithm achieves O(E $\cdot \sqrt{V}$) -- better than the general O(E $\cdot$ V$^{2}$).
+
+\textbf{Worked trace: Job assignment problem.}
+
+4 applicants (A, B, C, D) and 4 jobs (J1, J2, J3, J4). Each applicant qualifies for certain jobs.
+
+\begin{lstlisting}[language=Java]
+Qualifications (applicant -> qualified jobs):
+  A -> J1, J2
+  B -> J2, J3
+  C -> J1, J3, J4
+  D -> J3, J4
+
+Flow network (8 vertices + s + t = 10 vertices):
+  s -> A(1), s -> B(1), s -> C(1), s -> D(1)
+  A -> J1(1), A -> J2(1)
+  B -> J2(1), B -> J3(1)
+  C -> J1(1), C -> J3(1), C -> J4(1)
+  D -> J3(1), D -> J4(1)
+  J1 -> t(1), J2 -> t(1), J3 -> t(1), J4 -> t(1)
+
+--------------------------------------------------------------
+Round 1: BFS path s -> A -> J1 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1}.
+  Saturated: s->A, A->J1, J1->t.
+
+Round 2: BFS path s -> B -> J2 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1, B-J2}.
+  Saturated: s->B, B->J2, J2->t.
+
+Round 3: BFS path s -> C -> J3 -> t
+  Bottleneck = 1. Push flow. Match: {A-J1, B-J2, C-J3}.
+  Saturated: s->C, C->J3, J3->t.
+
+Round 4: BFS from s: s->D is available.
+  D -> J4 -> t is open. Path: s -> D -> J4 -> t.
+  Bottleneck = 1. Push flow.
+  Match: {A-J1, B-J2, C-J3, D-J4}.
+
+Round 5: BFS from s: s->A(0), s->B(0), s->C(0), s->D(0).
+  All source edges saturated. No augmenting path. Done.
+
+MAXIMUM MATCHING = 4 (all applicants assigned).
+--------------------------------------------------------------
+\end{lstlisting}
+
+\textbf{A non-trivial case:} Consider 3 applicants, 2 jobs: A qualifies for J1; B qualifies for J1, J2; C qualifies for J2.
+
+\begin{lstlisting}[language=Java]
+Round 1: s -> A -> J1 -> t. Match: {A-J1}.
+Round 2: s -> B -> J2 -> t. Match: {A-J1, B-J2}.
+Round 3: s -> C: C->J2 only, J2->t saturated.
+  Path: s -> C -> J2 -> B -> J1 -> t?
+  Residual: J2->B(1, reverse), B->J1 has no edge. Dead end.
+  No augmenting path. Max matching = 2. C is unmatched.
+\end{lstlisting}
+
+\textbf{Konig's Theorem:} In bipartite graphs, the size of the maximum matching equals the size of the minimum vertex cover. This connects matching to covering and has applications in scheduling and resource allocation.
+
+\textbf{Hopcroft-Karp\index{Hopcroft-Karp} algorithm:} Instead of finding one augmenting path at a time, Hopcroft-Karp finds a \textbf{maximal set of shortest, vertex-disjoint} augmenting paths in each BFS phase, then augments along all of them simultaneously. This reduces the number of BFS phases from O(V) to O($\sqrt{V}$), yielding O(E $\cdot \sqrt{V}$) time -- the same asymptotic bound as Dinic on bipartite graphs, but with smaller constants in practice. For most competitive programming and interview purposes, Dinic on the flow network suffices.
+
+\section{Minimum Cost Maximum Flow: Full Treatment}
+
+In many real networks, edges have both a \textbf{capacity} and a \textbf{per-unit cost}. The minimum cost maximum flow problem\index{minimum cost flow} asks: among all flows achieving the maximum possible value, find the one that minimizes total cost.
+
+\textbf{Formal definition:} Given a directed graph G = (V, E) with capacity c(u,v), cost per unit w(u,v), source s, sink t, and desired flow value F, find a flow f that delivers F units from s to t at minimum total cost $\Sigma $ f(u,v) $\cdot $ w(u,v).
+
+\textbf{Successive Shortest Augmenting Path (SSP) with Potentials:}
+\begin{enumerate}
+\item Initialize potentials pi(v) = 0 for all v (or run Bellman-Ford for negative costs).
+\item In each iteration, compute shortest path from s to t using \textbf{reduced costs}: w'(u,v) = w(u,v) + pi(u) - pi(v). These are guaranteed non-negative.
+\item Update potentials: pi(v) += dist(v) for all v.
+\item Augment along the shortest path, updating residual capacities.
+\item Repeat until F units have been sent or no path exists.
+\end{enumerate}
+
+The reduced costs ensure Dijkstra works correctly. The potentials are updated each round to maintain the non-negativity invariant, even when reverse edges with negative original costs enter the residual graph.
+
+\textbf{Worked trace:} 4-vertex network with source s, intermediate vertices a and b, sink t.
+
+\begin{lstlisting}[language=Java]
+Edges (u -> v : capacity, cost):
+  s -> a : cap=4, cost=2
+  s -> b : cap=2, cost=3
+  a -> b : cap=2, cost=1
+  a -> t : cap=3, cost=4
+  b -> t : cap=5, cost=2
+
+Desired flow value: F = 5
+
+==============================================================
+Round 1: Potentials = [0, 0, 0, 0] for (s, a, b, t).
+  Reduced costs = original costs.
+  Dijkstra shortest path: s -> a -> b -> t, cost = 2+1+2 = 5.
+  Bottleneck = min(4, 2, 5) = 2.
+  Push 2 units along s -> a -> b -> t.
+  Cost so far = 2 * 5 = 10.
+
+  Residual after:
+    s -> a : cap=2, cost=2     a -> s : cap=2, cost=-2
+    s -> b : cap=2, cost=3     (unchanged)
+    a -> b : cap=0, cost=1     b -> a : cap=2, cost=-1
+    a -> t : cap=3, cost=4     (unchanged)
+    b -> t : cap=3, cost=2     t -> b : cap=2, cost=-2
+
+  Distances from s: dist(a)=2, dist(b)=3, dist(t)=5.
+  New potentials: pi(s)=0, pi(a)=2, pi(b)=3, pi(t)=5.
+
+==============================================================
+Round 2: Reduced costs w'(u,v) = w(u,v) + pi(u) - pi(v)
+  s -> a: 2 + 0 - 2 = 0
+  s -> b: 3 + 0 - 3 = 0
+  a -> t: 4 + 2 - 5 = 1
+  b -> t: 2 + 3 - 5 = 0
+
+  Dijkstra: s -> b -> t has reduced cost 0 + 0 = 0.
+  s -> a -> t has reduced cost 0 + 1 = 1.
+  Shortest path: s -> b -> t.
+  Bottleneck = min(2, 3) = 2.
+  Push 2 units. Cost += 2 * 3 = 6. Total cost = 16.
+  Flow = 4.
+
+  Residual: s->b(0), b->t(1). Reverse: b->s(2,-3).
+
+  Update potentials: dist(s)=0, dist(a)=0, dist(t)=1.
+  pi(a)=2, pi(b)=3 (unchanged), pi(t)=5+1=6.
+
+==============================================================
+Round 3: Reduced costs:
+  s -> a: 2 + 0 - 2 = 0
+  a -> t: 4 + 2 - 6 = 0
+
+  Shortest path: s -> a -> t. Reduced cost = 0 + 0 = 0.
+  Push min(2, 3, 5-4) = 1 unit. Cost += 1 * 4 = 4.
+  Total cost = 20. Flow = 5. Done.
+
+==============================================================
+RESULT: Flow = 5, Total cost = 20.
+\end{lstlisting}
+
+\textbf{Complexity:} Each Dijkstra call is O(E $\cdot \log$ V). We augment at most F times (one per unit with unit capacities) or O(V $\cdot$ E) times in general (each augmentation saturates one edge, and there are O(V $\cdot$ E) edge saturations total). With capacity scaling\index{capacity scaling}, the cost is O(E $\cdot \log$ U $\cdot$ (E + V $\cdot \log$ V)) where U is the maximum capacity.
+
+\section{Applications Deep Dive}
+
+\subsection{Airline Scheduling: Crew Assignment}
+
+Airlines must assign crews (pilots, flight attendants) to flights. Each crew can operate certain flight sequences based on qualifications, rest rules, and base locations. The goal: cover all flights with minimum total crew cost.
+
+\textbf{Reduction to min-cost max-flow:}
+\begin{enumerate}
+\item Each flight is a demand node. Each crew is a supply node.
+\item Source s connects to each crew node with capacity = number of flights the crew can fly, cost = 0.
+\item Each crew connects to every flight they are qualified for, capacity 1, cost = salary/cost for that assignment.
+\item Each flight connects to sink t with capacity 1 (must be covered exactly once), cost 0.
+\item Find min-cost max-flow of value = number of flights.
+\end{enumerate}
+
+\textbf{Worked example:} 3 flights (F1, F2, F3) and 2 crews (C1, C2).
+
+\begin{lstlisting}[language=Java]
+Qualifications and costs:
+  C1 can fly: F1 (cost 5), F2 (cost 3), F3 (cost 7)
+  C2 can fly: F1 (cost 4), F2 (cost 6)
+
+Flow network:
+  s -> C1 (cap 2, cost 0)     C1 -> F1 (cap 1, cost 5)
+  s -> C2 (cap 1, cost 0)     C1 -> F2 (cap 1, cost 3)
+                               C1 -> F3 (cap 1, cost 7)
+                               C2 -> F1 (cap 1, cost 4)
+                               C2 -> F2 (cap 1, cost 6)
+  F1 -> t (cap 1, cost 0)
+  F2 -> t (cap 1, cost 0)
+  F3 -> t (cap 1, cost 0)
+
+We need flow = 3 (all flights covered).
+
+Assignment 1: C1 flies F1 and F3, C2 flies F2.
+  Cost = 5 + 7 + 6 = 18.
+
+Assignment 2: C1 flies F2 and F3, C2 flies F1.
+  Cost = 3 + 7 + 4 = 14.  <-- BETTER!
+
+Min-cost max-flow finds cost 14.
+\end{lstlisting}
+
+\subsection{Image Segmentation: Graph Cuts}
+
+Image segmentation partitions an image into foreground and background. The \textbf{graph cut} approach models each pixel as a node in a flow network.
+
+\textbf{Construction:}
+\begin{enumerate}
+\item Each pixel i is a node.
+\item Source s represents foreground, sink t represents background.
+\item Edge s $\to$ i with capacity = probability pixel i is foreground (from color model).
+\item Edge i $\to$ t with capacity = probability pixel i is background.
+\item Edge i $\to$ j between adjacent pixels with capacity = similarity penalty (pixels that look alike should be in the same region).
+\end{enumerate}
+The min s-t cut separates foreground (reachable from s) from background (reachable from t). The cut minimizes misclassification of pixels plus the penalty for cutting between similar adjacent pixels.
+
+\textbf{Worked example:} A 2x2 image with pixels p1, p2, p3, p4.
+
+\begin{lstlisting}[language=Java]
+Pixel probabilities (foreground, background):
+  p1: fg=0.9, bg=0.1     (very likely foreground)
+  p2: fg=0.3, bg=0.7     (likely background)
+  p3: fg=0.8, bg=0.2     (likely foreground)
+  p4: fg=0.2, bg=0.8     (likely background)
+
+Adjacent pixel similarities (cut penalty):
+  p1-p2: 0.4   p1-p3: 0.6
+  p2-p4: 0.5   p3-p4: 0.3
+
+Flow network:
+  s -> p1(0.9)    s -> p2(0.3)    s -> p3(0.8)    s -> p4(0.2)
+  p1 -> t(0.1)    p2 -> t(0.7)    p3 -> t(0.2)    p4 -> t(0.8)
+  p1 <-> p2(0.4)
+  p1 <-> p3(0.6)
+  p2 <-> p4(0.5)
+  p3 <-> p4(0.3)
+
+Possible cuts:
+  Cut 1: S={s, p1, p3}, T={p2, p4, t}
+    Cut edges: s->p2(0.3), p1->t(0.1), p3->t(0.2),
+               p1->p2(0.4), p3->p4(0.3)
+    Cost = 0.3 + 0.1 + 0.2 + 0.4 + 0.3 = 1.3
+
+  Cut 2: S={s, p1, p2, p3}, T={p4, t}
+    Cut edges: s->p4(0.2), p2->t(0.7), p3->t(0.2),
+               p2->p4(0.5), p3->p4(0.3)
+    Cost = 0.2 + 0.7 + 0.2 + 0.5 + 0.3 = 1.9
+
+  Cut 3: S={s}, T={all pixels, t}
+    Cost = 0.9 + 0.3 + 0.8 + 0.2 = 2.2
+
+Best: Cut 1, foreground = {p1, p3}, background = {p2, p4}.
+This matches intuition: bright and dark pixels correctly separated.
+\end{lstlisting}
+
+\subsection{Baseball Elimination: Proving a Team Cannot Win}
+
+In a sports league, can team X still finish in first place (possibly tied)? The \textbf{baseball elimination} problem answers this using max flow.
+
+\textbf{Setup:} Given current wins for each team and remaining head-to-head games. Team X is \textbf{eliminated} if some other team must finish with more wins than X can achieve.
+
+\textbf{Reduction to max flow:}
+\begin{enumerate}
+\item For each pair of teams (i, j) that still play each other, create a game node g(i,j).
+\item Source s connects to each game node g(i,j) with capacity = number of remaining games between i and j.
+\item Each game node g(i,j) connects to team nodes i and j with capacity = infinity.
+\item Each team node connects to sink t with capacity = (max wins by X) - (current wins of that team). If this is negative, X is immediately eliminated.
+\item If the max flow equals the total number of remaining games, X is NOT eliminated. Otherwise, X is eliminated.
+\end{enumerate}
+
+\textbf{Worked example:} 4 teams. Wins so far: A=8, B=7, C=6, D=6. Remaining games: A-B: 1, B-C: 2, B-D: 1, C-D: 1. Can team D win?
+
+\begin{lstlisting}[language=Java]
+D can win at most 6 + 1 + 1 = 8 games.
+Check: does any team get forced past 8 wins?
+
+Capacities to sink:
+  A: 8 - 8 = 0
+  B: 8 - 7 = 1
+  C: 8 - 6 = 2
+
+Game nodes (remaining games):
+  g(A,B): s -> g(A,B) cap=1
+  g(B,C): s -> g(B,C) cap=2
+  g(B,D): s -> g(B,D) cap=1
+  g(C,D): s -> g(C,D) cap=1
+
+Total remaining games = 1 + 2 + 1 + 1 = 5.
+
+Edges from games to teams (capacity INF):
+  g(A,B) -> A, g(A,B) -> B
+  g(B,C) -> B, g(B,C) -> C
+  g(B,D) -> B, g(B,D) -> D
+  g(C,D) -> C, g(C,D) -> D
+
+Max flow computation:
+  g(A,B)->A->t: 1 unit. (A capacity: 0 remaining)
+  g(B,C)->B->t: 1 unit. (B capacity: 0 remaining)
+  g(B,C)->C->t: 1 unit. (C capacity: 1 remaining)
+  g(B,D)->D->t: 1 unit. (B saturated, route via D)
+  g(C,D)->C->t: 1 unit. (C capacity: 0 remaining)
+
+Total flow = 5 = total remaining games.
+D is NOT eliminated.
+
+Valid scenario:
+  A beats B: A=9, B=7
+  B beats C, C beats B: B=8, C=7
+  D beats B: D=7
+  D beats C: D=8
+
+Final: A=8, B=8, C=7, D=8. Three-way tie at 8 wins.
+D is NOT eliminated.
+\end{lstlisting}
+
+\textbf{When a team IS eliminated:} Wins: A=20, B=18, C=16, D=14. D max = 14 + 2 + 1 = 17. But A already has 20 > 17. The capacity from A to sink is 17 - 20 = -3, which is negative. D is immediately eliminated without any flow computation. This demonstrates how the reduction quickly handles the obvious cases.
+
+\section{Exercises}
+
+\subsection{Drill}
+
+\begin{enumerate}
+\item For the flow network with edges s$\to $a(10), s$\to $b(5), a$\to $b(15), a$\to $t(5), b$\to $t(10), find the maximum flow from s to t using Ford-Fulkerson. Show the augmenting path and residual network at each step.
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the min-cut value in the network above? Which edges are in the min-cut?
+\end{enumerate}
+
+\begin{enumerate}
+\item For bipartite matching: given left set {A, B, C}, right set {X, Y, Z}, and edges A-X, A-Y, B-Y, C-Z, find the maximum matching. What is the matching size?
+\end{enumerate}
+
+\begin{enumerate}
+\item Show that the max-flow min-cut theorem holds for the network from Exercise 1: compute the min-cut capacity and verify it equals the max-flow value.
+\end{enumerate}
+
+\begin{enumerate}
+\item What is the time complexity of:
+\end{enumerate}
+   a) Ford-Fulkerson with integer capacities
+   b) Dinic's algorithm on a general graph
+   c) Dinic's algorithm on a unit-capacity network
+   d) Edmonds-Karp (Ford-Fulkerson with BFS)
+
+\begin{enumerate}
+\item Trace Edmonds-Karp on the network: s$\to $a(4), s$\to $b(2), a$\to $b(2), a$\to $t(3), b$\to $t(5). Show the BFS augmenting path at each step, the residual graph, and the total flow.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a bipartite graph with left set \{1, 2, 3, 4\} and right set \{A, B, C\}, edges: 1-A, 1-B, 2-B, 2-C, 3-A, 3-C, 4-B. Find the maximum matching using the flow reduction. Which left vertex is unmatched?
+\end{enumerate}
+
+\begin{enumerate}
+\item In the airline crew assignment example from this chapter (3 flights, 2 crews), prove that cost 14 is optimal by showing no assignment achieves cost 13 or less.
+\end{enumerate}
+
+\begin{enumerate}
+\item Construct a 5-vertex flow network where Edmonds-Karp requires exactly 5 augmentations. List the edges and capacities, then trace each augmentation showing the BFS path chosen and the bottleneck.
+\end{enumerate}
+
+\begin{enumerate}
+\item For the min-cost flow network: s$\to $a(3, cost 2), a$\to $b(2, cost 3), b$\to $t(3, cost 1), s$\to $b(1, cost 5), a$\to $t(2, cost 4). Find the min-cost flow of value 3. Show each augmentation step.
+\end{enumerate}
+
+\subsection{Application}
+
+\begin{enumerate}
+\item Implement the \textbf{Edmonds-Karp algorithm} (Ford-Fulkerson with BFS). Compare its performance with Dinic on random networks of various sizes. Does BFS guarantee O(V$\cdot $E$^{2}$) in practice?
+\end{enumerate}
+
+\begin{enumerate}
+\item Use maximum flow to find the \textbf{maximum matching in a general graph} (reduction to flow). Compare with the Hopcroft-Karp algorithm for bipartite graphs.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \textbf{min-cost max-flow} algorithm using successive shortest augmenting paths (with potentials). Find the cheapest flow of a given amount through a network with per-unit costs on edges.
+\end{enumerate}
+
+\begin{enumerate}
+\item Solve the \textbf{baseball elimination} problem using max flow: given league standings and remaining games, determine if a team can still finish first. Test on real baseball data.
+\end{enumerate}
+
+\begin{enumerate}
+\item Model the \textbf{image segmentation} problem as a min-cut: each pixel is a node with edges to source (foreground probability) and sink (background probability). Cut edges between dissimilar pixels. Implement for a small grayscale image.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{Dinic's algorithm} with scaling (capacity scaling Dinic). Compare its performance with standard Dinic on networks with large capacities.
+\end{enumerate}
+
+\begin{enumerate}
+\item Use max flow to find the \textbf{edge connectivity} of a graph (size of the minimum edge cut). Compute it for the graph in Chapter 12, Exercise 1.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement the \textbf{airline crew assignment} system using min-cost max-flow. Given a list of flights with departure/arrival cities and times, and a list of crews with qualifications, find the minimum-cost assignment covering all flights. Test on a dataset of 20 flights and 8 crews.
+\end{enumerate}
+
+\begin{enumerate}
+\item Build an \textbf{image segmentation} tool using graph cuts. Given a grayscale image, allow the user to mark some pixels as foreground/background (seeds), then segment the rest using min-cut. Test on a 100x100 image.
+\end{enumerate}
+
+\begin{enumerate}
+\item Implement \textbf{baseball elimination} for an entire league. For each team, compute whether it is eliminated and, if so, identify the subset of teams that certifies the elimination. Test on the 2023 American League standings.
+\end{enumerate}
+
+\begin{enumerate}
+\item Given a \textbf{bipartite graph} representing job applicants and jobs, implement a system that finds not just the maximum matching but also lists all maximum matchings. How many maximum matchings exist in a 5x5 complete bipartite graph?
+\end{enumerate}
+
+\begin{enumerate}
+\item Extend the \textbf{min-cost max-flow} solver to handle edge lower bounds. Given a network where each edge must carry at least L units and at most U units of flow, find a feasible flow\index{feasible flow} satisfying all lower bounds, then optimize cost. This models real transportation networks with minimum service requirements.
+\end{enumerate}
+
+\subsection{Research}
+
+\begin{enumerate}
+\item \textbf{(Push-Relabel)} Implement the Push-Relabel algorithm (Goldberg-Tarjan) for max flow. Compare its performance with Dinic on large networks. Which is faster in practice?
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Global min-cut)} Implement the Stoer-Wagner algorithm for global minimum cut (not just s-t). Compare with running V-1 max-flow computations.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Unit capacity networks)} Prove that Dinic runs in O(min(V\textasciicircum{}(2/3), $\sqrt {E}$) $\cdot $ E) on unit-capacity networks. Implement and verify experimentally.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{(Max flow applications)} Research the reduction of the \textbf{circulation with demands} problem to max flow. Implement a solver for the problem: given supplies and demands at nodes, find a feasible flow.
+\end{enumerate}
+\section{References and Further Reading}
+
+\begin{itemize}
+\item Thomas H. Cormen et al., \textit{Introduction to Algorithms}, 4th Edition. Chapter 24 (max flow).
+\item L. R. Ford Jr. and D. R. Fulkerson, "Maximal Flow through a Communication Network" — Canadian Journal of Mathematics, 1956.
+\item E. A. Dinic, "Algorithm for Solution of a Problem of Maximum Flow in a Network with Power Estimation" — Soviet Math. Doklady, 1970.
+\item Jack Edmonds and Richard M. Karp, "Theoretical Improvements in Algorithmic Efficiency for Network Flow Problems" — JACM, 1972.
+\item Andrew V. Goldberg and Robert E. Tarjan, "A New Approach to the Maximum-Flow Problem" — JACM, 1988.
+\item Ravindra K. Ahuja, Thomas L. Magnanti, and James B. Orlin, \textit{Network Flows: Theory, Algorithms, and Applications}. Prentice Hall, 1993.
+\item Mehdi Stoer and Frank Wagner, "A Simple Min-Cut Algorithm" — JACM, 1997.
+\item John E. Hopcroft and Richard M. Karp, "An n\textasciicircum{}(5/2) Algorithm for Maximum Matchings in Bipartite Graphs" — SIAM Journal on Computing, 1973.
+\end{itemize}
+

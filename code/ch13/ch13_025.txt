@@ -1,0 +1,30 @@
+Index:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+Char:   a b b a $ b a b a a  b  b  a  b  b  a
+Z[i]:   - 0 0 0 - 1 0 2 0 1  2  0  0  4  0  0  0
+
+i=1: 'b' vs 'a' -> Z[1]=0
+i=2: 'b' vs 'a' -> Z[2]=0
+i=3: 'a' vs 'a' -> Z[3]=0 ('a'=='a' but 'a'!='b')
+i=5: 'b' vs 'a' -> Z[5]=1 (wait, recheck)
+  Actually "b" vs "a": Z[5]=0. Corrected:
+  i=5: Z[5]=0 ('b'!='a')
+  i=6: 'a'=='a' -> Z[6]=1 ('a'=='a', next 'b'!='b'?)
+  "abba" vs "bab..." -> 'a'!='b' -> Z[6]=0
+
+Corrected Z-array:
+  a b b a $ b a b a a  b  b  a  b  b  a
+  - 0 0 0 - 0 0 2 0 0  3  0  0  4  0  0  0
+
+i=7: "abba" vs "abba" -> Z[7]=2 ('a','b'=='a','b';
+    next 'a'!='i' -- wait, s[2]='b' vs s[9]='a')
+    "ab" match -> Z[7]=2
+
+i=13: "abba" vs "abba" -> Z[13]=4 (full match)
+
+Matches at positions where Z[i] == m (=4):
+  pos 13 - 4 - 1 = 8 (text position 8)
+
+But pattern "abba" occurs at text positions 8 in "babaabbabba"?
+Text:  b a b a a b b a b b a
+       0 1 2 3 4 5 6 7 8 9 10 11
+At pos 8: "abba" = text[8..11] -> a b b a. Yes!

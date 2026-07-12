@@ -1,0 +1,10 @@
+Array: [12, 18, 24, 36, 48, 60]
+
+Query gcd(1, 4): range = [18, 24, 36, 48]
+  k = floor(log2(4)) = 2
+  gcd(st[1][2], st[3][2])
+    st[1][2] = gcd(18, 24, 36, 48) = 6
+    st[3][2] = gcd(36, 48) = 12  (note: intervals overlap at 36, 48)
+  gcd(6, 12) = 6
+
+Check: gcd(18, 24, 36, 48) = 6 (OK)
