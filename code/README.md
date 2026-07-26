@@ -1,4 +1,4 @@
-# Code Examples — Data Structures, Algorithms, and Applications in C++ (3rd Ed.)
+# Code Examples — Data Structures, Algorithms, and Applications in C++
 
 This directory contains complete, compilable implementations of all data structures and algorithms covered in the book.
 

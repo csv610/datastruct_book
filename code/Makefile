@@ -1,7 +1,7 @@
 CXX      := c++
 CXXFLAGS := -std=c++20 -Wall -Wextra -O2
 
-TESTS := test_ch04_array_list test_ch05_linked_list
+TESTS := ch01_test ch02_test ch03_test ch04_test ch05_test ch06_test ch07_test
 
 .PHONY: all test clean
 
@@ -10,11 +10,26 @@ all: $(TESTS)
 test: $(TESTS)
 	@for t in $(TESTS); do echo "Running $$t..."; ./$$t; done
 
-test_ch04_array_list: test_ch04_array_list.cpp ch04_array_list.h
-	$(CXX) $(CXXFLAGS) -o $@ test_ch04_array_list.cpp
+ch01_test: ch01_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
-test_ch05_linked_list: test_ch05_linked_list.cpp ch05_linked_list.h
-	$(CXX) $(CXXFLAGS) -o $@ test_ch05_linked_list.cpp
+ch02_test: ch02_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+ch03_test: ch03_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+ch04_test: ch04_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+ch05_test: ch05_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+ch06_test: ch06_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+ch07_test: ch07_test.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:
 	rm -f $(TESTS)
