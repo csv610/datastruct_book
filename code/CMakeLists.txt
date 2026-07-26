@@ -79,6 +79,19 @@ set(TESTS
     test_skew_heap
     test_min_max_heap
     test_orthogonal_range_tree
+    test_bplus_tree
+    test_two_three_four_tree
+    test_ab_tree
+    test_veb_tree
+    test_doubly_linked_list
+    test_scapegoat_tree
+    test_aa_tree
+    test_llrb_tree
+    test_r_tree
+    test_quadtree
+    test_x_fast_trie
+    test_interval_heap
+    test_merkle_tree
 )
 
 foreach(T ${TESTS})
