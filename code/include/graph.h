@@ -163,6 +163,77 @@ public:
         return result;
     }
 
+    // ---- Bellman-Ford (handles negative weights, detects negative cycles) ----
+    // Returns empty vector if negative cycle detected
+    std::vector<Weight> bellman_ford(std::size_t start) const {
+        std::size_t n = adj_.size();
+        std::vector<Weight> dist(n, std::numeric_limits<Weight>::max());
+        dist[start] = Weight{};
+
+        for (std::size_t iter = 0; iter < n; ++iter) {
+            bool changed = false;
+            for (std::size_t v = 0; v < n; ++v) {
+                if (dist[v] == std::numeric_limits<Weight>::max()) continue;
+                for (const auto& [to, w] : adj_[v]) {
+                    if (dist[v] + w < dist[to]) {
+                        dist[to] = dist[v] + w;
+                        changed = true;
+                    }
+                }
+            }
+            if (!changed) break;
+            if (iter == n - 1) return {};  // negative cycle
+        }
+        return dist;
+    }
+
+    // ---- Floyd-Warshall (all-pairs shortest paths) ----
+    // Returns empty matrix if negative cycle exists
+    std::vector<std::vector<Weight>> floyd_warshall() const {
+        std::size_t n = adj_.size();
+        auto inf = std::numeric_limits<Weight>::max();
+        std::vector<std::vector<Weight>> dist(n, std::vector<Weight>(n, inf));
+
+        for (std::size_t i = 0; i < n; ++i) dist[i][i] = Weight{};
+
+        for (std::size_t v = 0; v < n; ++v)
+            for (const auto& [to, w] : adj_[v])
+                dist[v][to] = w;
+
+        for (std::size_t k = 0; k < n; ++k)
+            for (std::size_t i = 0; i < n; ++i)
+                for (std::size_t j = 0; j < n; ++j)
+                    if (dist[i][k] != inf && dist[k][j] != inf)
+                        if (dist[i][k] + dist[k][j] < dist[i][j])
+                            dist[i][j] = dist[i][k] + dist[k][j];
+
+        for (std::size_t i = 0; i < n; ++i)
+            if (dist[i][i] < Weight{}) return {};
+
+        return dist;
+    }
+
+    // ---- Cycle detection (directed graph) ----
+    bool has_cycle() const {
+        std::size_t n = adj_.size();
+        enum State { Unvisited, InStack, Done };
+        std::vector<State> state(n, Unvisited);
+
+        std::function<bool(std::size_t)> dfs_cycle = [&](std::size_t v) -> bool {
+            state[v] = InStack;
+            for (const auto& [to, _] : adj_[v]) {
+                if (state[to] == InStack) return true;
+                if (state[to] == Unvisited && dfs_cycle(to)) return true;
+            }
+            state[v] = Done;
+            return false;
+        };
+
+        for (std::size_t v = 0; v < n; ++v)
+            if (state[v] == Unvisited && dfs_cycle(v)) return true;
+        return false;
+    }
+
 private:
     std::vector<std::vector<edge>> adj_;
 };

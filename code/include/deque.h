@@ -140,38 +140,22 @@ class Deque {
     if (idx == 0) { push_front(value); return; }
     if (idx == size_) { push_back(value); return; }
     if (size_ == capacity()) grow();
-    if (idx <= size_ / 2) {
-      push_front(data_[mod(begin_)]);
-      for (std::size_t i = 0; i < idx - 1; ++i) {
-        data_[mod(begin_ + i)] = data_[mod(begin_ + i + 2)];
-      }
-      data_[mod(begin_ + idx)] = value;
-    } else {
-      push_back(data_[mod(end_ - 1)]);
-      for (std::size_t i = size_ - 1; i > idx; --i) {
-        data_[mod(begin_ + i)] = data_[mod(begin_ + i)];
-      }
-      data_[mod(begin_ + idx)] = value;
+    for (std::size_t i = size_; i > idx; --i) {
+      data_[mod(begin_ + i)] = std::move(data_[mod(begin_ + i - 1)]);
     }
+    data_[mod(begin_ + idx)] = value;
+    ++size_;
   }
 
   void erase(std::size_t idx) {
     if (idx >= size_) throw std::out_of_range("Deque::erase");
     if (idx == 0) { pop_front(); return; }
     if (idx == size_ - 1) { pop_back(); return; }
-    if (idx < size_ / 2) {
-      for (std::size_t i = idx; i > 0; --i) {
-        data_[mod(begin_ + i)] = std::move(data_[mod(begin_ + i - 1)]);
-      }
-      data_[begin_].~T();
-      begin_ = mod(begin_ + 1);
-    } else {
-      for (std::size_t i = idx; i < size_ - 1; ++i) {
-        data_[mod(begin_ + i)] = std::move(data_[mod(begin_ + i + 1)]);
-      }
-      end_ = mod(end_ - 1);
-      data_[end_].~T();
+    for (std::size_t i = idx; i < size_ - 1; ++i) {
+      data_[mod(begin_ + i)] = std::move(data_[mod(begin_ + i + 1)]);
     }
+    end_ = mod(end_ - 1);
+    data_[end_].~T();
     --size_;
   }
 

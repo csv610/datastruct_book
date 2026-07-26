@@ -63,7 +63,7 @@ ctest
 | Header | Data Structures / Algorithms |
 |--------|------------------------------|
 | `array_list.h` | Dynamic array list |
-| `linked_list.h` | Singly & doubly linked lists |
+| `linked_list.h` | Singly linked list with unique_ptr, iterators, reverse |
 | `sparse_matrix.h` | Sparse matrix (CSR/COO), transpose, matrix-vector multiply |
 | `sparse_vector.h` | Sparse vector (dot, add, sub, scale) |
 | `stacks.h` | Array-based & linked stacks |
@@ -71,7 +71,7 @@ ctest
 | `deque.h` | Double-ended deque (circular buffer) |
 | `bit_vector.h` | Bit vector (popcount, find_first/next, bitwise ops) |
 | `hash_table.h` | Hash table with separate chaining |
-| `binary_tree.h` | Binary tree traversals |
+| `binary_tree.h` | Binary tree traversals, BST insert/erase/find |
 | `max_heap.h` | Max-heap & heap sort |
 | `binomial_heap.h` | Binomial heap (mergeable) |
 | `fibonacci_heap.h` | Fibonacci heap (amortized O(1) decrease-key) |
@@ -82,10 +82,10 @@ ctest
 | `two_three_tree.h` | 2-3 tree (B-tree variant) |
 | `suffix_tree.h` | Suffix tree (naive O(n²) construction) |
 | `radix_tree.h` | Radix/Patricia trie (compressed) |
-| `graph.h` | Adjacency list graph, BFS, DFS, topological sort |
+| `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST |
 | `suffix_array.h` | Suffix array, LCP, substring search |
 | `fenwick_segment.h` | Fenwick tree, segment tree, union-find |
-| `sorting.h` | Insertion, merge, quick, heap, introsort |
+| `sorting.h` | Insertion, merge, quick sort, quickselect, counting sort, radix sort, bucket sort |
 | `bloom_filter.h` | Bloom filter, Count-Min sketch |
 | `dinic.h` | Dinic's max-flow algorithm |
 

@@ -30,6 +30,16 @@ set(TESTS
     test_radix_tree
     test_sparse_vector
     test_bit_vector
+    test_linked_list
+    test_binary_tree
+    test_graph
+    test_sorting
+    test_stacks
+    test_queues
+    test_hash_table
+    test_fenwick_segment
+    test_bloom_filter
+    test_dinic
 )
 
 foreach(TEST ${TESTS})

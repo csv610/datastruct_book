@@ -129,6 +129,42 @@ public:
                                     inorder.size() - 1));
     }
 
+    // ---- BST operations ----
+    bool contains(const T& value) const {
+        return find_node(root_.get(), value) != nullptr;
+    }
+
+    const T* find(const T& value) const {
+        auto* n = find_node(root_.get(), value);
+        return n ? &n->data : nullptr;
+    }
+
+    void insert(const T& value) {
+        insert_node(root_, value);
+    }
+
+    void insert(T&& value) {
+        insert_node(root_, std::move(value));
+    }
+
+    bool erase(const T& value) {
+        return erase_node(root_, value);
+    }
+
+    const T* min() const {
+        if (!root_) return nullptr;
+        auto* n = root_.get();
+        while (n->left) n = n->left.get();
+        return &n->data;
+    }
+
+    const T* max() const {
+        if (!root_) return nullptr;
+        auto* n = root_.get();
+        while (n->right) n = n->right.get();
+        return &n->data;
+    }
+
 private:
     static node_ptr build_ip(std::span<const T> inorder,
                              std::span<const T> preorder,
@@ -155,6 +191,48 @@ private:
     static std::size_t size(binary_node<T>* n) {
         if (!n) return 0;
         return 1 + size(n->left.get()) + size(n->right.get());
+    }
+
+    static binary_node<T>* find_node(binary_node<T>* n, const T& value) {
+        while (n) {
+            if (value < n->data) n = n->left.get();
+            else if (n->data < value) n = n->right.get();
+            else return n;
+        }
+        return nullptr;
+    }
+
+    static void insert_node(node_ptr& n, const T& value) {
+        if (!n) {
+            n = std::make_unique<binary_node<T>>(value);
+            return;
+        }
+        if (value < n->data) insert_node(n->left, value);
+        else if (n->data < value) insert_node(n->right, value);
+    }
+
+    static void insert_node(node_ptr& n, T&& value) {
+        if (!n) {
+            n = std::make_unique<binary_node<T>>(std::move(value));
+            return;
+        }
+        if (value < n->data) insert_node(n->left, value);
+        else if (n->data < value) insert_node(n->right, value);
+    }
+
+    static bool erase_node(node_ptr& n, const T& value) {
+        if (!n) return false;
+        if (value < n->data) return erase_node(n->left, value);
+        if (n->data < value) return erase_node(n->right, value);
+        if (n->left && n->right) {
+            auto* succ = n->right.get();
+            while (succ->left) succ = succ->left.get();
+            n->data = succ->data;
+            return erase_node(n->right, n->data);
+        }
+        auto child = std::move(n->left ? n->left : n->right);
+        n = std::move(child);
+        return true;
     }
 
     template <typename Visitor>

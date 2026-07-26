@@ -163,7 +163,7 @@ class SparseMatrix {
   typename std::vector<Triplet>::iterator lower_bound_triplet(
       std::size_t r, std::size_t c) {
     return std::lower_bound(
-        triplets_.end(), triplets_.end(), Triplet{r, c, T{}},
+        triplets_.begin(), triplets_.end(), Triplet{r, c, T{}},
         [](const Triplet& a, const Triplet& b) {
           return a.row < b.row || (a.row == b.row && a.col < b.col);
         });

@@ -2,6 +2,7 @@
 #define LINKED_LIST_H
 
 #include <concepts>
+#include <cstddef>
 #include <initializer_list>
 #include <memory>
 #include <stdexcept>
@@ -34,14 +35,17 @@ public:
     }
 
     linked_list(const linked_list& other) : size_(0) {
-        node<T>* src = other.head_.get();
-        node<T>** dst = &head_;
+        if (!other.head_) return;
+        head_ = std::make_unique<node<T>>(other.head_->data);
+        auto dst = head_.get();
+        auto src = other.head_->next.get();
         while (src) {
-            *dst = std::make_unique<node<T>>(src->data);
-            dst  = &(*dst)->next;
-            src  = src->next.get();
+            dst->next = std::make_unique<node<T>>(src->data);
+            dst = dst->next.get();
+            src = src->next.get();
             ++size_;
         }
+        ++size_;
     }
 
     linked_list& operator=(const linked_list& other) {
@@ -77,6 +81,15 @@ public:
         return cur->data;
     }
 
+    const_reference back() const {
+        if (empty())
+            throw std::underflow_error("list is empty");
+        auto* cur = head_.get();
+        while (cur->next)
+            cur = cur->next.get();
+        return cur->data;
+    }
+
     size_type size()  const noexcept { return size_; }
     bool      empty() const noexcept { return size_ == 0; }
 
@@ -96,13 +109,27 @@ public:
 
     void push_back(const T& value) {
         auto n = std::make_unique<node<T>>(value);
-        *get_tail_ptr() = std::move(n);
+        if (!head_) {
+            head_ = std::move(n);
+        } else {
+            auto* tail = head_.get();
+            while (tail->next)
+                tail = tail->next.get();
+            tail->next = std::move(n);
+        }
         ++size_;
     }
 
     void push_back(T&& value) {
         auto n = std::make_unique<node<T>>(std::move(value));
-        *get_tail_ptr() = std::move(n);
+        if (!head_) {
+            head_ = std::move(n);
+        } else {
+            auto* tail = head_.get();
+            while (tail->next)
+                tail = tail->next.get();
+            tail->next = std::move(n);
+        }
         ++size_;
     }
 
@@ -166,13 +193,6 @@ public:
     iterator end()   noexcept { return iterator(nullptr); }
 
 private:
-    node<T>** get_tail_ptr() {
-        auto p = &head_;
-        while (*p)
-            p = &(*p)->next;
-        return p;
-    }
-
     std::unique_ptr<node<T>> head_;
     size_type                size_ = 0;
 };
