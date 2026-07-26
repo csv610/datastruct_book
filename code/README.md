@@ -9,7 +9,10 @@ code/
 ├── include/           # Header-only libraries
 │   ├── ch04_array_list.h
 │   ├── ch05_linked_list.h
-│   ├── ch08_stacks.h
+│   ├── ch05_sparse_matrix.h
+│   ├── ch06_stacks.h
+│   ├── ch07_queues.h
+│   ├── ch07_deque.h
 │   └── ...
 ├── tests/             # Unit tests and usage examples
 │   ├── ch01_test.cpp
@@ -52,18 +55,21 @@ ctest
 |--------|------------------------------|
 | `ch04_array_list.h` | Dynamic array list |
 | `ch05_linked_list.h` | Singly & doubly linked lists |
-| `ch08_stacks.h` | Array-based & linked stacks |
-| `ch09_queues.h` | Circular & linked queues |
-| `ch10_hash_table.h` | Hash table with separate chaining |
-| `ch11_binary_tree.h` | Binary tree traversals |
-| `ch12_max_heap.h` | Max-heap & heap sort |
-| `ch15_avl_tree.h` | AVL balanced search tree |
-| `ch16_graph.h` | Adjacency list graph, BFS, DFS, topological sort |
-| `ch17_fenwick_segment.h` | Fenwick tree, segment tree, union-find |
+| `ch05_sparse_matrix.h` | Sparse matrix (CSR/COO), transpose, matrix-vector multiply |
+| `ch06_stacks.h` | Array-based & linked stacks |
+| `ch07_queues.h` | Circular & linked queues |
+| `ch07_deque.h` | Double-ended deque (circular buffer) |
+| `ch08_hash_table.h` | Hash table with separate chaining |
+| `ch09_binary_tree.h` | Binary tree traversals |
+| `ch10_max_heap.h` | Max-heap & heap sort |
+| `ch11_avl_tree.h` | AVL balanced search tree |
+| `ch11_red_black_tree.h` | Red-black tree (insert, delete, search) |
+| `ch12_graph.h` | Adjacency list graph, BFS, DFS, topological sort |
+| `ch13_suffix_array.h` | Suffix array, LCP, substring search |
+| `ch14_fenwick_segment.h` | Fenwick tree, segment tree, union-find |
+| `ch16_sorting.h` | Insertion, merge, quick, heap, introsort |
 | `ch19_bloom_filter.h` | Bloom filter, Count-Min sketch |
 | `ch20_dinic.h` | Dinic's max-flow algorithm |
-| `ch21_sorting.h` | Insertion, merge, quick, heap, introsort |
-| `ch22_string_algorithms.h` | KMP, Rabin-Karp, suffix array, LCP |
 
 ## Notes
 
