@@ -27,8 +27,8 @@ DataStruct/
 │   ├── chapters/      # Per-chapter .tex files
 │   └── book.pdf       # Compiled PDF (873 pages)
 ├── code/              # C++ implementations and tests
-│   ├── *.h            # Header-only data structure implementations
-│   ├── *_test.cpp     # Unit tests and usage examples
+│   ├── include/       # Header-only data structure libraries
+│   ├── tests/         # Unit tests and usage examples
 │   ├── CMakeLists.txt # CMake build
 │   └── Makefile       # GNU Make build
 └── books/             # Reference PDFs
