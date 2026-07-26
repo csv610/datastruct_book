@@ -106,14 +106,23 @@ make clean    # Remove build artifacts
 | `array_list.h` | Dynamic array list |
 | `linked_list.h` | Singly & doubly linked lists |
 | `sparse_matrix.h` | Sparse matrix (CSR/COO), transpose, matrix-vector multiply |
+| `sparse_vector.h` | Sparse vector (dot, add, sub, scale) |
 | `stacks.h` | Array-based & linked stacks |
 | `queues.h` | Circular & linked queues |
 | `deque.h` | Double-ended deque (circular buffer) |
+| `bit_vector.h` | Bit vector (popcount, find_first/next, bitwise ops) |
 | `hash_table.h` | Hash table with separate chaining |
 | `binary_tree.h` | Binary tree traversals |
 | `max_heap.h` | Max-heap & heap sort |
+| `binomial_heap.h` | Binomial heap (mergeable) |
+| `fibonacci_heap.h` | Fibonacci heap (amortized O(1) decrease-key) |
+| `pairing_heap.h` | Pairing heap (simple, practical) |
 | `avl_tree.h` | AVL balanced search tree |
 | `red_black_tree.h` | Red-black tree (insert, delete, search) |
+| `splay_tree.h` | Splay tree (self-adjusting BST) |
+| `two_three_tree.h` | 2-3 tree (B-tree variant) |
+| `suffix_tree.h` | Suffix tree (naive O(n²) construction) |
+| `radix_tree.h` | Radix/Patricia trie (compressed) |
 | `graph.h` | Adjacency list graph, BFS, DFS, topological sort |
 | `suffix_array.h` | Suffix array, LCP, substring search |
 | `fenwick_segment.h` | Fenwick tree, segment tree, union-find |

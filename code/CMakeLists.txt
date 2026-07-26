@@ -16,20 +16,27 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 enable_testing()
 
 set(TESTS
-    ch01_test
-    ch02_test
-    ch03_test
-    ch04_test
-    ch05_test
-    ch06_test
-    ch07_test
+    test_array_list
     test_deque
     test_red_black_tree
     test_sparse_matrix
     test_suffix_array
+    test_binomial_heap
+    test_fibonacci_heap
+    test_pairing_heap
+    test_splay_tree
+    test_two_three_tree
+    test_suffix_tree
+    test_radix_tree
+    test_sparse_vector
+    test_bit_vector
 )
 
 foreach(TEST ${TESTS})
-    add_executable(${TEST} tests/${TEST}.cpp)
+    if(TEST STREQUAL "test_array_list")
+        add_executable(${TEST} tests/test_ch04_array_list.cpp)
+    else()
+        add_executable(${TEST} tests/${TEST}.cpp)
+    endif()
     add_test(NAME ${TEST} COMMAND ${TEST})
 endforeach()
