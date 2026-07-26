@@ -1,8 +1,8 @@
 #include "skip_list.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
     dsa::skip_list<int> sl;
@@ -38,6 +38,6 @@ int main() {
     auto s = ssl.to_sorted_vector();
     assert(s[0] == "apple" && s[1] == "banana" && s[2] == "cherry");
 
-    std::cout << "All skip list tests passed\n";
+    std::print("All skip list tests passed\n");
     return 0;
 }

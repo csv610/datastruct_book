@@ -1,8 +1,8 @@
 #include "suffix_array.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::SuffixArray sa("banana");
@@ -24,5 +24,5 @@ int main() {
   assert(idx[0] == 1);
   assert(idx[1] == 4);
 
-  std::cout << "suffix_array: all passed\n";
+  std::print("suffix_array: all passed\n");
 }

@@ -1,9 +1,9 @@
-#include <iostream>
 #include <vector>
 #include <memory>
 #include <cassert>
 #include <string>
 #include <algorithm>
+#include <print>
 
 // ch05: Arrays, Matrices, Sparse Representations
 
@@ -268,7 +268,7 @@ std::vector<double> thomas_algorithm(const std::vector<double>& a,  // sub-diago
 }
 
 void test_coo_matrix() {
-    std::cout << "=== Testing COO Matrix ===\n";
+    std::print("=== Testing COO Matrix ===\n");
     coo_matrix<double> m(4, 4);
     m.set(0, 0, 1.0); m.set(0, 2, 3.0);
     m.set(1, 1, 4.0); m.set(1, 3, 5.0);
@@ -285,17 +285,17 @@ void test_coo_matrix() {
     assert(y[1] == 28.0);
     assert(y[2] == 27.0);
     assert(y[3] == 52.0);
-    std::cout << "COO Matrix: PASS\n";
+    std::print("COO Matrix: PASS\n");
 }
 
 void test_csr_matrix() {
-    std::cout << "=== Testing CSR Matrix ===\n";
+    std::print("=== Testing CSR Matrix ===\n");
     // Simple test with known result
-    std::cout << "CSR Matrix: PASS (construction tested via COO)\n";
+    std::print("CSR Matrix: PASS (construction tested via COO)\n");
 }
 
 void test_bit_array() {
-    std::cout << "=== Testing Bit Array ===\n";
+    std::print("=== Testing Bit Array ===\n");
     bit_array ba(100);
     for (int i = 0; i < 100; i += 2) ba.set(i);
     assert(ba.count() == 50);
@@ -310,11 +310,11 @@ void test_bit_array() {
     b2.set(2); b2.set(4); b2.set(6);
     b1 &= b2;
     assert(b1.test(2) && b1.test(4) && !b1.test(0) && !b1.test(6));
-    std::cout << "Bit Array: PASS\n";
+    std::print("Bit Array: PASS\n");
 }
 
 void test_circular_buffer() {
-    std::cout << "=== Testing Circular Buffer ===\n";
+    std::print("=== Testing Circular Buffer ===\n");
     circular_buffer<int> cb(5);
     for (int i = 0; i < 10; ++i) cb.push(i);
     assert(cb.size() == 5);
@@ -327,11 +327,11 @@ void test_circular_buffer() {
         assert(val == i);
     }
     assert(cb.empty());
-    std::cout << "Circular Buffer: PASS\n";
+    std::print("Circular Buffer: PASS\n");
 }
 
 void test_gap_buffer() {
-    std::cout << "=== Testing Gap Buffer ===\n";
+    std::print("=== Testing Gap Buffer ===\n");
     gap_buffer<char> gb(100);
     gb.insert(0, 'H');
     gb.insert(1, 'i');
@@ -341,22 +341,22 @@ void test_gap_buffer() {
     assert(gb[0] == 'H' && gb[1] == 'e' && gb[2] == 'i');
     gb.erase(1);  // remove 'e'
     assert(gb[0] == 'H' && gb[1] == 'i');
-    std::cout << "Gap Buffer: PASS\n";
+    std::print("Gap Buffer: PASS\n");
 }
 
 void test_symmetric_matrix() {
-    std::cout << "=== Testing Symmetric Matrix ===\n";
+    std::print("=== Testing Symmetric Matrix ===\n");
     symmetric_matrix<double> sm(4);
     sm(0, 1) = 2.0;
     assert(sm(1, 0) == 2.0);
     sm(2, 3) = 5.0;
     assert(sm(3, 2) == 5.0);
     assert(sm(0, 0) == 0.0);
-    std::cout << "Symmetric Matrix: PASS\n";
+    std::print("Symmetric Matrix: PASS\n");
 }
 
 void test_thomas_algorithm() {
-    std::cout << "=== Testing Thomas Algorithm ===\n";
+    std::print("=== Testing Thomas Algorithm ===\n");
     // Simple tridiagonal system:
     // 2  1  0  0 | x0   3
     // 1  2  1  0 | x1 = 4
@@ -373,11 +373,11 @@ void test_thomas_algorithm() {
     assert(std::abs(x[1] - 1.0) < 1e-9);
     assert(std::abs(x[2] - 1.0) < 1e-9);
     assert(std::abs(x[3] - 1.0) < 1e-9);
-    std::cout << "Thomas Algorithm: PASS\n";
+    std::print("Thomas Algorithm: PASS\n");
 }
 
 int main() {
-    std::cout << "=== Chapter 5: Arrays, Matrices, Sparse Representations ===\n\n";
+    std::print("=== Chapter 5: Arrays, Matrices, Sparse Representations ===\n\n");
     test_coo_matrix();
     test_csr_matrix();
     test_bit_array();
@@ -385,6 +385,6 @@ int main() {
     test_gap_buffer();
     test_symmetric_matrix();
     test_thomas_algorithm();
-    std::cout << "\n=== All tests passed ===\n";
+    std::print("\n=== All tests passed ===\n");
     return 0;
 }

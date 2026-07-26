@@ -8,6 +8,7 @@
 #include <functional>
 #include <cassert>
 #include <unordered_map>
+#include <print>
 
 // ch06: Stacks
 
@@ -203,7 +204,7 @@ int factorial_stack(int n) {
 }
 
 void test_basic_stack() {
-    std::cout << "=== Testing Basic Stack ===\n";
+    std::print("=== Testing Basic Stack ===\n");
     stack<int> s;
     s.push(1); s.push(2); s.push(3);
     assert(s.size() == 3);
@@ -212,11 +213,11 @@ void test_basic_stack() {
     assert(s.top() == 2);
     s.pop(); s.pop();
     assert(s.empty());
-    std::cout << "Basic Stack: PASS\n";
+    std::print("Basic Stack: PASS\n");
 }
 
 void test_min_stack() {
-    std::cout << "=== Testing Min Stack ===\n";
+    std::print("=== Testing Min Stack ===\n");
     min_stack<int> ms;
     ms.push(5); ms.push(3); ms.push(7); ms.push(2);
     assert(ms.min() == 2);
@@ -224,56 +225,56 @@ void test_min_stack() {
     assert(ms.min() == 3);
     ms.pop(); ms.pop();
     assert(ms.min() == 5);
-    std::cout << "Min Stack: PASS\n";
+    std::print("Min Stack: PASS\n");
 }
 
 void test_balanced_symbols() {
-    std::cout << "=== Testing Balanced Symbols ===\n";
+    std::print("=== Testing Balanced Symbols ===\n");
     assert(balanced_symbols("()"));
     assert(balanced_symbols("([])"));
     assert(balanced_symbols("{[()]}"));
     assert(!balanced_symbols("("));
     assert(!balanced_symbols("([)]"));
     assert(!balanced_symbols("]"));
-    std::cout << "Balanced Symbols: PASS\n";
+    std::print("Balanced Symbols: PASS\n");
 }
 
 void test_postfix() {
-    std::cout << "=== Testing Postfix Evaluation ===\n";
+    std::print("=== Testing Postfix Evaluation ===\n");
     // 3 4 + 2 * = (3+4)*2 = 14
     assert(evaluate_postfix("34+2*") == 14);
     // 5 1 2 + 4 * + 3 - = 5 + (1+2)*4 - 3 = 14
     assert(evaluate_postfix("512+4*+3-") == 14);
-    std::cout << "Postfix Evaluation: PASS\n";
+    std::print("Postfix Evaluation: PASS\n");
 }
 
 void test_infix_to_postfix() {
-    std::cout << "=== Testing Infix to Postfix ===\n";
+    std::print("=== Testing Infix to Postfix ===\n");
     assert(infix_to_postfix("3+4*2") == "342*+");
     assert(infix_to_postfix("(3+4)*2") == "34+2*");
     assert(infix_to_postfix("3+4*2/(1-5)") == "342*15-/+");
-    std::cout << "Infix to Postfix: PASS\n";
+    std::print("Infix to Postfix: PASS\n");
 }
 
 void test_largest_rectangle() {
-    std::cout << "=== Testing Largest Rectangle ===\n";
+    std::print("=== Testing Largest Rectangle ===\n");
     assert(largest_rectangle_area({2,1,5,6,2,3}) == 10);
     assert(largest_rectangle_area({2,4}) == 4);
     assert(largest_rectangle_area({1,2,3,4,5}) == 9);
-    std::cout << "Largest Rectangle: PASS\n";
+    std::print("Largest Rectangle: PASS\n");
 }
 
 void test_factorial_stack() {
-    std::cout << "=== Testing Factorial with Stack ===\n";
+    std::print("=== Testing Factorial with Stack ===\n");
     assert(factorial_stack(0) == 1);
     assert(factorial_stack(1) == 1);
     assert(factorial_stack(5) == 120);
     assert(factorial_stack(10) == 3628800);
-    std::cout << "Factorial Stack: PASS\n";
+    std::print("Factorial Stack: PASS\n");
 }
 
 void test_call_stack() {
-    std::cout << "=== Testing Call Stack Simulation ===\n";
+    std::print("=== Testing Call Stack Simulation ===\n");
     call_stack cs;
     cs.call("main", 0);
     cs.call("foo", 1);
@@ -283,11 +284,11 @@ void test_call_stack() {
     cs.ret();  // bar returns
     cs.call("qux", 4);
     // Stack: main, foo, qux
-    std::cout << "Call Stack: PASS\n";
+    std::print("Call Stack: PASS\n");
 }
 
 int main() {
-    std::cout << "=== Chapter 6: Stacks ===\n\n";
+    std::print("=== Chapter 6: Stacks ===\n\n");
     test_basic_stack();
     test_min_stack();
     test_balanced_symbols();
@@ -296,6 +297,6 @@ int main() {
     test_largest_rectangle();
     test_factorial_stack();
     test_call_stack();
-    std::cout << "\n=== All tests passed ===\n";
+    std::print("\n=== All tests passed ===\n");
     return 0;
 }

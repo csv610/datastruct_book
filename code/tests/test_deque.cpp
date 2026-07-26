@@ -1,7 +1,7 @@
 #include "deque.h"
 #include <cassert>
-#include <iostream>
 #include <string>
+#include <print>
 
 int main() {
   dsa::Deque<int> dq;
@@ -36,5 +36,5 @@ int main() {
   assert(copy.front() == 0);
   assert(copy.back() == 99);
 
-  std::cout << "deque: all passed\n";
+  std::print("deque: all passed\n");
 }

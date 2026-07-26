@@ -1,8 +1,8 @@
 #include "red_black_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::RedBlackTree<int> tree;
@@ -47,5 +47,5 @@ int main() {
   assert(copy.size() == tree.size());
   assert(copy.contains(15));
 
-  std::cout << "red_black_tree: all passed\n";
+  std::print("red_black_tree: all passed\n");
 }

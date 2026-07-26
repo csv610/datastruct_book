@@ -1,7 +1,7 @@
 #include "b_tree.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
     dsa::b_tree<int> bt(3);  // Order 3 B-tree (max 2 keys per node)
@@ -50,6 +50,6 @@ int main() {
     for (int i = 51; i <= 100; ++i)
         assert(bt2.contains(i));
 
-    std::cout << "All B-tree tests passed\n";
+    std::print("All B-tree tests passed\n");
     return 0;
 }

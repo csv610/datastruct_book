@@ -1,7 +1,7 @@
 #include "greedy.h"
 #include <cassert>
-#include <iostream>
 #include <string>
+#include <print>
 
 int main() {
     // Fractional knapsack
@@ -32,6 +32,6 @@ int main() {
         for (std::size_t j = i + 1; j < codes.size(); ++j)
             assert(codes[i].second != codes[j].second);
 
-    std::cout << "All greedy tests passed\n";
+    std::print("All greedy tests passed\n");
     return 0;
 }

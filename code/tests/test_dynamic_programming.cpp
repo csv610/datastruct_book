@@ -1,6 +1,6 @@
 #include "dynamic_programming.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
     // 0/1 Knapsack
@@ -59,6 +59,6 @@ int main() {
         assert(dsa::lis_length({7, 7, 7, 7}) == 1);
     }
 
-    std::cout << "All DP tests passed\n";
+    std::print("All DP tests passed\n");
     return 0;
 }

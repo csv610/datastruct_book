@@ -1,7 +1,7 @@
 #include "divide_conquer.h"
 #include <cassert>
 #include <cmath>
-#include <iostream>
+#include <print>
 
 int main() {
     // Closest pair of points
@@ -37,6 +37,6 @@ int main() {
         assert(static_cast<int>(C[1][1]) == 4);
     }
 
-    std::cout << "All divide & conquer tests passed\n";
+    std::print("All divide & conquer tests passed\n");
     return 0;
 }

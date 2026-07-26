@@ -1,7 +1,7 @@
 #include "hash_table.h"
 #include <cassert>
-#include <iostream>
 #include <string>
+#include <print>
 
 int main() {
   dsa::hash_table_chaining<std::string, int> ht;
@@ -40,5 +40,5 @@ int main() {
   ht.clear();
   assert(ht.empty());
 
-  std::cout << "hash_table: all passed\n";
+  std::print("hash_table: all passed\n");
 }

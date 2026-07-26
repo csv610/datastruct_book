@@ -1,7 +1,7 @@
 #include "open_addressing_hash.h"
 #include <cassert>
-#include <iostream>
 #include <string>
+#include <print>
 
 int main() {
     // Open addressing (linear probing)
@@ -69,6 +69,6 @@ int main() {
         assert(h.size() == 500);
     }
 
-    std::cout << "All open addressing hash tests passed\n";
+    std::print("All open addressing hash tests passed\n");
     return 0;
 }

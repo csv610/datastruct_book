@@ -1,6 +1,6 @@
 #include "bloom_filter.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
   dsa::bloom_filter<1024, 3> bf;
@@ -32,5 +32,5 @@ int main() {
   double rate = bf.false_positive_rate();
   assert(rate >= 0.0 && rate <= 1.0);
 
-  std::cout << "bloom_filter: all passed\n";
+  std::print("bloom_filter: all passed\n");
 }

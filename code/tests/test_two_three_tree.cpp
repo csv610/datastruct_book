@@ -1,8 +1,8 @@
 #include "two_three_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::TwoThreeTree<int> tree;
@@ -48,5 +48,5 @@ int main() {
   assert(copy.size() == tree.size());
   assert(copy.contains(15));
 
-  std::cout << "two_three_tree: all passed\n";
+  std::print("two_three_tree: all passed\n");
 }

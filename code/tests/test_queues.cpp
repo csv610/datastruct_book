@@ -1,6 +1,6 @@
 #include "queues.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
   dsa::circular_queue<int> cq;
@@ -34,5 +34,5 @@ int main() {
   assert(lq.size() == 50);
   assert(lq.front() == 0);
 
-  std::cout << "queues: all passed\n";
+  std::print("queues: all passed\n");
 }

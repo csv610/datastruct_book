@@ -1,8 +1,8 @@
 #include "splay_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::SplayTree<int> tree;
@@ -46,5 +46,5 @@ int main() {
   assert(copy.size() == tree.size());
   assert(copy.contains(15));
 
-  std::cout << "splay_tree: all passed\n";
+  std::print("splay_tree: all passed\n");
 }

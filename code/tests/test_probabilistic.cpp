@@ -1,8 +1,8 @@
 #include "probabilistic.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
     // Reservoir sampling
@@ -49,6 +49,6 @@ int main() {
         assert(cms.estimate("cherry") >= 0);  // may be 0 or small FP
     }
 
-    std::cout << "All probabilistic tests passed\n";
+    std::print("All probabilistic tests passed\n");
     return 0;
 }

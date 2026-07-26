@@ -5,12 +5,13 @@
 #include <random>
 #include <memory>
 #include <algorithm>
+#include <print>
 
 // ch03: Performance Measurement - Cache effects, memory hierarchy, profiling
 
 // 1. Cache line effect: sequential vs strided access
 void cache_line_demo() {
-    std::cout << "=== Cache Line Effect ===\n";
+    std::print("=== Cache Line Effect ===\n");
     const size_t N = 1000000;
     std::vector<int> arr(N, 1);
     
@@ -34,18 +35,18 @@ void cache_line_demo() {
 
 // 2. Memory hierarchy: L1 vs L2 vs L3 vs RAM
 void memory_hierarchy() {
-    std::cout << "=== Memory Hierarchy Latencies (approx) ===\n";
-    std::cout << "L1 cache:  ~1 ns (4-32 KB)\n";
-    std::cout << "L2 cache:  ~4 ns (256 KB - 1 MB)\n";
-    std::cout << "L3 cache:  ~15 ns (8-32 MB)\n";
-    std::cout << "RAM:      ~100 ns (GB)\n";
-    std::cout << "SSD:      ~50 µs\n";
-    std::cout << "Network:  ~1 ms\n\n";
+    std::print("=== Memory Hierarchy Latencies (approx) ===\n");
+    std::print("L1 cache:  ~1 ns (4-32 KB)\n");
+    std::print("L2 cache:  ~4 ns (256 KB - 1 MB)\n");
+    std::print("L3 cache:  ~15 ns (8-32 MB)\n");
+    std::print("RAM:      ~100 ns (GB)\n");
+    std::print("SSD:      ~50 µs\n");
+    std::print("Network:  ~1 ms\n\n");
 }
 
 // 3. Branch prediction
 void branch_prediction() {
-    std::cout << "=== Branch Prediction ===\n";
+    std::print("=== Branch Prediction ===\n");
     const size_t N = 10000000;
     std::vector<int> data(N);
     std::mt19937 gen(42);
@@ -75,15 +76,15 @@ void branch_prediction() {
 
 // 4. False sharing in multithreading (conceptual)
 void false_sharing_concept() {
-    std::cout << "=== False Sharing (Conceptual) ===\n";
-    std::cout << "Two threads writing to adjacent variables on same cache line\n";
-    std::cout << "causes cache line ping-pong, killing performance\n";
-    std::cout << "Solution: alignas(64) or padding to separate cache lines\n\n";
+    std::print("=== False Sharing (Conceptual) ===\n");
+    std::print("Two threads writing to adjacent variables on same cache line\n");
+    std::print("causes cache line ping-pong, killing performance\n");
+    std::print("Solution: alignas(64) or padding to separate cache lines\n\n");
 }
 
 // 5. Vectorization / SIMD
 void vectorization() {
-    std::cout << "=== Vectorization (SIMD) ===\n";
+    std::print("=== Vectorization (SIMD) ===\n");
     const size_t N = 1000000;
     std::vector<float> a(N, 1.5f), b(N, 2.5f), c(N);
     
@@ -107,26 +108,26 @@ void vectorization() {
 
 // 6. Prefetching
 void prefetch_demo() {
-    std::cout << "=== Software Prefetching ===\n";
-    std::cout << "__builtin_prefetch(addr, rw, locality)\n";
-    std::cout << "rw: 0=read, 1=write\n";
-    std::cout << "locality: 0=none, 1=low, 2=medium, 3=high\n\n";
+    std::print("=== Software Prefetching ===\n");
+    std::print("__builtin_prefetch(addr, rw, locality)\n");
+    std::print("rw: 0=read, 1=write\n");
+    std::print("locality: 0=none, 1=low, 2=medium, 3=high\n\n");
 }
 
 // 7. Profiling tools
 void profiling_tools() {
-    std::cout << "=== Profiling Tools ===\n";
-    std::cout << "perf record -g ./program     # Linux perf\n";
-    std::cout << "perf report                  # Analyze\n";
-    std::cout << "valgrind --tool=callgrind    # Call graph\n";
-    std::cout << "kcachegrind callgrind.out    # Visualize\n";
-    std::cout << "Intel VTune, AMD uProf       # Hardware counters\n";
-    std::cout << "gprof -pg                    # GNU profiler\n\n";
+    std::print("=== Profiling Tools ===\n");
+    std::print("perf record -g ./program     # Linux perf\n");
+    std::print("perf report                  # Analyze\n");
+    std::print("valgrind --tool=callgrind    # Call graph\n");
+    std::print("kcachegrind callgrind.out    # Visualize\n");
+    std::print("Intel VTune, AMD uProf       # Hardware counters\n");
+    std::print("gprof -pg                    # GNU profiler\n\n");
 }
 
 // 8. Memory allocation patterns
 void allocation_patterns() {
-    std::cout << "=== Allocation Patterns ===\n";
+    std::print("=== Allocation Patterns ===\n");
     
     // Bad: many small allocations
     auto start = std::chrono::high_resolution_clock::now();
@@ -152,7 +153,7 @@ void allocation_patterns() {
 }
 
 int main() {
-    std::cout << "=== Chapter 3: Performance Measurement ===\n\n";
+    std::print("=== Chapter 3: Performance Measurement ===\n\n");
     
     cache_line_demo();
     memory_hierarchy();
@@ -163,6 +164,6 @@ int main() {
     profiling_tools();
     allocation_patterns();
     
-    std::cout << "=== All tests passed ===\n";
+    std::print("=== All tests passed ===\n");
     return 0;
 }

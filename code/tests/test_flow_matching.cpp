@@ -1,6 +1,6 @@
 #include "flow_matching.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
     // Ford-Fulkerson
@@ -46,6 +46,6 @@ int main() {
         assert(bm.max_matching() == 1);
     }
 
-    std::cout << "All flow/matching tests passed\n";
+    std::print("All flow/matching tests passed\n");
     return 0;
 }

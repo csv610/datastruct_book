@@ -1,6 +1,6 @@
 #include "dinic.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
   dsa::dinic<int> d(6);
@@ -38,5 +38,5 @@ int main() {
   dsa::dinic<int> d5(3);
   assert(d5.max_flow(0, 2) == 0);
 
-  std::cout << "dinic: all passed\n";
+  std::print("dinic: all passed\n");
 }

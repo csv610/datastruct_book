@@ -1,7 +1,7 @@
 #include "leftist_tree.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
     dsa::leftist_tree<int> lt;
@@ -36,6 +36,6 @@ int main() {
     dsa::leftist_tree<int> empty;
     assert(empty.empty());
 
-    std::cout << "All leftist tree tests passed\n";
+    std::print("All leftist tree tests passed\n");
     return 0;
 }

@@ -1,7 +1,7 @@
 #include "graph.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::graph<int> g(5);
@@ -87,5 +87,5 @@ int main() {
   auto mst = dsa::kruskal_mst(4, {{0,1,1},{0,2,4},{1,2,2},{2,3,3}});
   assert(mst.size() == 3);
 
-  std::cout << "graph: all passed\n";
+  std::print("graph: all passed\n");
 }

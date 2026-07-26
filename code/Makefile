@@ -1,5 +1,5 @@
 CXX      := c++
-CXXFLAGS := -std=c++20 -Wall -Wextra -O2 -Iinclude
+CXXFLAGS := -std=c++23 -Wall -Wextra -O2 -Iinclude
 
 TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_suffix_array \
          test_binomial_heap test_fibonacci_heap test_pairing_heap \

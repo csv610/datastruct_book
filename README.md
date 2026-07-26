@@ -12,7 +12,7 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 
 ## Key Features
 
-- **C++20 throughout** — RAII, smart pointers, concepts, `std::span`, ranges, coroutines, `constexpr`
+- **C++23 throughout** — RAII, smart pointers, `std::print`, `std::mdspan`, `std::expected`, `std::ranges::to`, concepts, ranges
 - **Coverage gaps filled** — Probabilistic structures (Bloom filters, HyperLogLog), segment trees with lazy propagation, suffix arrays, Dinic's max-flow
 - **Performance measurement** — `std::chrono`, Google Benchmark, profiling tools as a first-class topic
 - **STL connections** — Every manual implementation compared with its standard library equivalent
@@ -77,7 +77,7 @@ DataStruct/
 
 ### Prerequisites
 
-- **C++20** compiler (GCC 11+, Clang 14+, Apple Clang 15+, or MSVC 2022 17+)
+- **C++23** compiler (GCC 14+, Clang 18+, Apple Clang 21+, or MSVC 2022 17+)
 - **CMake** 3.16+ (recommended) or **GNU Make**
 
 ### Using CMake

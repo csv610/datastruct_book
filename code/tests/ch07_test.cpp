@@ -1,8 +1,8 @@
-#include <iostream>
 #include <vector>
 #include <queue>
 #include <deque>
 #include <cassert>
+#include <print>
 
 // ch07: Queues - Circular queue, Deque, Priority Queue, BFS
 
@@ -225,7 +225,7 @@ bool is_bipartite(const Graph& g) {
 }
 
 void test_circular_queue() {
-    std::cout << "=== Testing Circular Queue ===\n";
+    std::print("=== Testing Circular Queue ===\n");
     circular_queue<int> cq(5);
     for (int i = 0; i < 5; ++i) cq.enqueue(i);
     assert(cq.size() == 5);
@@ -234,11 +234,11 @@ void test_circular_queue() {
     cq.enqueue(5);
     assert(cq.front() == 1);
     assert(cq.size() == 5);
-    std::cout << "Circular Queue: PASS\n";
+    std::print("Circular Queue: PASS\n");
 }
 
 void test_deque_circular() {
-    std::cout << "=== Testing Circular Deque ===\n";
+    std::print("=== Testing Circular Deque ===\n");
     deque_circular<int> dq(4);
     dq.push_back(1); dq.push_back(2);
     dq.push_front(0); dq.push_front(-1);
@@ -248,19 +248,19 @@ void test_deque_circular() {
     dq.pop_front(); dq.pop_back();
     assert(dq.front() == 0);
     assert(dq.back() == 1);
-    std::cout << "Circular Deque: PASS\n";
+    std::print("Circular Deque: PASS\n");
 }
 
 void test_sliding_window() {
-    std::cout << "=== Testing Sliding Window Max ===\n";
+    std::print("=== Testing Sliding Window Max ===\n");
     std::vector<int> nums = {1,3,-1,-3,5,3,6,7};
     auto result = sliding_window_max(nums, 3);
     assert(result == std::vector<int>({3,3,5,5,6,7}));
-    std::cout << "Sliding Window Max: PASS\n";
+    std::print("Sliding Window Max: PASS\n");
 }
 
 void test_zigzag() {
-    std::cout << "=== Testing Zigzag Level Order ===\n";
+    std::print("=== Testing Zigzag Level Order ===\n");
     TreeNode* root = new TreeNode(3);
     root->left = new TreeNode(9);
     root->right = new TreeNode(20);
@@ -268,11 +268,11 @@ void test_zigzag() {
     root->right->right = new TreeNode(7);
     auto result = zigzag_level_order(root);
     assert(result == std::vector<std::vector<int>>{{3}, {20,9}, {15,7}});
-    std::cout << "Zigzag Level Order: PASS\n";
+    std::print("Zigzag Level Order: PASS\n");
 }
 
 void test_right_side_view() {
-    std::cout << "=== Testing Right Side View ===\n";
+    std::print("=== Testing Right Side View ===\n");
     TreeNode* root = new TreeNode(1);
     root->left = new TreeNode(2);
     root->right = new TreeNode(3);
@@ -280,11 +280,11 @@ void test_right_side_view() {
     root->right->right = new TreeNode(4);
     auto result = right_side_view(root);
     assert(result == std::vector<int>({1,3,4}));
-    std::cout << "Right Side View: PASS\n";
+    std::print("Right Side View: PASS\n");
 }
 
 void test_dijkstra() {
-    std::cout << "=== Testing Dijkstra ===\n";
+    std::print("=== Testing Dijkstra ===\n");
     Graph g(5);
     g[0].push_back({1, 4}); g[0].push_back({2, 1});
     g[1].push_back({3, 1});
@@ -292,19 +292,19 @@ void test_dijkstra() {
     g[3].push_back({4, 3});
     auto dist = dijkstra(g, 0);
     assert(dist == std::vector<int>({0, 3, 1, 4, 7}));
-    std::cout << "Dijkstra: PASS\n";
+    std::print("Dijkstra: PASS\n");
 }
 
 void test_word_ladder() {
-    std::cout << "=== Testing Word Ladder ===\n";
+    std::print("=== Testing Word Ladder ===\n");
     std::vector<std::string> dict = {"hot","dot","dog","lot","log","cog"};
     assert(word_ladder_length("hit", "cog", dict) == 5);
     assert(word_ladder_length("hit", "cog", {"hot","dot","dog","lot","log"}) == 0);
-    std::cout << "Word Ladder: PASS\n";
+    std::print("Word Ladder: PASS\n");
 }
 
 void test_bipartite() {
-    std::cout << "=== Testing Bipartite Check ===\n";
+    std::print("=== Testing Bipartite Check ===\n");
     Graph g1(4);
     g1[0].push_back({1,0}); g1[1].push_back({0,0}); g1[1].push_back({2,0});
     g1[2].push_back({1,0}); g1[2].push_back({3,0}); g1[3].push_back({2,0});
@@ -314,11 +314,11 @@ void test_bipartite() {
     g2[0].push_back({1,0}); g2[1].push_back({0,0}); g2[1].push_back({2,0});
     g2[2].push_back({1,0}); g2[2].push_back({0,0}); g2[0].push_back({2,0});
     assert(is_bipartite(g2) == false);
-    std::cout << "Bipartite Check: PASS\n";
+    std::print("Bipartite Check: PASS\n");
 }
 
 int main() {
-    std::cout << "=== Chapter 7: Queues ===\n\n";
+    std::print("=== Chapter 7: Queues ===\n\n");
     test_circular_queue();
     test_deque_circular();
     test_sliding_window();
@@ -327,6 +327,6 @@ int main() {
     test_dijkstra();
     test_word_ladder();
     test_bipartite();
-    std::cout << "\n=== All tests passed ===\n";
+    std::print("\n=== All tests passed ===\n");
     return 0;
 }

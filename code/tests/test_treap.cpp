@@ -1,7 +1,7 @@
 #include "treap.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
     dsa::treap<int> t;
@@ -47,6 +47,6 @@ int main() {
     assert(sorted.size() == 250);
     assert(sorted[0] == 250);
 
-    std::cout << "All treap tests passed\n";
+    std::print("All treap tests passed\n");
     return 0;
 }

@@ -34,7 +34,7 @@ code/
 
 ## Requirements
 
-- **C++20** compiler (GCC 11+, Clang 14+, Apple Clang 15+, MSVC 2022 17+)
+- **C++23** compiler (GCC 14+, Clang 18+, Apple Clang 21+, MSVC 2022 17+)
 - **CMake** 3.16+ (recommended) or **GNU Make**
 
 ## Building
@@ -107,6 +107,6 @@ ctest
 
 ## Notes
 
-- All code uses C++20 features: concepts, `std::span`, `std::string_view`, ranges, `std::unique_ptr`, move semantics.
+- All code uses C++23 features: `std::print`/`std::println`, `std::mdspan`, `std::expected`, `std::ranges::to`, `std::to_underlying`, concepts, `std::unique_ptr`, move semantics.
 - No raw `new`/`delete` — RAII throughout.
 - Written for readability and teaching, not maximum performance.

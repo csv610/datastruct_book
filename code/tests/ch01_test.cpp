@@ -10,6 +10,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <print>
 
 // ch01: Modern C++ Review - Test all concepts
 
@@ -210,7 +211,7 @@ auto process(T value) {
 }
 
 int main() {
-    std::cout << "=== Chapter 1: Modern C++ Review ===\n\n";
+    std::print("=== Chapter 1: Modern C++ Review ===\n\n");
     
     // 1. Pass by value/reference
     int x = 5;
@@ -268,6 +269,6 @@ int main() {
     std::cout << "process(5) = " << process(5) << '\n';
     std::cout << "process(2.0) = " << process(2.0) << '\n';
     
-    std::cout << "\n=== All tests passed ===\n";
+    std::print("\n=== All tests passed ===\n");
     return 0;
 }

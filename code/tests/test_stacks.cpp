@@ -1,7 +1,7 @@
 #include "stacks.h"
 #include <cassert>
-#include <iostream>
 #include <string>
+#include <print>
 
 int main() {
   dsa::array_stack<int> as;
@@ -37,5 +37,5 @@ int main() {
   assert(dsa::infix_to_postfix("3+4*2") == "342*+");
   assert(dsa::infix_to_postfix("(3+4)*2") == "34+2*");
 
-  std::cout << "stacks: all passed\n";
+  std::print("stacks: all passed\n");
 }

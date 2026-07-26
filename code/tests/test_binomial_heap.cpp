@@ -1,8 +1,8 @@
 #include "binomial_heap.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::BinomialHeap<int> h;
@@ -39,5 +39,5 @@ int main() {
   assert(sh.pop() == "apple");
   assert(sh.pop() == "banana");
 
-  std::cout << "binomial_heap: all passed\n";
+  std::print("binomial_heap: all passed\n");
 }

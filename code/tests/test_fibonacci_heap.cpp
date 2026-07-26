@@ -1,8 +1,8 @@
 #include "fibonacci_heap.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::FibonacciHeap<int> h;
@@ -36,5 +36,5 @@ int main() {
   sh.push("banana");
   assert(sh.top() == "apple");
 
-  std::cout << "fibonacci_heap: all passed\n";
+  std::print("fibonacci_heap: all passed\n");
 }

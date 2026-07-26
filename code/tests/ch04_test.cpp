@@ -1,4 +1,3 @@
-#include <iostream>
 #include <vector>
 #include <list>
 #include <deque>
@@ -11,6 +10,7 @@
 #include <string>
 #include <functional>
 #include <chrono>
+#include <print>
 
 // ch04: Linear Lists - Array List Implementation
 
@@ -241,7 +241,7 @@ public:
 };
 
 void test_array_list() {
-    std::cout << "=== Testing array_list ===\n";
+    std::print("=== Testing array_list ===\n");
     array_list<int> al;
     for (int i = 0; i < 20; ++i) al.push_back(i);
     assert(al.size() == 20);
@@ -253,11 +253,11 @@ void test_array_list() {
     al.erase(10);
     assert(al[10] == 10);
     assert(al.size() == 20);
-    std::cout << "array_list: PASS\n";
+    std::print("array_list: PASS\n");
 }
 
 void test_linked_list() {
-    std::cout << "=== Testing linked_list ===\n";
+    std::print("=== Testing linked_list ===\n");
     linked_list<int> ll;
     for (int i = 0; i < 10; ++i) ll.push_front(i);
     assert(ll.size() == 10);
@@ -265,11 +265,11 @@ void test_linked_list() {
     int sum = 0;
     for (int v : ll) sum += v;
     assert(sum == 45);  // 0+1+...+9
-    std::cout << "linked_list: PASS\n";
+    std::print("linked_list: PASS\n");
 }
 
 void test_doubly_linked_list() {
-    std::cout << "=== Testing doubly_linked_list ===\n";
+    std::print("=== Testing doubly_linked_list ===\n");
     doubly_linked_list<int> dll;
     for (int i = 0; i < 5; ++i) dll.push_back(i);
     for (int i = 5; i < 10; ++i) dll.push_front(i);
@@ -279,11 +279,11 @@ void test_doubly_linked_list() {
     dll.pop_front();
     assert(dll.front() == 8);
     assert(dll.size() == 9);
-    std::cout << "doubly_linked_list: PASS\n";
+    std::print("doubly_linked_list: PASS\n");
 }
 
 void test_rope() {
-    std::cout << "=== Testing rope ===\n";
+    std::print("=== Testing rope ===\n");
     std::vector<char> v(1000, 'a');
     for (size_t i = 0; i < v.size(); ++i) v[i] = 'a' + (i % 26);
     rope<char> r(v);
@@ -292,15 +292,15 @@ void test_rope() {
     assert(r[25] == 'z');
     assert(r[26] == 'a');
     assert(r[999] == 'd');
-    std::cout << "rope: PASS\n";
+    std::print("rope: PASS\n");
 }
 
 int main() {
-    std::cout << "=== Chapter 4: Linear Lists ===\n\n";
+    std::print("=== Chapter 4: Linear Lists ===\n\n");
     test_array_list();
     test_linked_list();
     test_doubly_linked_list();
     test_rope();
-    std::cout << "\n=== All tests passed ===\n";
+    std::print("\n=== All tests passed ===\n");
     return 0;
 }

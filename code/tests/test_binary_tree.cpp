@@ -1,7 +1,7 @@
 #include "binary_tree.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::binary_tree<int> tree;
@@ -70,5 +70,5 @@ int main() {
   from_traversals.inorder([&](const int& v) { result.push_back(v); });
   assert((result == std::vector<int>{1, 2, 3, 4, 5}));
 
-  std::cout << "binary_tree: all passed\n";
+  std::print("binary_tree: all passed\n");
 }

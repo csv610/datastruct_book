@@ -1,8 +1,8 @@
 #include "expression_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
     // Build from postfix: "3 4 + 2 *" => (3 + 4) * 2
@@ -45,6 +45,6 @@ int main() {
         assert(dsa::eval_expr_tree(tree.get()) == 42.0);
     }
 
-    std::cout << "All expression tree tests passed\n";
+    std::print("All expression tree tests passed\n");
     return 0;
 }

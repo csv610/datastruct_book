@@ -1,8 +1,8 @@
 #include "pairing_heap.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::PairingHeap<int> h;
@@ -36,5 +36,5 @@ int main() {
   sh.push("banana");
   assert(sh.top() == "apple");
 
-  std::cout << "pairing_heap: all passed\n";
+  std::print("pairing_heap: all passed\n");
 }

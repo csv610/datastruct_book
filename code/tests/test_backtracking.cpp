@@ -1,6 +1,6 @@
 #include "backtracking.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
     // N-Queens
@@ -47,6 +47,6 @@ int main() {
         assert(dsa::tsp(dist) == 0);
     }
 
-    std::cout << "All backtracking tests passed\n";
+    std::print("All backtracking tests passed\n");
     return 0;
 }

@@ -5,12 +5,13 @@
 #include <algorithm>
 #include <random>
 #include <cassert>
+#include <print>
 
 // ch02: Performance Analysis - Test complexity analysis, timing, recursion
 
 // 1. Function growth rate comparison
 void growth_rates() {
-    std::cout << "=== Growth Rate Comparison ===\n";
+    std::print("=== Growth Rate Comparison ===\n");
     std::vector<int> sizes = {10, 100, 1000, 10000};
     for (int n : sizes) {
         double logn = std::log2(n);
@@ -134,14 +135,14 @@ public:
 };
 
 int main() {
-    std::cout << "=== Chapter 2: Performance Analysis ===\n\n";
+    std::print("=== Chapter 2: Performance Analysis ===\n\n");
     
     // 1. Growth rates
     growth_rates();
     std::cout << '\n';
     
     // 2. Timing comparison
-    std::cout << "=== Timing Comparison (microseconds) ===\n";
+    std::print("=== Timing Comparison (microseconds) ===\n");
     double t_rec = time_it([&]{ fib_recursive(20); }, 100);
     double t_dp = time_it([&]{ fib_dp(20); }, 10000);
     double t_fast = time_it([&]{ fib_fast(20); }, 10000);
@@ -154,22 +155,22 @@ int main() {
     assert(fib_recursive(10) == 55);
     assert(fib_dp(10) == 55);
     assert(fib_fast(10) == 55);
-    std::cout << "=== Fibonacci Correctness ===\n";
+    std::print("=== Fibonacci Correctness ===\n");
     for (int i = 0; i <= 15; ++i) {
         assert(fib_recursive(i) == fib_dp(i));
         assert(fib_dp(i) == fib_fast(i));
     }
-    std::cout << "All Fibonacci implementations match up to 15\n\n";
+    std::print("All Fibonacci implementations match up to 15\n\n");
     
     // 4. Insertion sort with invariant
     std::vector<int> arr = {5, 2, 8, 1, 9, 3};
     std::vector<int> sorted = {1, 2, 3, 5, 8, 9};
     insertion_sort(arr);
     assert(arr == sorted);
-    std::cout << "=== Insertion Sort ===\n";
-    std::cout << "Sorted: ";
+    std::print("=== Insertion Sort ===\n");
+    std::print("Sorted: ");
     for (int x : arr) std::cout << x << ' ';
-    std::cout << "\n\n";
+    std::print("\n\n");
     
     // 5. Binary search
     std::vector<int> search_arr = {1, 3, 5, 7, 9, 11, 13};
@@ -177,32 +178,32 @@ int main() {
     assert(binary_search(search_arr, 1) == 0);
     assert(binary_search(search_arr, 13) == 6);
     assert(binary_search(search_arr, 4) == -1);
-    std::cout << "=== Binary Search ===\n";
+    std::print("=== Binary Search ===\n");
     std::cout << "Found 7 at index: " << binary_search(search_arr, 7) << '\n';
     std::cout << "Not found 4: " << binary_search(search_arr, 4) << "\n\n";
     
     // 6. Space complexity
-    std::cout << "=== Space Complexity ===\n";
+    std::print("=== Space Complexity ===\n");
     std::cout << "recursive_sum(100) = " << recursive_sum(100) 
               << " (uses O(n) stack)\n";
     std::cout << "iterative_sum(100) = " << iterative_sum(100) 
               << " (uses O(1) space)\n\n";
     
     // 7. Amortized dynamic array
-    std::cout << "=== Amortized Dynamic Array ===\n";
+    std::print("=== Amortized Dynamic Array ===\n");
     DynamicArray da;
     for (int i = 0; i < 20; ++i) da.push_back(i);
     std::cout << "Pushed 20 elements, size: " << da.size() << '\n';
-    std::cout << "Elements: ";
+    std::print("Elements: ");
     for (size_t i = 0; i < da.size(); ++i) std::cout << da[i] << ' ';
-    std::cout << "\n\n";
+    std::print("\n\n");
     
     // 8. Smoothed analysis concept
-    std::cout << "=== Smoothed Analysis (Spielman-Teng) ===\n";
-    std::cout << "Worst-case: O(n^2) for simplex, quicksort\n";
-    std::cout << "Smoothed:   O(n^2) for simplex, O(n log n) for quicksort\n";
-    std::cout << "Small random perturbations eliminate pathological cases\n\n";
+    std::print("=== Smoothed Analysis (Spielman-Teng) ===\n");
+    std::print("Worst-case: O(n^2) for simplex, quicksort\n");
+    std::print("Smoothed:   O(n^2) for simplex, O(n log n) for quicksort\n");
+    std::print("Small random perturbations eliminate pathological cases\n\n");
     
-    std::cout << "=== All tests passed ===\n";
+    std::print("=== All tests passed ===\n");
     return 0;
 }

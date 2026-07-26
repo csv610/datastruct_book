@@ -1,7 +1,7 @@
 #include "segment_tree_lazy.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
     // Range sum query with range add
@@ -57,6 +57,6 @@ int main() {
         assert(st.query(4, 7) == 6);    // 3+3+0+0
     }
 
-    std::cout << "All segment tree lazy tests passed\n";
+    std::print("All segment tree lazy tests passed\n");
     return 0;
 }

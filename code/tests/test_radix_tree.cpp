@@ -1,8 +1,8 @@
 #include "radix_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::RadixTree<int> tree;
@@ -34,5 +34,5 @@ int main() {
   assert(tree.contains("band"));
   assert(tree.size() == 3);
 
-  std::cout << "radix_tree: all passed\n";
+  std::print("radix_tree: all passed\n");
 }

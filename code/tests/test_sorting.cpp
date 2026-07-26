@@ -2,8 +2,8 @@
 #include "max_heap.h"
 #include <algorithm>
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   std::vector<int> a = {5, 3, 8, 1, 2, 7, 4, 6};
@@ -54,5 +54,5 @@ int main() {
   dsa::counting_sort(empty);
   dsa::radix_sort(empty);
 
-  std::cout << "sorting: all passed\n";
+  std::print("sorting: all passed\n");
 }

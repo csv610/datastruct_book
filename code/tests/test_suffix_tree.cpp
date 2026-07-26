@@ -1,8 +1,8 @@
 #include "suffix_tree.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::SuffixTree st("banana");
@@ -25,5 +25,5 @@ int main() {
 
   assert(st.longest_repeated_substring() == "ana");
 
-  std::cout << "suffix_tree: all passed\n";
+  std::print("suffix_tree: all passed\n");
 }

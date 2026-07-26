@@ -1,8 +1,8 @@
 #include "linked_list.h"
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::linked_list<int> empty;
@@ -51,5 +51,5 @@ int main() {
   assert(moved.size() == 4);
   assert(moved.front() == 2);
 
-  std::cout << "linked_list: all passed\n";
+  std::print("linked_list: all passed\n");
 }

@@ -1,7 +1,7 @@
 #include "fenwick_segment.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::fenwick_tree<int> ft(8);
@@ -30,5 +30,5 @@ int main() {
   assert(ft2.range_sum(0, 1) == 1);
   assert(ft2.range_sum(3, 5) == 9);
 
-  std::cout << "fenwick_segment: all passed\n";
+  std::print("fenwick_segment: all passed\n");
 }

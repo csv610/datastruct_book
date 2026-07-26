@@ -1,8 +1,8 @@
 #include "prim.h"
 #include <cassert>
-#include <iostream>
 #include <tuple>
 #include <vector>
+#include <print>
 
 int main() {
     {
@@ -48,6 +48,6 @@ int main() {
         assert(res.total_weight == 3);  // edges 0-1 and 1-2
     }
 
-    std::cout << "All Prim MST tests passed\n";
+    std::print("All Prim MST tests passed\n");
     return 0;
 }

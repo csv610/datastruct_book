@@ -1,6 +1,6 @@
 #include "bit_vector.h"
 #include <cassert>
-#include <iostream>
+#include <print>
 
 int main() {
   dsa::BitVector bv(64);
@@ -65,5 +65,5 @@ int main() {
   assert(large.find_first() == 100);
   assert(large.find_next(100) == 199);
 
-  std::cout << "bit_vector: all passed\n";
+  std::print("bit_vector: all passed\n");
 }

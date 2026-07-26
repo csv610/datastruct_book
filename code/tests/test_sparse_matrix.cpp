@@ -1,7 +1,7 @@
 #include "sparse_matrix.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   std::vector<std::vector<double>> dense = {
@@ -39,5 +39,5 @@ int main() {
   assert(t.get(1, 2) == 3.0);
   assert(t.get(3, 3) == 4.0);
 
-  std::cout << "sparse_matrix: all passed\n";
+  std::print("sparse_matrix: all passed\n");
 }

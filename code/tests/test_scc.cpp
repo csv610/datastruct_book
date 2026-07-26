@@ -1,8 +1,8 @@
 #include "scc.h"
 #include <algorithm>
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
     // Kosaraju's
@@ -52,6 +52,6 @@ int main() {
         assert(sccs.size() == 4);
     }
 
-    std::cout << "All SCC tests passed\n";
+    std::print("All SCC tests passed\n");
     return 0;
 }

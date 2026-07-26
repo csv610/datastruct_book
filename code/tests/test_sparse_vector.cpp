@@ -1,7 +1,7 @@
 #include "sparse_vector.h"
 #include <cassert>
-#include <iostream>
 #include <vector>
+#include <print>
 
 int main() {
   dsa::SparseVector<double> v(5);
@@ -45,5 +45,5 @@ int main() {
 
   assert(v.norm_squared() == 35.0);
 
-  std::cout << "sparse_vector: all passed\n";
+  std::print("sparse_vector: all passed\n");
 }
