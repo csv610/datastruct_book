@@ -73,13 +73,19 @@ set(TESTS
     test_gabow_scc
     test_nfa
     test_hungarian
+    test_union_find
+    test_interval_tree
+    test_kd_tree
+    test_skew_heap
+    test_min_max_heap
+    test_orthogonal_range_tree
 )
 
-foreach(TEST ${TESTS})
-    if(TEST STREQUAL "test_array_list")
-        add_executable(${TEST} tests/test_ch04_array_list.cpp)
+foreach(T ${TESTS})
+    if(T STREQUAL "test_array_list")
+        add_executable(${T} tests/test_ch04_array_list.cpp)
     else()
-        add_executable(${TEST} tests/${TEST}.cpp)
+        add_executable(${T} tests/${T}.cpp)
     endif()
-    add_test(NAME ${TEST} COMMAND ${TEST})
+    add_test(NAME ${T} COMMAND ${T})
 endforeach()
