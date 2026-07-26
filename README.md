@@ -22,17 +22,15 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 
 ```
 DataStruct/
-├── chapters/          # Book chapters in Markdown
+├── tex/               # LaTeX source files
+│   ├── book.tex       # Master document
+│   ├── chapters/      # Per-chapter .tex files
+│   └── book.pdf       # Compiled PDF (873 pages)
 ├── code/              # C++ implementations and tests
 │   ├── *.h            # Header-only data structure implementations
 │   ├── *_test.cpp     # Unit tests and usage examples
 │   ├── CMakeLists.txt # CMake build
 │   └── Makefile       # GNU Make build
-├── tex/               # LaTeX source files
-│   ├── book.tex       # Master document
-│   ├── chapters/      # Per-chapter .tex files
-│   └── book.pdf       # Compiled PDF (873 pages)
-├── standalone/        # Self-contained per-chapter programs
 └── books/             # Reference PDFs
 ```
 
