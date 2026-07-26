@@ -55,6 +55,17 @@ set(TESTS
     test_scc
     test_prim
     test_segment_tree_lazy
+    test_string_search
+    test_approximate_matching
+    test_string_compression
+    test_bwt
+    test_lsh
+    test_de_bruijn
+    test_exact_matching
+    test_text_decomposition
+    test_multiple_matching
+    test_additional_algorithms
+    test_suffix_array_search
 )
 
 foreach(TEST ${TESTS})

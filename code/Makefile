@@ -12,7 +12,11 @@ TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_
          test_probabilistic test_flow_matching \
          test_open_addressing_hash test_skip_list test_expression_tree \
          test_leftist_tree test_b_tree test_treap test_scc test_prim \
-         test_segment_tree_lazy
+         test_segment_tree_lazy \
+         test_string_search test_approximate_matching test_string_compression \
+         test_bwt test_lsh test_de_bruijn \
+         test_exact_matching test_text_decomposition test_multiple_matching \
+         test_additional_algorithms test_suffix_array_search
 
 .PHONY: all test clean
 
@@ -136,6 +140,39 @@ test_prim: tests/test_prim.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 test_segment_tree_lazy: tests/test_segment_tree_lazy.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_string_search: tests/test_string_search.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_approximate_matching: tests/test_approximate_matching.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_string_compression: tests/test_string_compression.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_bwt: tests/test_bwt.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_lsh: tests/test_lsh.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_de_bruijn: tests/test_de_bruijn.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_exact_matching: tests/test_exact_matching.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_text_decomposition: tests/test_text_decomposition.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_multiple_matching: tests/test_multiple_matching.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_additional_algorithms: tests/test_additional_algorithms.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_suffix_array_search: tests/test_suffix_array_search.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:

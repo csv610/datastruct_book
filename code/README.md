@@ -104,6 +104,17 @@ ctest
 | `dynamic_programming.h` | 0/1 knapsack, LCS, edit distance, LIS |
 | `backtracking.h` | N-Queens, subset sum, TSP (bitmask DP) |
 | `probabilistic.h` | HyperLogLog, Count-Min sketch, reservoir sampling |
+| `string_search.h` | Z-algorithm, Boyer-Moore (good suffix), Manacher's palindrome |
+| `exact_matching.h` | Morris-Pratt, KMP, Karp-Rabin, Galil-Seiferas, Boyer-Moore-Horspool |
+| `approximate_matching.h` | Myers' bit-parallel, shift-or, Levenshtein distance, Hamming distance |
+| `multiple_matching.h` | Aho-Corasick, Commentz-Walter |
+| `suffix_array_search.h` | Kasai LCP, suffix array search, longest previous factor, phi array |
+| `text_decomposition.h` | Maximum suffix, Lyndon factorization (Duval), critical factorization |
+| `additional_algorithms.h` | Landau-Vishkin, Hirschberg LCS, shortest common superstring, LCS string |
+| `string_compression.h` | RLE, LZ77, LZ78, LZW |
+| `bwt.h` | BWT encode/decode, FM-index |
+| `lsh.h` | MinHash, LSH cosine, LSH Jaccard |
+| `de_bruijn.h` | de Bruijn graph, Eulerian path, de Bruijn sequence |
 
 ## Notes
 
