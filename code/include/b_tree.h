@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <cstddef>
+#include <functional>
+#include <initializer_list>
 #include <utility>
 #include <vector>
 
@@ -9,7 +11,20 @@ namespace dsa {
 template <typename Key, typename Compare = std::less<Key>>
 class b_tree {
 public:
-    explicit b_tree(int order = 5) : order_(order), root_(new node(true)) {}
+    using key_type = Key;
+    using size_type = std::size_t;
+
+    explicit b_tree(int order = 5, Compare cmp = {})
+        : order_(order), comp_(std::move(cmp)), root_(new node(true)) {}
+
+    b_tree(std::initializer_list<Key> init, int order = 5, Compare cmp = {})
+        : order_(order), comp_(std::move(cmp)), root_(new node(true)) {
+        for (const auto& k : init) insert(k);
+    }
+
+    ~b_tree() { destroy(root_); }
+    b_tree(const b_tree&) = delete;
+    b_tree& operator=(const b_tree&) = delete;
 
     void insert(const Key& key) {
         node* r = root_;
@@ -18,11 +33,23 @@ public:
             s->children.push_back(r);
             split_child(s, 0);
             root_ = s;
+            ++size_;
+        } else {
+            ++size_;
         }
         insert_non_full(root_, key);
     }
 
-    bool contains(const Key& key) const { return search(root_, key); }
+    template <typename... Args>
+    void emplace(Args&&... args) {
+        insert(Key(std::forward<Args>(args)...));
+    }
+
+    const Key* find(const Key& key) const {
+        return search(root_, key);
+    }
+
+    bool contains(const Key& key) const { return search(root_, key) != nullptr; }
 
     bool erase(const Key& key) {
         if (!contains(key)) return false;
@@ -32,8 +59,12 @@ public:
             root_ = root_->children[0];
             delete old;
         }
+        --size_;
         return true;
     }
+
+    bool empty() const noexcept { return size_ == 0; }
+    size_type size() const noexcept { return size_; }
 
     std::vector<Key> inorder() const {
         std::vector<Key> result;
@@ -41,9 +72,10 @@ public:
         return result;
     }
 
-    ~b_tree() { destroy(root_); }
-    b_tree(const b_tree&) = delete;
-    b_tree& operator=(const b_tree&) = delete;
+    template <typename Visitor>
+    void for_each(Visitor&& visit) const {
+        inorder_visitor(root_, std::forward<Visitor>(visit));
+    }
 
 private:
     struct node {
@@ -85,19 +117,19 @@ private:
             if (n->children[i]->keys.size() == static_cast<std::size_t>(order_) - 1) {
                 split_child(n, i);
                 if (!comp_(n->keys[i], key) && !comp_(key, n->keys[i])) return;
-                i += (key > n->keys[i]) ? 1 : 0;
+                i += (comp_(n->keys[i], key)) ? 1 : 0;
             }
             insert_non_full(n->children[i], key);
         }
     }
 
-    bool search(node* n, const Key& key) const {
-        if (!n) return false;
+    const Key* search(node* n, const Key& key) const {
+        if (!n) return nullptr;
         std::size_t i = 0;
         while (i < n->keys.size() && comp_(n->keys[i], key)) ++i;
         if (i < n->keys.size() && !comp_(key, n->keys[i]) && !comp_(n->keys[i], key))
-            return true;
-        return n->is_leaf ? false : search(n->children[i], key);
+            return &n->keys[i];
+        return n->is_leaf ? nullptr : search(n->children[i], key);
     }
 
     void inorder_rec(node* n, std::vector<Key>& out) const {
@@ -107,6 +139,16 @@ private:
             out.push_back(n->keys[i]);
         }
         if (!n->is_leaf) inorder_rec(n->children.back(), out);
+    }
+
+    template <typename Visitor>
+    void inorder_visitor(node* n, Visitor&& visit) const {
+        if (!n) return;
+        for (std::size_t i = 0; i < n->keys.size(); ++i) {
+            if (!n->is_leaf) inorder_visitor(n->children[i], visit);
+            visit(n->keys[i]);
+        }
+        if (!n->is_leaf) inorder_visitor(n->children.back(), visit);
     }
 
     void erase_rec(node* n, const Key& key) {
@@ -201,8 +243,9 @@ private:
     }
 
     int order_;
+    Compare comp_;
     node* root_;
-    static inline Compare comp_{};
+    size_type size_ = 0;
 };
 
 }  // namespace dsa

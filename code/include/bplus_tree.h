@@ -34,6 +34,16 @@ public:
         return find_rec(root_.get(), key);
     }
 
+    const V* find(const K& key) const {
+        if (!root_) return nullptr;
+        return find_rec(root_.get(), key);
+    }
+
+    template <typename... Args>
+    void emplace(const K& key, Args&&... args) {
+        insert(key, V(std::forward<Args>(args)...));
+    }
+
     bool erase(const K& key) {
         if (!root_) return false;
         bool removed = false;
@@ -45,8 +55,8 @@ public:
         return removed;
     }
 
-    bool empty() const { return !root_; }
-    std::size_t size() const { return count_; }
+    bool empty() const noexcept { return !root_; }
+    std::size_t size() const noexcept { return count_; }
 
     std::vector<std::pair<K, V>> range(const K& lo, const K& hi) const {
         std::vector<std::pair<K, V>> result;
@@ -85,6 +95,17 @@ private:
     std::size_t count_ = 0;
 
     V* find_rec(node* n, const K& key) {
+        if (n->is_leaf) {
+            for (int i = 0; i < n->n; ++i)
+                if (n->keys[i] == key) return &n->vals[i];
+            return nullptr;
+        }
+        int i = 0;
+        while (i < n->n && key >= n->keys[i]) ++i;
+        return find_rec(n->children[i].get(), key);
+    }
+
+    const V* find_rec(node* n, const K& key) const {
         if (n->is_leaf) {
             for (int i = 0; i < n->n; ++i)
                 if (n->keys[i] == key) return &n->vals[i];

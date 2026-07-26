@@ -8,17 +8,18 @@ namespace dsa {
 
 // Segment tree with lazy propagation for range updates and range queries
 // Supports: range add, range sum query (easily adaptable to min/max)
-template <typename T = int>
+template <typename T = int, typename Merge = std::plus<T>>
 class segment_tree_lazy {
 public:
-    using merge_fn = std::function<T(T, T)>;
-
-    segment_tree_lazy(const std::vector<T>& data, merge_fn merge = std::plus<T>{})
+    segment_tree_lazy(const std::vector<T>& data, Merge merge = Merge{})
         : n_(data.size()), merge_(std::move(merge)) {
         tree_.assign(4 * n_, T{});
         lazy_.assign(4 * n_, T{});
         if (n_ > 0) build(data, 1, 0, n_ - 1);
     }
+
+    std::size_t size() const noexcept { return n_; }
+    bool empty() const noexcept { return n_ == 0; }
 
     // range update: add val to all elements in [l, r]
     void update(std::size_t l, std::size_t r, T val) {
@@ -91,7 +92,7 @@ private:
     std::size_t n_;
     std::vector<T> tree_;
     std::vector<T> lazy_;
-    merge_fn merge_;
+    Merge merge_;
 };
 
 }  // namespace dsa

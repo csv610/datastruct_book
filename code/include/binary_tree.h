@@ -17,6 +17,7 @@ struct binary_node {
     T                       data;
     std::unique_ptr<binary_node> left;
     std::unique_ptr<binary_node> right;
+    binary_node*            morris_link = nullptr;  // for Morris traversal threading
 
     explicit binary_node(const T& d) : data(d) {}
     explicit binary_node(T&& d)      : data(std::move(d)) {}
@@ -96,9 +97,9 @@ public:
     std::size_t height() const { return height(root_.get()); }
     std::size_t size()   const { return size(root_.get()); }
 
-    // ---- Morris in-order traversal (O(1) space) ----
+    // ---- Morris in-order traversal (O(1) space, non-const) ----
     template <typename Visitor>
-    void morris_inorder(Visitor&& visit) const {
+    void morris_inorder(Visitor&& visit) {
         auto* cur = root_.get();
         while (cur) {
             if (!cur->left) {
@@ -106,13 +107,13 @@ public:
                 cur = cur->right.get();
             } else {
                 auto* pre = cur->left.get();
-                while (pre->right && pre->right.get() != cur)
-                    pre = pre->right.get();
-                if (!pre->right) {
-                    pre->right = std::unique_ptr<binary_node<T>>(cur);
+                while (pre->morris_link && pre->morris_link != cur)
+                    pre = pre->morris_link;
+                if (!pre->morris_link) {
+                    pre->morris_link = cur;
                     cur = cur->left.get();
                 } else {
-                    pre->right.reset();
+                    pre->morris_link = nullptr;
                     visit(cur->data);
                     cur = cur->right.get();
                 }

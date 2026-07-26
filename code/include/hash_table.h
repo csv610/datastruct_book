@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <concepts>
+#include <cstddef>
 #include <functional>
+#include <iterator>
 #include <list>
 #include <optional>
 #include <stdexcept>
@@ -19,8 +21,9 @@ public:
     using key_type    = K;
     using mapped_type = V;
     using value_type  = std::pair<const K, V>;
+    using size_type   = std::size_t;
 
-    explicit hash_table_chaining(std::size_t initial_buckets = 16)
+    explicit hash_table_chaining(size_type initial_buckets = 16)
         : bucket_count_(initial_buckets), size_(0),
           table_(initial_buckets) {}
 
@@ -36,6 +39,19 @@ public:
         ++size_;
         if (load_factor() > max_load_factor_)
             rehash(bucket_count_ * 2);
+    }
+
+    template <typename... Args>
+    V& emplace(const K& key, Args&&... args) {
+        auto& chain = table_[bucket(key)];
+        for (auto& [k, v] : chain) {
+            if (k == key) return v;
+        }
+        chain.push_back({key, V(std::forward<Args>(args)...)});
+        ++size_;
+        if (load_factor() > max_load_factor_)
+            rehash(bucket_count_ * 2);
+        return chain.back().second;
     }
 
     std::optional<V> find(const K& key) const {
@@ -70,9 +86,9 @@ public:
         }
     }
 
-    std::size_t size()              const noexcept { return size_; }
+    size_type size()              const noexcept { return size_; }
     bool        empty()             const noexcept { return size_ == 0; }
-    std::size_t bucket_count()      const noexcept { return bucket_count_; }
+    size_type bucket_count()      const noexcept { return bucket_count_; }
     double      load_factor()       const noexcept {
         return static_cast<double>(size_) / bucket_count_;
     }
@@ -80,21 +96,89 @@ public:
     void set_max_load_factor(double mf) noexcept { max_load_factor_ = mf; }
     double max_load_factor() const noexcept { return max_load_factor_; }
 
+    void reserve(size_type n) {
+        if (n > bucket_count_) rehash(n * 2);
+    }
+
     void clear() noexcept {
         for (auto& chain : table_) chain.clear();
         size_ = 0;
     }
 
+    // ---- Forward iterator ----
+    class iterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = std::pair<const K, V>;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        iterator() : table_(nullptr), bucket_idx_(0) {}
+
+        reference operator*() const { return *list_it_; }
+        pointer operator->() const { return &(*list_it_); }
+
+        iterator& operator++() {
+            ++list_it_;
+            advance_to_valid();
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        bool operator==(const iterator& other) const {
+            return table_ == other.table_ && bucket_idx_ == other.bucket_idx_ && list_it_ == other.list_it_;
+        }
+        bool operator!=(const iterator& other) const { return !(*this == other); }
+
+    private:
+        friend class hash_table_chaining;
+        using bucket_iterator = typename std::list<value_type>::iterator;
+
+        hash_table_chaining* table_;
+        size_type bucket_idx_;
+        bucket_iterator list_it_;
+
+        iterator(hash_table_chaining* t, size_type idx, bucket_iterator it)
+            : table_(t), bucket_idx_(idx), list_it_(it) {}
+
+        void advance_to_valid() {
+            while (bucket_idx_ < table_->bucket_count_) {
+                if (list_it_ != table_->table_[bucket_idx_].end()) return;
+                ++bucket_idx_;
+                if (bucket_idx_ < table_->bucket_count_)
+                    list_it_ = table_->table_[bucket_idx_].begin();
+            }
+        }
+    };
+
+    iterator begin() {
+        for (size_type i = 0; i < bucket_count_; ++i) {
+            if (!table_[i].empty())
+                return iterator(this, i, table_[i].begin());
+        }
+        return end();
+    }
+
+    iterator end() {
+        return iterator(this, bucket_count_,
+                        bucket_count_ > 0 ? table_[bucket_count_ - 1].end() : table_[0].end());
+    }
+
 private:
-    std::size_t bucket(const K& key) const {
+    size_type bucket(const K& key) const {
         return Hash{}(key) % bucket_count_;
     }
 
-    void rehash(std::size_t new_bucket_count) {
+    void rehash(size_type new_bucket_count) {
         std::vector<std::list<value_type>> new_table(new_bucket_count);
         for (auto& chain : table_) {
             for (auto& [k, v] : chain) {
-                std::size_t b = Hash{}(k) % new_bucket_count;
+                size_type b = Hash{}(k) % new_bucket_count;
                 new_table[b].push_back({k, std::move(v)});
             }
         }
@@ -102,8 +186,8 @@ private:
         bucket_count_ = new_bucket_count;
     }
 
-    std::size_t bucket_count_;
-    std::size_t size_;
+    size_type bucket_count_;
+    size_type size_;
     double      max_load_factor_ = 1.0;
     std::vector<std::list<value_type>> table_;
 };

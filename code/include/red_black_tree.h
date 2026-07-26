@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <functional>
+#include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -11,74 +14,6 @@ namespace dsa {
 
 template <typename Key, typename Compare = std::less<Key>>
 class RedBlackTree {
- public:
-  RedBlackTree() = default;
-
-  RedBlackTree(const RedBlackTree& other) : root_(clone(other.root_)), size_(other.size_) {}
-
-  RedBlackTree& operator=(const RedBlackTree& other) {
-    if (this != &other) {
-      clear();
-      root_ = clone(other.root_);
-      size_ = other.size_;
-    }
-    return *this;
-  }
-
-  RedBlackTree(RedBlackTree&& other) noexcept : root_(other.root_) {
-    other.root_ = nullptr;
-  }
-
-  RedBlackTree& operator=(RedBlackTree&& other) noexcept {
-    if (this != &other) {
-      clear();
-      root_ = other.root_;
-      other.root_ = nullptr;
-    }
-    return *this;
-  }
-
-  ~RedBlackTree() { clear(); }
-
-  bool empty() const { return root_ == nullptr; }
-  std::size_t size() const { return size_; }
-
-  bool contains(const Key& key) const { return find(key) != nullptr; }
-
-  const Key* find(const Key& key) const {
-    Node* n = root_;
-    while (n) {
-      if (comp_(key, n->key)) n = n->left;
-      else if (comp_(n->key, key)) n = n->right;
-      else return &n->key;
-    }
-    return nullptr;
-  }
-
-  bool insert(const Key& key) { return insert_impl(key); }
-
-  bool erase(const Key& key) {
-    Node* n = find_node(root_, key);
-    if (!n) return false;
-    erase_node(n);
-    --size_;
-    return true;
-  }
-
-  void clear() {
-    destroy(root_);
-    root_ = nullptr;
-    size_ = 0;
-  }
-
-  std::vector<Key> inorder() const {
-    std::vector<Key> result;
-    result.reserve(size_);
-    inorder_collect(root_, result);
-    return result;
-  }
-
- private:
   enum class Color { Red, Black };
 
   struct Node {
@@ -89,11 +24,8 @@ class RedBlackTree {
     Node* parent = nullptr;
 
     explicit Node(const Key& k) : key(k) {}
+    Node(Key&& k) : key(std::move(k)) {}
   };
-
-  Node* root_ = nullptr;
-  std::size_t size_ = 0;
-  Compare comp_;
 
   static Node* minimum(Node* n) {
     while (n && n->left) n = n->left;
@@ -118,6 +50,200 @@ class RedBlackTree {
     while (p && n == p->left) { n = p; p = p->parent; }
     return p;
   }
+
+ public:
+  using key_type = Key;
+  using value_type = Key;
+  using size_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using key_compare = Compare;
+
+  RedBlackTree() = default;
+
+  explicit RedBlackTree(Compare cmp) : comp_(std::move(cmp)) {}
+
+  RedBlackTree(std::initializer_list<Key> init, Compare cmp = {})
+      : comp_(std::move(cmp)) {
+    for (const auto& k : init) insert(k);
+  }
+
+  RedBlackTree(const RedBlackTree& other) : root_(clone(other.root_)), size_(other.size_), comp_(other.comp_) {}
+
+  RedBlackTree& operator=(const RedBlackTree& other) {
+    if (this != &other) {
+      clear();
+      root_ = clone(other.root_);
+      size_ = other.size_;
+      comp_ = other.comp_;
+    }
+    return *this;
+  }
+
+  RedBlackTree(RedBlackTree&& other) noexcept
+      : root_(other.root_), size_(other.size_), comp_(std::move(other.comp_)) {
+    other.root_ = nullptr;
+    other.size_ = 0;
+  }
+
+  RedBlackTree& operator=(RedBlackTree&& other) noexcept {
+    if (this != &other) {
+      clear();
+      root_ = other.root_;
+      size_ = other.size_;
+      comp_ = std::move(other.comp_);
+      other.root_ = nullptr;
+      other.size_ = 0;
+    }
+    return *this;
+  }
+
+  ~RedBlackTree() { clear(); }
+
+  bool empty() const noexcept { return root_ == nullptr; }
+  size_type size() const noexcept { return size_; }
+
+  key_compare key_comp() const { return comp_; }
+
+  bool contains(const Key& key) const { return find(key) != nullptr; }
+
+  const Key* find(const Key& key) const {
+    Node* n = root_;
+    while (n) {
+      if (comp_(key, n->key)) n = n->left;
+      else if (comp_(n->key, key)) n = n->right;
+      else return &n->key;
+    }
+    return nullptr;
+  }
+
+  const Key* lower_bound(const Key& key) const {
+    Node* n = root_;
+    const Node* result = nullptr;
+    while (n) {
+      if (!comp_(n->key, key)) { result = n; n = n->left; }
+      else n = n->right;
+    }
+    return result ? &result->key : nullptr;
+  }
+
+  const Key* upper_bound(const Key& key) const {
+    Node* n = root_;
+    const Node* result = nullptr;
+    while (n) {
+      if (comp_(key, n->key)) { result = n; n = n->left; }
+      else n = n->right;
+    }
+    return result ? &result->key : nullptr;
+  }
+
+  bool insert(const Key& key) { return insert_impl(key); }
+
+  template <typename... Args>
+  bool emplace(Args&&... args) {
+    Key key(std::forward<Args>(args)...);
+    return insert_impl(std::move(key));
+  }
+
+  bool erase(const Key& key) {
+    Node* n = find_node(root_, key);
+    if (!n) return false;
+    erase_node(n);
+    --size_;
+    return true;
+  }
+
+  void clear() {
+    destroy(root_);
+    root_ = nullptr;
+    size_ = 0;
+  }
+
+  void swap(RedBlackTree& other) noexcept {
+    std::swap(root_, other.root_);
+    std::swap(size_, other.size_);
+    std::swap(comp_, other.comp_);
+  }
+
+  std::vector<Key> inorder() const {
+    std::vector<Key> result;
+    result.reserve(size_);
+    inorder_collect(root_, result);
+    return result;
+  }
+
+  // ---- Bidirectional iterator ----
+  class iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = Key;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const Key*;
+    using reference = const Key&;
+
+    iterator() : node_(nullptr) {}
+    explicit iterator(Node* n) : node_(n) {}
+
+    reference operator*() const { return node_->key; }
+    pointer operator->() const { return &node_->key; }
+
+    iterator& operator++() { node_ = successor(node_); return *this; }
+    iterator operator++(int) { auto tmp = *this; ++*this; return tmp; }
+
+    iterator& operator--() { node_ = predecessor(node_); return *this; }
+    iterator operator--(int) { auto tmp = *this; --*this; return tmp; }
+
+    bool operator==(const iterator& other) const { return node_ == other.node_; }
+    bool operator!=(const iterator& other) const { return node_ != other.node_; }
+
+   private:
+    friend class RedBlackTree;
+    Node* node_;
+  };
+
+  class const_iterator {
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = Key;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const Key*;
+    using reference = const Key&;
+
+    const_iterator() : node_(nullptr) {}
+    explicit const_iterator(const Node* n) : node_(n) {}
+
+    reference operator*() const { return node_->key; }
+    pointer operator->() const { return &node_->key; }
+
+    const_iterator& operator++() {
+      node_ = successor(const_cast<Node*>(node_)); return *this;
+    }
+    const_iterator operator++(int) { auto tmp = *this; ++*this; return tmp; }
+
+    const_iterator& operator--() {
+      node_ = predecessor(const_cast<Node*>(node_)); return *this;
+    }
+    const_iterator operator--(int) { auto tmp = *this; --*this; return tmp; }
+
+    bool operator==(const const_iterator& other) const { return node_ == other.node_; }
+    bool operator!=(const const_iterator& other) const { return node_ != other.node_; }
+
+   private:
+    friend class RedBlackTree;
+    const Node* node_;
+  };
+
+  iterator begin() { return iterator(minimum(root_)); }
+  iterator end() { return iterator(nullptr); }
+
+  const_iterator begin() const { return const_iterator(minimum(root_)); }
+  const_iterator end() const { return const_iterator(nullptr); }
+  const_iterator cbegin() const { return begin(); }
+  const_iterator cend() const { return end(); }
+
+ private:
+  Node* root_ = nullptr;
+  size_type size_ = 0;
+  Compare comp_ = Compare{};
 
   void rotate_left(Node* x) {
     Node* y = x->right;
@@ -154,10 +280,7 @@ class RedBlackTree {
           gp->color = Color::Red;
           z = gp;
         } else {
-          if (z == z->parent->right) {
-            z = z->parent;
-            rotate_left(z);
-          }
+          if (z == z->parent->right) { z = z->parent; rotate_left(z); }
           z->parent->color = Color::Black;
           z->parent->parent->color = Color::Red;
           rotate_right(z->parent->parent);
@@ -170,10 +293,7 @@ class RedBlackTree {
           gp->color = Color::Red;
           z = gp;
         } else {
-          if (z == z->parent->left) {
-            z = z->parent;
-            rotate_right(z);
-          }
+          if (z == z->parent->left) { z = z->parent; rotate_right(z); }
           z->parent->color = Color::Black;
           z->parent->parent->color = Color::Red;
           rotate_left(z->parent->parent);
@@ -196,11 +316,9 @@ class RedBlackTree {
     Color y_orig = y->color;
 
     if (!z->left) {
-      x = z->right;
-      transplant(z, z->right);
+      x = z->right; transplant(z, z->right);
     } else if (!z->right) {
-      x = z->left;
-      transplant(z, z->left);
+      x = z->left; transplant(z, z->left);
     } else {
       y = minimum(z->right);
       y_orig = y->color;
@@ -219,10 +337,7 @@ class RedBlackTree {
     }
 
     delete z;
-
-    if (y_orig == Color::Black && x) {
-      erase_fixup(x);
-    }
+    if (y_orig == Color::Black && x) erase_fixup(x);
   }
 
   void erase_fixup(Node* x) {
@@ -230,61 +345,39 @@ class RedBlackTree {
       if (x == x->parent->left) {
         Node* w = x->parent->right;
         if (w && w->color == Color::Red) {
-          w->color = Color::Black;
-          x->parent->color = Color::Red;
-          rotate_left(x->parent);
-          w = x->parent->right;
+          w->color = Color::Black; x->parent->color = Color::Red;
+          rotate_left(x->parent); w = x->parent->right;
         }
-        bool left_black = (!w->left || w->left->color == Color::Black);
-        bool right_black = (!w->right || w->right->color == Color::Black);
-        if (left_black && right_black) {
-          w->color = Color::Red;
-          x = x->parent;
-        } else {
-          if (right_black) {
-            if (w->left) w->left->color = Color::Black;
-            w->color = Color::Red;
-            rotate_right(w);
-            w = x->parent->right;
-          }
-          w->color = x->parent->color;
-          x->parent->color = Color::Black;
+        bool lb = (!w->left || w->left->color == Color::Black);
+        bool rb = (!w->right || w->right->color == Color::Black);
+        if (lb && rb) { w->color = Color::Red; x = x->parent; }
+        else {
+          if (rb) { if (w->left) w->left->color = Color::Black; w->color = Color::Red; rotate_right(w); w = x->parent->right; }
+          w->color = x->parent->color; x->parent->color = Color::Black;
           if (w->right) w->right->color = Color::Black;
-          rotate_left(x->parent);
-          x = root_;
+          rotate_left(x->parent); x = root_;
         }
       } else {
         Node* w = x->parent->left;
         if (w && w->color == Color::Red) {
-          w->color = Color::Black;
-          x->parent->color = Color::Red;
-          rotate_right(x->parent);
-          w = x->parent->left;
+          w->color = Color::Black; x->parent->color = Color::Red;
+          rotate_right(x->parent); w = x->parent->left;
         }
-        bool left_black = (!w->left || w->left->color == Color::Black);
-        bool right_black = (!w->right || w->right->color == Color::Black);
-        if (left_black && right_black) {
-          w->color = Color::Red;
-          x = x->parent;
-        } else {
-          if (left_black) {
-            if (w->right) w->right->color = Color::Black;
-            w->color = Color::Red;
-            rotate_left(w);
-            w = x->parent->left;
-          }
-          w->color = x->parent->color;
-          x->parent->color = Color::Black;
+        bool lb = (!w->left || w->left->color == Color::Black);
+        bool rb = (!w->right || w->right->color == Color::Black);
+        if (lb && rb) { w->color = Color::Red; x = x->parent; }
+        else {
+          if (lb) { if (w->right) w->right->color = Color::Black; w->color = Color::Red; rotate_left(w); w = x->parent->left; }
+          w->color = x->parent->color; x->parent->color = Color::Black;
           if (w->left) w->left->color = Color::Black;
-          rotate_right(x->parent);
-          x = root_;
+          rotate_right(x->parent); x = root_;
         }
       }
     }
     if (x) x->color = Color::Black;
   }
 
-  bool insert_impl(const Key& key) {
+  bool insert_impl(Key key) {
     Node* parent = nullptr;
     Node* curr = root_;
     while (curr) {
@@ -293,10 +386,10 @@ class RedBlackTree {
       else if (comp_(curr->key, key)) curr = curr->right;
       else return false;
     }
-    auto z = std::make_unique<Node>(key);
+    auto z = std::make_unique<Node>(std::move(key));
     z->parent = parent;
     if (!parent) root_ = z.release();
-    else if (comp_(key, parent->key)) { parent->left = z.release(); parent->left->parent = parent; }
+    else if (comp_(z->key, parent->key)) { parent->left = z.release(); parent->left->parent = parent; }
     else { parent->right = z.release(); parent->right->parent = parent; }
     ++size_;
     if (parent) insert_fixup(parent->left ? parent->left : parent->right);
@@ -338,5 +431,10 @@ class RedBlackTree {
     inorder_collect(n->right, v);
   }
 };
+
+template <typename Key, typename Compare>
+void swap(RedBlackTree<Key, Compare>& a, RedBlackTree<Key, Compare>& b) noexcept {
+  a.swap(b);
+}
 
 }  // namespace dsa

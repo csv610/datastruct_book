@@ -1,5 +1,10 @@
 #pragma once
 #include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <functional>
+#include <initializer_list>
+#include <memory>
 #include <random>
 #include <utility>
 #include <vector>
@@ -9,32 +14,90 @@ namespace dsa {
 template <typename Key, typename Compare = std::less<Key>>
 class treap {
 public:
+    using key_type = Key;
+    using size_type = std::size_t;
+
     treap() = default;
+
+    explicit treap(Compare cmp) : comp_(std::move(cmp)) {}
+
+    treap(std::initializer_list<Key> init, Compare cmp = {})
+        : comp_(std::move(cmp)) {
+        for (const auto& k : init) insert(k);
+    }
+
     ~treap() { destroy(root_); }
 
-    treap(const treap&) = delete;
-    treap& operator=(const treap&) = delete;
+    treap(const treap& other) : root_(clone(other.root_)), size_(other.size_), comp_(other.comp_) {}
+
+    treap& operator=(const treap& other) {
+        if (this != &other) {
+            destroy(root_);
+            root_ = clone(other.root_);
+            size_ = other.size_;
+            comp_ = other.comp_;
+        }
+        return *this;
+    }
+
+    treap(treap&& other) noexcept
+        : root_(other.root_), size_(other.size_), comp_(std::move(other.comp_)),
+          rng_(std::move(other.rng_)) {
+        other.root_ = nullptr;
+        other.size_ = 0;
+    }
+
+    treap& operator=(treap&& other) noexcept {
+        if (this != &other) {
+            destroy(root_);
+            root_ = other.root_;
+            size_ = other.size_;
+            comp_ = std::move(other.comp_);
+            rng_ = std::move(other.rng_);
+            other.root_ = nullptr;
+            other.size_ = 0;
+        }
+        return *this;
+    }
 
     bool insert(const Key& key) {
         return insert_rec(root_, key);
+    }
+
+    template <typename... Args>
+    bool emplace(Args&&... args) {
+        Key key(std::forward<Args>(args)...);
+        return insert_rec(root_, std::move(key));
     }
 
     bool erase(const Key& key) {
         return erase_rec(root_, key);
     }
 
-    bool contains(const Key& key) const {
+    const Key* find(const Key& key) const {
         return search(root_, key);
     }
 
+    bool contains(const Key& key) const {
+        return search(root_, key) != nullptr;
+    }
+
+    bool empty() const noexcept { return !root_; }
+    size_type size() const noexcept { return size_; }
+
+    Compare key_comp() const { return comp_; }
+
     std::vector<Key> inorder() const {
         std::vector<Key> result;
+        result.reserve(size_);
         inorder_rec(root_, result);
         return result;
     }
 
-    bool empty() const { return !root_; }
-    std::size_t size() const { return size_; }
+    template <typename Visitor>
+    void for_each(Visitor&& visit) const {
+        inorder_visitor(root_, std::forward<Visitor>(visit));
+    }
 
 private:
     struct node {
@@ -43,24 +106,25 @@ private:
         node* left = nullptr;
         node* right = nullptr;
         explicit node(const Key& k, int p) : key(k), priority(p) {}
+        node(Key&& k, int p) : key(std::move(k)), priority(p) {}
     };
 
     int rand_priority() {
-        static std::mt19937 rng(42);
-        static std::uniform_int_distribution<int> dist(0, 1000000);
+        thread_local std::mt19937 rng(std::random_device{}());
+        thread_local std::uniform_int_distribution<int> dist(0, 1000000);
         return dist(rng);
     }
 
-    bool insert_rec(node*& n, const Key& key) {
-        if (!n) { n = new node(key, rand_priority()); ++size_; return true; }
+    bool insert_rec(node*& n, Key key) {
+        if (!n) { n = new node(std::move(key), rand_priority()); ++size_; return true; }
         if (comp_(key, n->key)) {
-            if (insert_rec(n->left, key)) {
+            if (insert_rec(n->left, std::move(key))) {
                 if (n->left->priority > n->priority)
                     rotate_right(n);
                 return true;
             }
         } else if (comp_(n->key, key)) {
-            if (insert_rec(n->right, key)) {
+            if (insert_rec(n->right, std::move(key))) {
                 if (n->right->priority > n->priority)
                     rotate_left(n);
                 return true;
@@ -73,7 +137,6 @@ private:
         if (!n) return false;
         if (comp_(key, n->key)) return erase_rec(n->left, key);
         if (comp_(n->key, key)) return erase_rec(n->right, key);
-        // Found
         if (!n->left && !n->right) {
             delete n; n = nullptr;
             --size_;
@@ -95,11 +158,11 @@ private:
         return true;
     }
 
-    bool search(node* n, const Key& key) const {
-        if (!n) return false;
+    const Key* search(node* n, const Key& key) const {
+        if (!n) return nullptr;
         if (comp_(key, n->key)) return search(n->left, key);
         if (comp_(n->key, key)) return search(n->right, key);
-        return true;
+        return &n->key;
     }
 
     void inorder_rec(node* n, std::vector<Key>& out) const {
@@ -107,6 +170,14 @@ private:
         inorder_rec(n->left, out);
         out.push_back(n->key);
         inorder_rec(n->right, out);
+    }
+
+    template <typename Visitor>
+    void inorder_visitor(node* n, Visitor&& visit) const {
+        if (!n) return;
+        inorder_visitor(n->left, visit);
+        visit(n->key);
+        inorder_visitor(n->right, visit);
     }
 
     void rotate_right(node*& n) {
@@ -123,6 +194,14 @@ private:
         n = r;
     }
 
+    node* clone(node* n) const {
+        if (!n) return nullptr;
+        auto* c = new node(n->key, n->priority);
+        c->left = clone(n->left);
+        c->right = clone(n->right);
+        return c;
+    }
+
     void destroy(node* n) {
         if (!n) return;
         destroy(n->left);
@@ -131,8 +210,9 @@ private:
     }
 
     node* root_ = nullptr;
-    std::size_t size_ = 0;
-    static inline Compare comp_{};
+    size_type size_ = 0;
+    Compare comp_ = Compare{};
+    std::mt19937 rng_{std::random_device{}()};
 };
 
 }  // namespace dsa
