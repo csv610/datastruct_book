@@ -1,11 +1,11 @@
-#include "ch13_suffix_array.h"
+#include "suffix_array.h"
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <vector>
 
 int main() {
-  ds::SuffixArray sa("banana");
+  dsa::SuffixArray sa("banana");
   auto indices = sa.search("ana");
   assert(indices.size() == 2);
   assert(indices[0] == 1);
@@ -18,10 +18,11 @@ int main() {
   assert(indices2.size() == 1);
   assert(indices2[0] == 0);
 
-  ds::SuffixArray sa2("mississippi");
+  dsa::SuffixArray sa2("mississippi");
   auto idx = sa2.search("issi");
-  assert(idx.size() == 1);
+  assert(idx.size() == 2);
   assert(idx[0] == 1);
+  assert(idx[1] == 4);
 
-  std::cout << "ch13_suffix_array: all passed\n";
+  std::cout << "suffix_array: all passed\n";
 }

@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+namespace dsa {
+
 template <std::regular T, typename Compare = std::less<T>>
 class max_heap {
 public:
@@ -119,5 +121,7 @@ void heap_sort(std::span<T> data) {
         }
     }
 }
+
+}  // namespace dsa
 
 #endif

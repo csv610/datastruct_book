@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+namespace dsa {
+
 // ---- Bloom Filter ----
 template <std::size_t Bits = 1024, std::size_t K = 3>
 class bloom_filter {
@@ -82,5 +84,7 @@ private:
 
     std::vector<std::uint64_t> bits_;
 };
+
+}  // namespace dsa
 
 #endif

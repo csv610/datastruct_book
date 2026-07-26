@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+namespace dsa {
+
 template <typename K, typename V, typename Hash = std::hash<K>>
     requires std::equality_comparable<K>
 class hash_table_chaining {
@@ -105,5 +107,7 @@ private:
     double      max_load_factor_ = 1.0;
     std::vector<std::list<value_type>> table_;
 };
+
+}  // namespace dsa
 
 #endif

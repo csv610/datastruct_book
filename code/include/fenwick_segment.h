@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <vector>
 
+namespace dsa {
+
 // ---- Fenwick Tree (Binary Indexed Tree) ----
 template <std::regular T>
 class fenwick_tree {
@@ -136,5 +138,7 @@ private:
     std::vector<T>      tree_;
     Combine             combine_;
 };
+
+}  // namespace dsa
 
 #endif

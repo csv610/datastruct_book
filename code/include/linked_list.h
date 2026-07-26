@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace dsa {
+
 template <typename T>
 struct node {
     T                      data;
@@ -174,5 +176,7 @@ private:
     std::unique_ptr<node<T>> head_;
     size_type                size_ = 0;
 };
+
+}  // namespace dsa
 
 #endif

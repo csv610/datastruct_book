@@ -7,12 +7,12 @@ Complete, compilable implementations of all data structures and algorithms cover
 ```
 code/
 ├── include/           # Header-only libraries
-│   ├── ch04_array_list.h
-│   ├── ch05_linked_list.h
-│   ├── ch05_sparse_matrix.h
-│   ├── ch06_stacks.h
-│   ├── ch07_queues.h
-│   ├── ch07_deque.h
+│   ├── array_list.h
+│   ├── linked_list.h
+│   ├── sparse_matrix.h
+│   ├── stacks.h
+│   ├── queues.h
+│   ├── deque.h
 │   └── ...
 ├── tests/             # Unit tests and usage examples
 │   ├── ch01_test.cpp
@@ -53,23 +53,23 @@ ctest
 
 | Header | Data Structures / Algorithms |
 |--------|------------------------------|
-| `ch04_array_list.h` | Dynamic array list |
-| `ch05_linked_list.h` | Singly & doubly linked lists |
-| `ch05_sparse_matrix.h` | Sparse matrix (CSR/COO), transpose, matrix-vector multiply |
-| `ch06_stacks.h` | Array-based & linked stacks |
-| `ch07_queues.h` | Circular & linked queues |
-| `ch07_deque.h` | Double-ended deque (circular buffer) |
-| `ch08_hash_table.h` | Hash table with separate chaining |
-| `ch09_binary_tree.h` | Binary tree traversals |
-| `ch10_max_heap.h` | Max-heap & heap sort |
-| `ch11_avl_tree.h` | AVL balanced search tree |
-| `ch11_red_black_tree.h` | Red-black tree (insert, delete, search) |
-| `ch12_graph.h` | Adjacency list graph, BFS, DFS, topological sort |
-| `ch13_suffix_array.h` | Suffix array, LCP, substring search |
-| `ch14_fenwick_segment.h` | Fenwick tree, segment tree, union-find |
-| `ch16_sorting.h` | Insertion, merge, quick, heap, introsort |
-| `ch19_bloom_filter.h` | Bloom filter, Count-Min sketch |
-| `ch20_dinic.h` | Dinic's max-flow algorithm |
+| `array_list.h` | Dynamic array list |
+| `linked_list.h` | Singly & doubly linked lists |
+| `sparse_matrix.h` | Sparse matrix (CSR/COO), transpose, matrix-vector multiply |
+| `stacks.h` | Array-based & linked stacks |
+| `queues.h` | Circular & linked queues |
+| `deque.h` | Double-ended deque (circular buffer) |
+| `hash_table.h` | Hash table with separate chaining |
+| `binary_tree.h` | Binary tree traversals |
+| `max_heap.h` | Max-heap & heap sort |
+| `avl_tree.h` | AVL balanced search tree |
+| `red_black_tree.h` | Red-black tree (insert, delete, search) |
+| `graph.h` | Adjacency list graph, BFS, DFS, topological sort |
+| `suffix_array.h` | Suffix array, LCP, substring search |
+| `fenwick_segment.h` | Fenwick tree, segment tree, union-find |
+| `sorting.h` | Insertion, merge, quick, heap, introsort |
+| `bloom_filter.h` | Bloom filter, Count-Min sketch |
+| `dinic.h` | Dinic's max-flow algorithm |
 
 ## Notes
 

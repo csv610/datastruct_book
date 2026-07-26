@@ -1,11 +1,11 @@
-#include "ch11_red_black_tree.h"
+#include "red_black_tree.h"
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <vector>
 
 int main() {
-  ds::RedBlackTree<int> tree;
+  dsa::RedBlackTree<int> tree;
   assert(tree.empty());
 
   tree.insert(10);
@@ -34,7 +34,7 @@ int main() {
   expected = {10, 15, 25};
   assert(v == expected);
 
-  ds::RedBlackTree<std::string> stree;
+  dsa::RedBlackTree<std::string> stree;
   stree.insert("cherry");
   stree.insert("apple");
   stree.insert("banana");
@@ -43,9 +43,9 @@ int main() {
   assert(sv[1] == "banana");
   assert(sv[2] == "cherry");
 
-  ds::RedBlackTree<int> copy(tree);
+  dsa::RedBlackTree<int> copy(tree);
   assert(copy.size() == tree.size());
   assert(copy.contains(15));
 
-  std::cout << "ch11_red_black_tree: all passed\n";
+  std::cout << "red_black_tree: all passed\n";
 }

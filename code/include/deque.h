@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace ds {
+namespace dsa {
 
 template <typename T>
 class Deque {
@@ -206,4 +206,4 @@ class Deque {
   std::size_t size_;
 };
 
-}  // namespace ds
+}  // namespace dsa

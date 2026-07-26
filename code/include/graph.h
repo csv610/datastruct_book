@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+namespace dsa {
+
 // ---- Graph (adjacency list, undirected) ----
 template <typename Weight = int>
 class graph {
@@ -223,5 +225,7 @@ inline std::vector<weighted_edge> kruskal_mst(
     }
     return mst;
 }
+
+}  // namespace dsa
 
 #endif

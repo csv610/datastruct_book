@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <vector>
 
+namespace dsa {
+
 // ---- Dinic Max Flow ----
 template <std::integral FlowUnit = int>
 class dinic {
@@ -94,5 +96,7 @@ private:
 
     std::vector<std::vector<edge>> adj_;
 };
+
+}  // namespace dsa
 
 #endif

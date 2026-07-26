@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace dsa {
+
 template <typename T>
 struct binary_node {
     T                       data;
@@ -181,5 +183,7 @@ private:
 
     node_ptr root_;
 };
+
+}  // namespace dsa
 
 #endif

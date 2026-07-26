@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace ds {
+namespace dsa {
 
 template <typename Key, typename Compare = std::less<Key>>
 class RedBlackTree {
@@ -339,4 +339,4 @@ class RedBlackTree {
   }
 };
 
-}  // namespace ds
+}  // namespace dsa

@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-namespace ds {
+namespace dsa {
 
 template <typename T>
 class SparseMatrix {
@@ -85,8 +85,9 @@ class SparseMatrix {
     for (std::size_t c = 1; c <= cols_; ++c) {
       result.row_ptr_[c] += result.row_ptr_[c - 1];
     }
-    result.col_idx_.resize(triplets_.size());
-    result.values_.resize(triplets_.size());
+    auto saved_row_ptr = result.row_ptr_;
+    result.col_idx_.resize(nnz());
+    result.values_.resize(nnz());
     for (std::size_t r = 0; r < rows_; ++r) {
       for (std::size_t i = row_ptr_[r]; i < row_ptr_[r + 1]; ++i) {
         std::size_t c = col_idx_[i];
@@ -95,11 +96,14 @@ class SparseMatrix {
         result.values_[pos] = values_[i];
       }
     }
-    result.triplets_.reserve(triplets_.size());
-    for (std::size_t i = 0; i < result.col_idx_.size(); ++i) {
-      result.triplets_.push_back({result.col_idx_[i], i, result.values_[i]});
+    result.row_ptr_ = saved_row_ptr;
+    result.triplets_.reserve(nnz());
+    for (std::size_t c = 0; c < cols_; ++c) {
+      for (std::size_t i = saved_row_ptr[c]; i < saved_row_ptr[c + 1]; ++i) {
+        result.triplets_.push_back({c, result.col_idx_[i], result.values_[i]});
+      }
     }
-    result.dirty_ = true;
+    result.dirty_ = false;
     return result;
   }
 
@@ -191,4 +195,4 @@ class SparseMatrix {
   mutable bool dirty_ = true;
 };
 
-}  // namespace ds
+}  // namespace dsa

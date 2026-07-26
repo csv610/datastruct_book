@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace ds {
+namespace dsa {
 
 class SuffixArray {
  public:
@@ -22,15 +22,15 @@ class SuffixArray {
     std::size_t m = pattern.size();
     if (m == 0 || m > n) return results;
 
-    std::size_t lo = 0, hi = n;
+    std::size_t lo = 0, hi = sa_.size();
     while (lo < hi) {
       std::size_t mid = lo + (hi - lo) / 2;
-      if (text_[sa_[mid]] < pattern[0]) lo = mid + 1;
+      if (compare_suffix(sa_[mid], pattern, n) < 0) lo = mid + 1;
       else hi = mid;
     }
     std::size_t start = lo;
     lo = 0;
-    hi = n;
+    hi = sa_.size();
     while (lo < hi) {
       std::size_t mid = lo + (hi - lo) / 2;
       if (compare_suffix(sa_[mid], pattern, n) <= 0) lo = mid + 1;
@@ -138,4 +138,4 @@ class SuffixArray {
   std::vector<std::size_t> tmp_;
 };
 
-}  // namespace ds
+}  // namespace dsa

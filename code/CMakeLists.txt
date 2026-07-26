@@ -23,10 +23,10 @@ set(TESTS
     ch05_test
     ch06_test
     ch07_test
-    test_ch07_deque
-    test_ch11_red_black_tree
-    test_ch05_sparse_matrix
-    test_ch13_suffix_array
+    test_deque
+    test_red_black_tree
+    test_sparse_matrix
+    test_suffix_array
 )
 
 foreach(TEST ${TESTS})

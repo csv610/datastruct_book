@@ -11,6 +11,8 @@
 #include <string_view>
 #include <vector>
 
+namespace dsa {
+
 // ---- Trie (lowercase letters) ----
 template <typename V>
 class trie {
@@ -158,5 +160,7 @@ inline std::vector<std::size_t> rabin_karp_search(std::string_view text,
     }
     return matches;
 }
+
+}  // namespace dsa
 
 #endif

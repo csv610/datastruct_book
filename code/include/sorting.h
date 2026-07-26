@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+namespace dsa {
+
 // ---- Insertion sort ----
 template <std::regular T>
 void insertion_sort(std::span<T> a) {
@@ -81,5 +83,7 @@ T quick_select(std::span<T> a, std::size_t k) {
     if (k < p)  return quick_select(a.subspan(0, p), k);
     return quick_select(a.subspan(p + 1), k - p - 1);
 }
+
+}  // namespace dsa
 
 #endif

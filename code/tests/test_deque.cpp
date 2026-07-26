@@ -1,10 +1,10 @@
-#include "ch07_deque.h"
+#include "deque.h"
 #include <cassert>
 #include <iostream>
 #include <string>
 
 int main() {
-  ds::Deque<int> dq;
+  dsa::Deque<int> dq;
 
   dq.push_back(1);
   dq.push_back(2);
@@ -23,18 +23,18 @@ int main() {
   assert(dq.size() == 100);
   for (int i = 0; i < 100; ++i) assert(dq[i] == i);
 
-  ds::Deque<std::string> sdq;
+  dsa::Deque<std::string> sdq;
   sdq.push_back("hello");
   sdq.push_back("world");
   sdq.push_front("hi");
   assert(sdq.front() == "hi");
   assert(sdq.back() == "world");
 
-  ds::Deque<int> copy(dq);
+  dsa::Deque<int> copy(dq);
   assert(copy.size() == dq.size());
   assert(copy[50] == 50);
   assert(copy.front() == 0);
   assert(copy.back() == 99);
 
-  std::cout << "ch07_deque: all passed\n";
+  std::cout << "deque: all passed\n";
 }

@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace dsa {
+
 template <std::regular T>
 class array_list {
 public:
@@ -49,7 +51,11 @@ public:
         return *this;
     }
 
-    array_list(array_list&&) = default;
+    array_list(array_list&& other) noexcept
+        : size_(other.size_), capacity_(other.capacity_), data_(std::move(other.data_)) {
+        other.size_ = 0;
+        other.capacity_ = 0;
+    }
     array_list& operator=(array_list&&) = default;
 
     reference operator[](size_type i) {
@@ -179,5 +185,7 @@ private:
     size_type              capacity_;
     std::unique_ptr<T[]>   data_;
 };
+
+}  // namespace dsa
 
 #endif

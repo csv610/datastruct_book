@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace dsa {
+
 // ---- Circular queue (array-based) ----
 template <std::regular T>
 class circular_queue {
@@ -146,5 +148,7 @@ private:
     qnode*                 rear_ = nullptr;
     std::size_t            size_ = 0;
 };
+
+}  // namespace dsa
 
 #endif

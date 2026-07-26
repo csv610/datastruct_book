@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+namespace dsa {
+
 // ---- Array-based stack ----
 template <std::regular T>
 class array_stack {
@@ -208,5 +210,7 @@ inline std::string infix_to_postfix(std::string_view infix) {
     }
     return result;
 }
+
+}  // namespace dsa
 
 #endif

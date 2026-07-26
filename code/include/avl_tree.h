@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <utility>
 
+namespace dsa {
+
 template <typename K, typename V, typename Compare = std::less<K>>
     requires std::regular<K> && std::regular<V>
 class avl_tree {
@@ -163,5 +165,7 @@ private:
     node_ptr root_;
     Compare  compare_;
 };
+
+}  // namespace dsa
 
 #endif

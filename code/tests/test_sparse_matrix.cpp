@@ -1,4 +1,4 @@
-#include "ch05_sparse_matrix.h"
+#include "sparse_matrix.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -11,7 +11,7 @@ int main() {
       {0, 0, 0, 4}
   };
 
-  ds::SparseMatrix<double> sm(dense);
+  dsa::SparseMatrix<double> sm(dense);
   assert(sm.rows() == 4);
   assert(sm.cols() == 4);
   assert(sm.nnz() == 4);
@@ -39,5 +39,5 @@ int main() {
   assert(t.get(1, 2) == 3.0);
   assert(t.get(3, 3) == 4.0);
 
-  std::cout << "ch05_sparse_matrix: all passed\n";
+  std::cout << "sparse_matrix: all passed\n";
 }
