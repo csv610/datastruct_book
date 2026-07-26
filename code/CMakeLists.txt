@@ -40,6 +40,21 @@ set(TESTS
     test_fenwick_segment
     test_bloom_filter
     test_dinic
+    test_greedy
+    test_divide_conquer
+    test_dynamic_programming
+    test_backtracking
+    test_probabilistic
+    test_flow_matching
+    test_open_addressing_hash
+    test_skip_list
+    test_expression_tree
+    test_leftist_tree
+    test_b_tree
+    test_treap
+    test_scc
+    test_prim
+    test_segment_tree_lazy
 )
 
 foreach(TEST ${TESTS})

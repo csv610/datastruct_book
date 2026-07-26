@@ -7,7 +7,12 @@ TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_
          test_sparse_vector test_bit_vector \
          test_linked_list test_binary_tree test_graph test_sorting \
          test_stacks test_queues test_hash_table test_fenwick_segment \
-         test_bloom_filter test_dinic
+         test_bloom_filter test_dinic \
+         test_greedy test_divide_conquer test_dynamic_programming test_backtracking \
+         test_probabilistic test_flow_matching \
+         test_open_addressing_hash test_skip_list test_expression_tree \
+         test_leftist_tree test_b_tree test_treap test_scc test_prim \
+         test_segment_tree_lazy
 
 .PHONY: all test clean
 
@@ -86,6 +91,51 @@ test_bloom_filter: tests/test_bloom_filter.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 test_dinic: tests/test_dinic.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_greedy: tests/test_greedy.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_divide_conquer: tests/test_divide_conquer.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_dynamic_programming: tests/test_dynamic_programming.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_backtracking: tests/test_backtracking.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_probabilistic: tests/test_probabilistic.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_flow_matching: tests/test_flow_matching.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_open_addressing_hash: tests/test_open_addressing_hash.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_skip_list: tests/test_skip_list.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_expression_tree: tests/test_expression_tree.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_leftist_tree: tests/test_leftist_tree.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_b_tree: tests/test_b_tree.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_treap: tests/test_treap.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_scc: tests/test_scc.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_prim: tests/test_prim.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_segment_tree_lazy: tests/test_segment_tree_lazy.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:

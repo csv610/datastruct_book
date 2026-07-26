@@ -71,6 +71,8 @@ ctest
 | `deque.h` | Double-ended deque (circular buffer) |
 | `bit_vector.h` | Bit vector (popcount, find_first/next, bitwise ops) |
 | `hash_table.h` | Hash table with separate chaining |
+| `open_addressing_hash.h` | Open addressing (linear probing, quadratic probing, double hashing) |
+| `skip_list.h` | Skip list (randomized ordered structure) |
 | `binary_tree.h` | Binary tree traversals, BST insert/erase/find |
 | `max_heap.h` | Max-heap & heap sort |
 | `binomial_heap.h` | Binomial heap (mergeable) |
@@ -80,14 +82,28 @@ ctest
 | `red_black_tree.h` | Red-black tree (insert, delete, search) |
 | `splay_tree.h` | Splay tree (self-adjusting BST) |
 | `two_three_tree.h` | 2-3 tree (B-tree variant) |
+| `b_tree.h` | B-tree (generalized balanced search tree) |
+| `treap.h` | Treap (BST + heap priority) |
+| `leftist_tree.h` | Leftist tree (mergeable min-heap with NPL) |
 | `suffix_tree.h` | Suffix tree (naive O(n²) construction) |
 | `radix_tree.h` | Radix/Patricia trie (compressed) |
+| `expression_tree.h` | Expression tree (build, evaluate, infix/postfix) |
+| `huffman.h` | Huffman coding tree (in greedy.h) |
 | `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST |
+| `scc.h` | Strongly connected components (Kosaraju + Tarjan) |
+| `prim.h` | Prim's MST (min-heap) |
 | `suffix_array.h` | Suffix array, LCP, substring search |
 | `fenwick_segment.h` | Fenwick tree, segment tree, union-find |
+| `segment_tree_lazy.h` | Segment tree with lazy propagation (range update + range query) |
 | `sorting.h` | Insertion, merge, quick sort, quickselect, counting sort, radix sort, bucket sort |
 | `bloom_filter.h` | Bloom filter, Count-Min sketch |
 | `dinic.h` | Dinic's max-flow algorithm |
+| `flow_matching.h` | Ford-Fulkerson, Edmonds-Karp, Hopcroft-Karp bipartite matching |
+| `greedy.h` | Fractional knapsack, Huffman coding |
+| `divide_conquer.h` | Closest pair of points, Strassen's matrix multiply |
+| `dynamic_programming.h` | 0/1 knapsack, LCS, edit distance, LIS |
+| `backtracking.h` | N-Queens, subset sum, TSP (bitmask DP) |
+| `probabilistic.h` | HyperLogLog, Count-Min sketch, reservoir sampling |
 
 ## Notes
 
