@@ -151,6 +151,105 @@ inline void bucket_sort(std::span<float> a) {
             a[k++] = v;
 }
 
+// ---- Bubble sort ----
+template <std::regular T>
+void bubble_sort(std::span<T> a) {
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        bool swapped = false;
+        for (std::size_t j = 0; j + 1 < a.size() - i; ++j) {
+            if (a[j + 1] < a[j]) {
+                std::swap(a[j], a[j + 1]);
+                swapped = true;
+            }
+        }
+        if (!swapped) break;
+    }
+}
+
+// ---- Shell sort (Ciura gaps) ----
+template <std::regular T>
+void shell_sort(std::span<T> a) {
+    std::vector<std::size_t> gaps = {701, 301, 132, 57, 23, 10, 4, 1};
+    for (auto gap : gaps) {
+        for (std::size_t i = gap; i < a.size(); ++i) {
+            T temp = std::move(a[i]);
+            std::size_t j = i;
+            while (j >= gap && a[j - gap] > temp) {
+                a[j] = std::move(a[j - gap]);
+                j -= gap;
+            }
+            a[j] = std::move(temp);
+        }
+    }
+}
+
+// ---- Bottom-up merge sort (iterative) ----
+template <std::regular T>
+void merge_sort_bottom_up(std::span<T> a) {
+    std::size_t n = a.size();
+    std::vector<T> aux(n);
+    for (std::size_t sz = 1; sz < n; sz *= 2) {
+        for (std::size_t lo = 0; lo < n; lo += 2 * sz) {
+            std::size_t mid = std::min(lo + sz, n);
+            std::size_t hi = std::min(lo + 2 * sz, n);
+            std::size_t i = lo, j = mid, k = lo;
+            while (i < mid && j < hi)
+                aux[k++] = (a[i] <= a[j]) ? std::move(a[i++]) : std::move(a[j++]);
+            while (i < mid) aux[k++] = std::move(a[i++]);
+            while (j < hi) aux[k++] = std::move(a[j++]);
+        }
+        std::copy(aux.begin(), aux.end(), a.begin());
+    }
+}
+
+// ---- Quick sort 3-way partition (Dutch National Flag) ----
+template <std::regular T>
+void quick_sort_3way(std::span<T> a) {
+    if (a.size() <= 1) return;
+
+    std::size_t lt = 0, gt = a.size() - 1, i = 0;
+    T pivot = a[a.size() / 2];
+    while (i <= gt) {
+        if (a[i] < pivot) {
+            std::swap(a[lt++], a[i++]);
+        } else if (a[i] > pivot) {
+            std::swap(a[i], a[gt--]);
+        } else {
+            ++i;
+        }
+    }
+    if (lt > 0)
+        quick_sort_3way(a.subspan(0, lt));
+    if (gt + 1 < a.size())
+        quick_sort_3way(a.subspan(gt + 1));
+}
+
+// ---- MSD Radix sort for strings ----
+inline void radix_sort_msd(std::span<std::string> a, int radix = 256) {
+    std::vector<std::string> aux(a.size());
+
+    std::function<void(int, int, int)> sort = [&](int lo, int hi, int d) {
+        if (hi <= lo) return;
+        std::vector<int> count(radix + 2, 0);
+        for (int i = lo; i <= hi; ++i) {
+            int c = (d < static_cast<int>(a[i].size())) ? static_cast<unsigned char>(a[i][d]) : -1;
+            ++count[c + 2];
+        }
+        for (int r = 0; r < radix + 1; ++r)
+            count[r + 1] += count[r];
+        for (int i = lo; i <= hi; ++i) {
+            int c = (d < static_cast<int>(a[i].size())) ? static_cast<unsigned char>(a[i][d]) : -1;
+            aux[count[c + 1]++] = std::move(a[i]);
+        }
+        for (int i = lo; i <= hi; ++i)
+            a[i] = std::move(aux[i - lo]);
+        for (int r = 0; r < radix; ++r)
+            sort(lo + (r == 0 ? 0 : count[r]), lo + count[r + 1] - 1, d + 1);
+    };
+
+    sort(0, static_cast<int>(a.size()) - 1, 0);
+}
+
 }  // namespace dsa
 
 #endif

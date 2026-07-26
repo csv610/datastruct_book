@@ -111,4 +111,62 @@ private:
     std::vector<std::vector<int>> sccs_;
 };
 
+// ---- Gabow's Algorithm (SCC) ----
+class gabow_scc {
+public:
+    explicit gabow_scc(int n) : n_(n), adj_(n) {}
+
+    void add_edge(int u, int v) { adj_[u].push_back(v); }
+
+    std::vector<std::vector<int>> find_sccs() {
+        index_ = 0;
+        ids_.assign(n_, -1);
+        sccs_.clear();
+        while (!stack1_.empty()) stack1_.pop();
+        while (!stack2_.empty()) stack2_.pop();
+
+        for (int i = 0; i < n_; ++i)
+            if (ids_[i] == -1) dfs(i);
+
+        return sccs_;
+    }
+
+private:
+    void dfs(int v) {
+        ids_[v] = index_++;
+        stack1_.push(v);
+        stack2_.push(v);
+
+        for (int w : adj_[v]) {
+            if (ids_[w] == -1) {
+                dfs(w);
+            } else if (ids_[w] < ids_[v]) {
+                // w is an ancestor still on the stack
+                while (ids_[stack2_.top()] > ids_[w])
+                    stack2_.pop();
+            }
+        }
+
+        // If v is root of SCC
+        if (!stack2_.empty() && stack2_.top() == v) {
+            stack2_.pop();
+            std::vector<int> comp;
+            int w;
+            do {
+                w = stack1_.top(); stack1_.pop();
+                comp.push_back(w);
+            } while (w != v);
+            sccs_.push_back(std::move(comp));
+        }
+    }
+
+    int n_;
+    std::vector<std::vector<int>> adj_;
+    std::vector<int> ids_;
+    std::stack<int> stack1_;  // DFS stack
+    std::stack<int> stack2_;  // Path stack
+    int index_ = 0;
+    std::vector<std::vector<int>> sccs_;
+};
+
 }  // namespace dsa

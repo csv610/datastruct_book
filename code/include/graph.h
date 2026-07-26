@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <deque>
 #include <functional>
 #include <limits>
 #include <queue>
@@ -234,6 +235,104 @@ public:
         return false;
     }
 
+    // ---- Bipartiteness check ----
+    // Returns color vector (0=uncolored, 1=white, 2=black) or empty if not bipartite
+    std::vector<std::size_t> is_bipartite() const {
+        std::size_t n = adj_.size();
+        std::vector<std::size_t> color(n, 0);
+
+        for (std::size_t start = 0; start < n; ++start) {
+            if (color[start] != 0) continue;
+            color[start] = 1;
+            std::queue<std::size_t> q;
+            q.push(start);
+            while (!q.empty()) {
+                auto v = q.front(); q.pop();
+                for (const auto& [to, _] : adj_[v]) {
+                    if (color[to] == 0) {
+                        color[to] = 3 - color[v];
+                        q.push(to);
+                    } else if (color[to] == color[v]) {
+                        return {};
+                    }
+                }
+            }
+        }
+        return color;
+    }
+
+    // ---- Transitive closure (reachability matrix) ----
+    std::vector<std::vector<bool>> transitive_closure() const {
+        std::size_t n = adj_.size();
+        std::vector<std::vector<bool>> reach(n, std::vector<bool>(n, false));
+        for (std::size_t v = 0; v < n; ++v) reach[v][v] = true;
+
+        // Process in reverse topological order for efficiency
+        for (std::size_t v = n; v-- > 0;) {
+            for (const auto& [to, _] : adj_[v]) {
+                reach[v][to] = true;
+                for (std::size_t w = 0; w < n; ++w)
+                    if (reach[to][w]) reach[v][w] = true;
+            }
+        }
+        return reach;
+    }
+
+    // ---- DAG shortest path (topological order) ----
+    std::vector<Weight> dag_shortest_path(std::size_t start) const {
+        std::size_t n = adj_.size();
+        std::vector<Weight> dist(n, std::numeric_limits<Weight>::max());
+        dist[start] = Weight{};
+
+        auto topo = topological_sort();
+        for (auto v : topo) {
+            if (dist[v] == std::numeric_limits<Weight>::max()) continue;
+            for (const auto& [to, w] : adj_[v]) {
+                if (dist[v] + w < dist[to])
+                    dist[to] = dist[v] + w;
+            }
+        }
+        return dist;
+    }
+
+    // ---- Eulerian cycle (directed, Hierholzer's) ----
+    // Returns vertex sequence of Eulerian cycle, or empty if none exists
+    std::vector<std::size_t> eulerian_cycle() const {
+        std::size_t n = adj_.size();
+        std::vector<std::size_t> in_degree(n, 0), out_degree(n, 0);
+        for (std::size_t v = 0; v < n; ++v) {
+            out_degree[v] = adj_[v].size();
+            for (const auto& [to, _] : adj_[v])
+                ++in_degree[to];
+        }
+
+        for (std::size_t v = 0; v < n; ++v)
+            if (in_degree[v] != out_degree[v]) return {};
+
+        // Make mutable copy of adjacency lists for edge removal
+        std::vector<std::deque<std::size_t>> adj(n);
+        for (std::size_t v = 0; v < n; ++v)
+            for (const auto& [to, _] : adj_[v])
+                adj[v].push_back(to);
+
+        std::vector<std::size_t> stack, cycle;
+        stack.push_back(0);
+
+        while (!stack.empty()) {
+            auto v = stack.back();
+            if (!adj[v].empty()) {
+                auto to = adj[v].front();
+                adj[v].pop_front();
+                stack.push_back(to);
+            } else {
+                cycle.push_back(v);
+                stack.pop_back();
+            }
+        }
+        std::reverse(cycle.begin(), cycle.end());
+        return cycle;
+    }
+
 private:
     std::vector<std::vector<edge>> adj_;
 };
@@ -293,6 +392,42 @@ inline std::vector<weighted_edge> kruskal_mst(
             mst.push_back(e);
             if (mst.size() == n - 1) break;
         }
+    }
+    return mst;
+}
+
+// ---- Boruvka's MST ----
+inline std::vector<weighted_edge> boruvka_mst(
+    std::size_t n, std::vector<weighted_edge> edges) {
+
+    union_find uf(n);
+    std::vector<weighted_edge> mst;
+    std::size_t num_components = n;
+
+    while (num_components > 1 && mst.size() < n - 1) {
+        // Find cheapest edge leaving each component
+        std::vector<std::optional<weighted_edge>> cheapest(n);
+        for (const auto& e : edges) {
+            auto cu = uf.find(e.from), cv = uf.find(e.to);
+            if (cu == cv) continue;
+            if (!cheapest[cu] || e.weight < cheapest[cu]->weight)
+                cheapest[cu] = e;
+            if (!cheapest[cv] || e.weight < cheapest[cv]->weight)
+                cheapest[cv] = e;
+        }
+
+        bool merged = false;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!cheapest[i]) continue;
+            auto [u, v, w] = *cheapest[i];
+            if (!uf.same(u, v)) {
+                uf.unite(u, v);
+                mst.push_back(*cheapest[i]);
+                --num_components;
+                merged = true;
+            }
+        }
+        if (!merged) break;
     }
     return mst;
 }

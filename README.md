@@ -155,6 +155,10 @@ make clean    # Remove build artifacts
 | `bwt.h` | BWT encode/decode, FM-index |
 | `lsh.h` | MinHash, LSH cosine, LSH Jaccard |
 | `de_bruijn.h` | de Bruijn graph, Eulerian path, de Bruijn sequence |
+| `dary_heap.h` | D-ary heap (generalized binary heap) |
+| `indexed_pq.h` | Indexed min/max priority queue with decrease_key/increase_key |
+| `nfa.h` | NFA regex matching (Thompson's construction: `*`, `+`, `?`, `|`, `()`) |
+| `hungarian.h` | Hungarian algorithm (assignment problem) |
 
 ## Generating the PDF
 

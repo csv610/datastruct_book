@@ -66,6 +66,13 @@ set(TESTS
     test_multiple_matching
     test_additional_algorithms
     test_suffix_array_search
+    test_new_sorting
+    test_dary_heap
+    test_indexed_pq
+    test_new_graph
+    test_gabow_scc
+    test_nfa
+    test_hungarian
 )
 
 foreach(TEST ${TESTS})

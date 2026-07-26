@@ -116,6 +116,11 @@ ctest
 | `lsh.h` | MinHash, LSH cosine, LSH Jaccard |
 | `de_bruijn.h` | de Bruijn graph, Eulerian path, de Bruijn sequence |
 
+| `dary_heap.h` | D-ary heap (generalized binary heap) |
+| `indexed_pq.h` | Indexed min/max priority queue with decrease_key/increase_key |
+| `nfa.h` | NFA regex matching (Thompson's construction: `*`, `+`, `?`, `|`, `()`) |
+| `hungarian.h` | Hungarian algorithm (assignment problem) |
+
 ## Notes
 
 - All code uses C++23 features: `std::print`/`std::println`, `std::mdspan`, `std::expected`, `std::ranges::to`, `std::to_underlying`, concepts, `std::unique_ptr`, move semantics.

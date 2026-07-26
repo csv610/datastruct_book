@@ -16,7 +16,9 @@ TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_
          test_string_search test_approximate_matching test_string_compression \
          test_bwt test_lsh test_de_bruijn \
          test_exact_matching test_text_decomposition test_multiple_matching \
-         test_additional_algorithms test_suffix_array_search
+         test_additional_algorithms test_suffix_array_search \
+         test_new_sorting test_dary_heap test_indexed_pq test_new_graph \
+         test_gabow_scc test_nfa test_hungarian
 
 .PHONY: all test clean
 
@@ -173,6 +175,27 @@ test_additional_algorithms: tests/test_additional_algorithms.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 test_suffix_array_search: tests/test_suffix_array_search.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_new_sorting: tests/test_new_sorting.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_dary_heap: tests/test_dary_heap.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_indexed_pq: tests/test_indexed_pq.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_new_graph: tests/test_new_graph.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_gabow_scc: tests/test_gabow_scc.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_nfa: tests/test_nfa.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_hungarian: tests/test_hungarian.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:
