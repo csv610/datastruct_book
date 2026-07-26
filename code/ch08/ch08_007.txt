@@ -1,1 +1,0 @@
-Probe sequence: p(i) = (h(k) + i$\cdot$h$_{2}$(k)) mod m

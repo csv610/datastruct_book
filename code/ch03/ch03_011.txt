@@ -1,2 +1,0 @@
-valgrind --tool=callgrind ./program
-# Produces callgrind.out.xxx -- view with kcachegrind

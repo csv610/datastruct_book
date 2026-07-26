@@ -8,3 +8,10 @@
 *.bbl
 *.blg
 *.synctex.gz
+
+# Build artifacts
+code/build/
+code/all_tests
+code/test_*
+*.o
+*.out

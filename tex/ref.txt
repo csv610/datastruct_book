@@ -1,0 +1,460 @@
+T 6.856J — Randomized Algorithms (Fall 2002, Prof. David Karger)
+    Graduate-level dedicated randomized algorithms course — 25 lectures
+
+    Lecture: 1
+    Chapter / Topic: Introduction to Randomized Algorithms — Las Vegas vs Monte
+      Carlo, complexity classes (RP, BPP, ZPP)
+    ────────────────────────────────────────
+    Lecture: 2
+    Chapter / Topic: Min-Cut (Karger), Complexity Theory, Game Tree Evaluation —
+      Randomized contraction, RP-completeness
+    ────────────────────────────────────────
+    Lecture: 3
+    Chapter / Topic: Adleman's Theorem, Game Theory, Lower Bounds — BPP ⊆ P/poly,
+      Yao's minimax principle
+    ────────────────────────────────────────
+    Lecture: 4
+    Chapter / Topic: Coupon Collecting, Stable Marriage, Markov's Inequality —
+      Occupancy problems, expectation
+    ────────────────────────────────────────
+    Lecture: 5
+    Chapter / Topic: Chebyshev, Pairwise Independence, Chernoff Bounds — Moment
+      inequalities, tail bounds, limited independence
+    ────────────────────────────────────────
+    Lecture: 6
+    Chapter / Topic: Median Finding (Randomized Select), Oblivious Routing —
+      Expected linear-time selection, permutation routing
+    ────────────────────────────────────────
+    Lecture: 7
+    Chapter / Topic: Probabilistic Method, Expanders, Wiring, MAX-SAT — Existence
+      proofs, expander graphs, 7/8-approximation
+    ────────────────────────────────────────
+    Lecture: 8
+    Chapter / Topic: Method of Conditional Probabilities/Expectations,
+      Fingerprinting — Derandomization, string matching
+    ────────────────────────────────────────
+    Lecture: 9
+    Chapter / Topic: Hashing, Perfect Hash Families, Freivald's Matrix Verification
+      — Universal hashing, O(1) perfect hashing
+    ────────────────────────────────────────
+    Lecture: 10
+    Chapter / Topic: Polynomial Fingerprinting, Perfect Matching (RNC), Hashing
+      Applications — Schwartz-Zippel, determinant testing
+    ────────────────────────────────────────
+    Lecture: 11
+    Chapter / Topic: Shortest Paths (Randomized) — Randomized Dijkstra, negative
+      weights
+    ────────────────────────────────────────
+    Lecture: 12
+    Chapter / Topic: Parallel Algorithms — NC, RNC, parallel prefix, symmetry
+      breaking
+    ────────────────────────────────────────
+    Lecture: 13
+    Chapter / Topic: Maximal Independent Sets (Luby's Algorithm) — RNC algorithm for
+      MIS
+    ────────────────────────────────────────
+    Lecture: 14
+    Chapter / Topic: Minimum Spanning Trees (KKT) — Randomized linear-time MST via
+      sampling
+    ────────────────────────────────────────
+    Lecture: 15
+    Chapter / Topic: Polling, Min-Cut Counting, Transitive Closure — Random sampling
+      for cut enumeration
+    ────────────────────────────────────────
+    Lecture: 16
+    Chapter / Topic: Estimating Min-Cut Size — Karger's sampling framework
+    ────────────────────────────────────────
+    Lecture: 17
+    Chapter / Topic: Linear Programming (Randomized) — Randomized simplex, Seidel's
+      LP in low dimensions
+    ────────────────────────────────────────
+    Lecture: 18
+    Chapter / Topic: DNF Counting (Karp-Luby) — Monte Carlo counting, unbiased
+      estimators
+    ────────────────────────────────────────
+    Lecture: 19
+    Chapter / Topic: Markov Chains — Stationary distribution, mixing time, coupling
+    ────────────────────────────────────────
+    Lecture: 20
+    Chapter / Topic: UTS, Eigenvalue Analysis, Expanders — Spectral gap, Cheeger's
+      inequality
+    ────────────────────────────────────────
+    Lecture: 21
+    Chapter / Topic: Expander-Based Pseudorandom Generators — Nisan-Zuckerman,
+      derandomizing space
+    ────────────────────────────────────────
+    Lecture: 22
+    Chapter / Topic: Sampling with Markov Chains, Coupling from the Past — MCMC,
+      perfect sampling (Propp-Wilson)
+    ────────────────────────────────────────
+    Lecture: 23
+    Chapter / Topic: Computational Geometry (Randomized) — Convex hull, linear
+      programming in 2D/3D
+    ────────────────────────────────────────
+    Lecture: 24
+    Chapter / Topic: Randomized Incremental Construction — Delaunay triangulation,
+      trapezoidal maps, conflict graphs
+    ────────────────────────────────────────
+    Lecture: 25+
+    Chapter / Topic: Advanced Topics — Online algorithms, geometric randomized
+      algorithms
+
+    Textbook: Motwani & Raghavan, Randomized Algorithms (Cambridge, 1995)
+
+
+
+    2. Stanford CS161 — Design and Analysis of Algorithms (Winter 2020, Prof. Mary Wootters)
+    Undergraduate core algorithms course — randomized algorithms embedded in ~2 lectures
+
+    Lecture: 5
+    Randomized Topics Covered: Randomized Algorithms & QuickSort — Randomized pivot
+      selection, expected O(n log n), comparison with deterministic
+    ────────────────────────────────────────
+    Lecture: 16
+    Randomized Topics Covered: Min-Cuts & Karger's Algorithm — Random contraction,
+      amplification, global min-cut
+
+    Reference: Kleinberg & Tardos Ch. 13.2; "Algorithms Illuminated" Part 1, Ch. 5
+
+    > Note: CS161 is a general algorithms course; randomized algorithms are a ~2-lecture module. For dedicated randomized algorithms, see CS261.
+
+
+
+    3. Stanford CS261 — Optimization and Algorithmic Paradigms (Autumn 2023, Prof. Ashish Goel)
+    Graduate course — LP, randomized algorithms, approximation, online, sketching
+
+    Module: Linear Programming & Randomized Rounding
+    Topics (Randomized Focus): LP duality, randomized rounding for Set Cover,
+      MAX-SAT, metric labeling
+    ────────────────────────────────────────
+    Module: Randomized Algorithms
+    Topics (Randomized Focus): Min-cut (Karger), MST (KKT), hashing, fingerprinting,
+      polynomial identity testing
+    ────────────────────────────────────────
+    Module: Sketching / Streaming
+    Topics (Randomized Focus): Count-Min sketch, HyperLogLog, AMS sketch, ℓ₂
+      sampling, Frequent Directions
+    ────────────────────────────────────────
+    Module: Approximation Algorithms
+    Topics (Randomized Focus): Goemans-Williamson SDP rounding, dependent rounding,
+      pipage rounding
+    ────────────────────────────────────────
+    Module: Online Algorithms
+    Topics (Randomized Focus): Randomized marking (paging), multiplicative weights,
+      experts problem
+    ────────────────────────────────────────
+    Module: Special Topics
+    Topics (Randomized Focus): Stable matching, market equilibria, sketching for
+      linear algebra
+
+    Notes: Aaron Sidford's lecture notes (Stanford internal); builds on CS161
+
+
+
+    4. Berkeley CS174 — Combinatorics and Discrete Probability / Randomized Algorithms (Spring 2023+, Prof. Alistair Sinclair)
+    Undergraduate/grad bridge — heavy on probabilistic method, randomized algorithms, Markov chains
+
+    Unit / Homework: Probabilistic Foundations
+    Core Topics: Linearity of expectation, indicator variables, probabilistic
+      method, Lovász Local Lemma
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Concentration Inequalities
+    Core Topics: Markov, Chebyshev, Chernoff/Hoeffding, Azuma's inequality,
+      martingales
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Randomized Data Structures
+    Core Topics: Hashing (universal, perfect, cuckoo), Bloom filters, skip lists,
+      treaps
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Graph Algorithms
+    Core Topics: Karger's min-cut, randomized MST (KKT), random walks, cover time
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Markov Chains & MCMC
+    Core Topics: Stationary distribution, mixing time, coupling, coupling from the
+      past, Glauber dynamics
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Random Graphs
+    Core Topics: G(n,p
+    Column 3: G(n,p), Erdős-Rényi, phase transitions, giant component
+    ────────────────────────────────────────
+    Unit / Homework: Derandomization
+    Core Topics: Conditional expectation, pairwise independence, pseudorandom
+      generators
+    Column 3:
+    ────────────────────────────────────────
+    Unit / Homework: Applications
+    Core Topics: Load balancing (power of two choices), packet routing, streaming
+      (AMS, Count-Min), LLM sketching
+    Column 3:
+
+    Discussion Sections Include: Routing in hypercube, Chernoff bound variants, random graphs, Markov chain mixing, MCMC sampling
+
+    Textbook Reference: Mitzenmacher & Upfal, Probability and Computing (2nd ed., 2017)
+
+
+
+    5. Oxford — Design and Analysis of Algorithms / Randomised Algorithms
+    Oxford does not currently host a public standalone "Randomised Algorithms" course page (all 2022–2025 URLs return 404). The closest is Design and Analysis of Algorithms, which includes a randomized algorithms module. Based on historical Oxford CS syllabi and the standard UK curriculum, the randomized content typically covers:
+
+    Week / Topic: Probabilistic Tools
+    Content: Linearity of expectation, Markov/Chebyshev/Chernoff, probabilistic
+      method, Lovász Local Lemma
+    ────────────────────────────────────────
+    Week / Topic: Randomized Data Structures
+    Content: Hash tables (universal, perfect), skip lists, randomized BSTs (treaps)
+    ────────────────────────────────────────
+    Week / Topic: Graph Algorithms
+    Content: Karger's min-cut, randomized MST, random walks for s-t connectivity
+    ────────────────────────────────────────
+    Week / Topic: Algebraic Techniques
+    Content: Freivald's matrix verification, Schwartz-Zippel, polynomial identity
+      testing, fingerprinting
+    ────────────────────────────────────────
+    Week / Topic: Derandomization
+    Content: Conditional expectation, pairwise independence, ε-biased sets
+    ────────────────────────────────────────
+    Week / Topic: Markov Chains & MCMC
+    Content: Coupling, mixing times, approximate counting (DNF, matchings)
+    ────────────────────────────────────────
+    Week / Topic: Approximation via Randomization
+    Content: MAX-SAT (7/8), Set Cover (randomized rounding), Goemans-Williamson
+    ────────────────────────────────────────
+    Week / Topic: Online/Streaming
+    Content: Randomized paging (Marking), Count-Min sketch, reservoir sampling
+
+    Typical Reference: Motwani & Raghavan; Mitzenmacher & Upfal; Alon & Spencer (The Probabilistic Method)
+
+
+
+
+
+    Comparative Summary: Chapter Coverage by University
+
+    Topic: Probability Foundations
+    MIT 6.856J: ✅ Deep (Lec 3–5)
+    Stanford CS161: ⚡ Brief
+    Stanford CS261: ✅ (Refresher)
+    Berkeley CS174: ✅ Deep (Weeks 1–3)
+    Oxford (DAA): ✅ Deep
+    ────────────────────────────────────────
+    Topic: Min-Cut (Karger)
+    MIT 6.856J: ✅ Lec 2, 15–16
+    Stanford CS161: ✅ Lec 16
+    Stanford CS261: ✅ Core
+    Berkeley CS174: ✅ Core
+    Oxford (DAA): ✅ Core
+    ────────────────────────────────────────
+    Topic: Randomized Sorting/Selection
+    MIT 6.856J: ✅ Lec 6
+    Stanford CS161: ✅ Lec 5 (QuickSort)
+    Stanford CS261: ❌
+    Berkeley CS174: ✅
+    Oxford (DAA): ✅
+    ────────────────────────────────────────
+    Topic: Probabilistic Method
+    MIT 6.856J: ✅ Lec 7
+    Stanford CS161: ❌
+    Stanford CS261: ✅ (LP rounding)
+    Berkeley CS174: ✅ Core (LLL)
+    Oxford (DAA): ✅ Core
+    ────────────────────────────────────────
+    Topic: Hashing / Fingerprinting
+    MIT 6.856J: ✅ Lec 8–10
+    Stanford CS161: ❌
+    Stanford CS261: ✅
+    Berkeley CS174: ✅ Core
+    Oxford (DAA): ✅ Core
+    ────────────────────────────────────────
+    Topic: Perfect Matching (RNC)
+    MIT 6.856J: ✅ Lec 10
+    Stanford CS161: ❌
+    Stanford CS261: ❌
+    Berkeley CS174: ✅
+    Oxford (DAA): ✅
+    ────────────────────────────────────────
+    Topic: MST (KKT)
+    MIT 6.856J: ✅ Lec 14
+    Stanford CS161: ❌
+    Stanford CS261: ✅
+    Berkeley CS174: ✅
+    Oxford (DAA): ✅
+    ────────────────────────────────────────
+    Topic: Linear Programming (Randomized)
+    MIT 6.856J: ✅ Lec 17
+    Stanford CS161: ❌
+    Stanford CS261: ✅ Core
+    Berkeley CS174: ⚡ Brief
+    Oxford (DAA): ✅
+    ────────────────────────────────────────
+    Topic: DNF/Volume Counting
+    MIT 6.856J: ✅ Lec 18
+    Stanford CS161: ❌
+    Stanford CS261: ❌
+    Berkeley CS174: ✅ (MCMC)
+    Oxford (DAA): ⚡
+    ────────────────────────────────────────
+    Topic: Markov Chains / MCMC
+    MIT 6.856J: ✅ Lec 19–22
+    Stanford CS161: ❌
+    Stanford CS261: ⚡
+    Berkeley CS174: ✅ Deep (Weeks 6–8)
+    Oxford (DAA): ✅
+    ────────────────────────────────────────
+    Topic: Expanders / PRGs
+    MIT 6.856J: ✅ Lec 20–21
+    Stanford CS161: ❌
+    Stanford CS261: ❌
+    Berkeley CS174: ⚡
+    Oxford (DAA): ❌
+    ────────────────────────────────────────
+    Topic: Comp. Geometry (RIC)
+    MIT 6.856J: ✅ Lec 23–24
+    Stanford CS161: ❌
+    Stanford CS261: ❌
+    Berkeley CS174: ❌
+    Oxford (DAA): ❌
+    ────────────────────────────────────────
+    Topic: Sketching / Streaming
+    MIT 6.856J: ❌
+    Stanford CS161: ❌
+    Stanford CS261: ✅ Core
+    Berkeley CS174: ✅ (AMS, CM)
+    Oxford (DAA): ⚡
+    ────────────────────────────────────────
+    Topic: Online Algorithms
+    MIT 6.856J: ⚡ (Syllabus)
+    Stanford CS161: ❌
+    Stanford CS261: ✅ Core
+    Berkeley CS174: ⚡ (Power of 2)
+    Oxford (DAA): ⚡
+    ────────────────────────────────────────
+    Topic: Approximation (SDP/Rounding)
+    MIT 6.856J: ⚡ (MAX-SAT Lec 7)
+    Stanford CS161: ❌
+    Stanford CS261: ✅ Core
+    Berkeley CS174: ⚡
+    Oxford (DAA): ✅
+
+
+
+    Recommended Book Chapter Structure (Synthesized from All Four)
+
+    If designing a unified textbook or curriculum from these courses:
+
+    Part: I. Foundations
+    Chapters: 1. Probability Review & Tail Bounds
+    Source Coverage: MIT 3–5, Berkeley 1–2, Oxford 1
+    ────────────────────────────────────────
+    Part:
+    Chapters: 2. Probabilistic Method & LLL
+    Source Coverage: MIT 7, Berkeley 1, Oxford 1
+    ────────────────────────────────────────
+    Part:
+    Chapters: 3. Derandomization (Conditional Expectation, Limited Independence)
+    Source Coverage: MIT 8, Berkeley 7, Oxford 5
+    ────────────────────────────────────────
+    Part: II. Core Algorithms
+    Chapters: 4. Sorting, Selection, Order Statistics
+    Source Coverage: MIT 6, Stanford 161-5
+    ────────────────────────────────────────
+    Part:
+    Chapters: 5. Min-Cut & Graph Connectivity
+    Source Coverage: MIT 2, 15–16; Stanford 161-16; CS261; Berkeley; Oxford
+    ────────────────────────────────────────
+    Part:
+    Chapters: 6. Randomized Data Structures (Hashing, Skip Lists, Treaps)
+    Source Coverage: MIT 9–10; Berkeley 3; Oxford 2
+    ────────────────────────────────────────
+    Part:
+    Chapters: 7. Algebraic Techniques (Freivald, Schwartz-Zippel, Perfect Matching)
+    Source Coverage: MIT 9–10; Berkeley; Oxford 4
+    ────────────────────────────────────────
+    Part:
+    Chapters: 8. MST & Shortest Paths
+    Source Coverage: MIT 11, 14; CS261; Oxford
+    ────────────────────────────────────────
+    Part: III. Advanced Paradigms
+    Chapters: 9. Linear Programming & Randomized Rounding
+    Source Coverage: MIT 17; CS261; Oxford 7
+    ────────────────────────────────────────
+    Part:
+    Chapters: 10. Counting & Sampling (MCMC, Coupling)
+    Source Coverage: MIT 18–22; Berkeley 5–6; Oxford 6
+    ────────────────────────────────────────
+    Part:
+    Chapters: 11. Expanders, Eigenvalues, Pseudorandomness
+    Source Coverage: MIT 20–21; CS261 (sketching)
+    ────────────────────────────────────────
+    Part:
+    Chapters: 12. Computational Geometry (RIC, Delaunay)
+    Source Coverage: MIT 23–24
+    ────────────────────────────────────────
+    Part: IV. Modern Applications
+    Chapters: 13. Streaming & Sketching
+    Source Coverage: CS261; Berkeley; Oxford
+    ────────────────────────────────────────
+    Part:
+    Chapters: 14. Online Algorithms & Bandits
+    Source Coverage: CS261; MIT (syllabus); Berkeley
+    ────────────────────────────────────────
+    Part:
+    Chapters: 15. Randomized Numerical Linear Algebra
+    Source Coverage: CS261; modern RandNLA
+    ────────────────────────────────────────
+    Part:
+    Chapters: 16. ML/Privacy (DP-SGD, Shuffling, Smoothing)
+    Source Coverage: Modern extensions (Stanford CS261, recent seminars)
+
+
+
+    Key References Used by These Courses
+
+    Text: Motwani & Raghavan, Randomized Algorithms (1995)
+    MIT: ✅ Required
+    Stanford: ✅ Reference
+    Berkeley: ✅ Reference
+    Oxford: ✅ Core
+    ────────────────────────────────────────
+    Text: Mitzenmacher & Upfal, Probability and Computing (2005/2017)
+    MIT: ✅ Optional
+    Stanford: ✅ CS161 ref
+    Berkeley: ✅ Primary
+    Oxford: ✅ Core
+    ────────────────────────────────────────
+    Text: Kleinberg & Tardos, Algorithm Design
+    MIT: —
+    Stanford: ✅ CS161 main
+    Berkeley: —
+    Oxford: —
+    ────────────────────────────────────────
+    Text: Alon & Spencer, The Probabilistic Method
+    MIT: —
+    Stanford: —
+    Berkeley: ✅ Reference
+    Oxford: ✅ Reference
+    ────────────────────────────────────────
+    Text: Williamson & Shmoys, Design of Approximation Algorithms
+    MIT: —
+    Stanford: —
+    Berkeley: ✅ CS261
+    Oxford: —
+    ────────────────────────────────────────
+    Text: Roughgarden, Algorithms Illuminated
+    MIT: —
+    Stanford: ✅ CS161 main
+    Berkeley: —
+    Oxford: —
+
+
+
+    Bottom Line:
+    - MIT 6.856J = deepest theoretical coverage (expanders, PRGs, RIC, parallel)
+    - Berkeley CS174 = best probabilistic foundations + MCMC + modern sketching
+    - Stanford CS261 = best for optimization perspective (LP rounding, SDP, sketching, online)
+    - Stanford CS161 = minimal randomized module (QuickSort + Karger only)
+    - Oxford = standard UK module covering probabilistic method, hashing, MCMC, approximation

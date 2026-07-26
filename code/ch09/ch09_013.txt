@@ -1,9 +1,0 @@
-[Temperature > 30?]
-               /              \
-             Yes               No
-             /                  \
-    [Humidity > 70?]        [Play?]
-       /      \              Yes
-      Yes      No
-      /         \
-   [No]       [Yes]

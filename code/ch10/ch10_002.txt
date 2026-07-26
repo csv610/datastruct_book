@@ -1,4 +1,0 @@
-Position i (0-indexed):
-  left child:  2i + 1
-  right child: 2i + 2
-  parent:      (i - 1) / 2

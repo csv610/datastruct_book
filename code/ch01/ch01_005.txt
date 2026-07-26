@@ -1,3 +1,0 @@
-int* p = new int(5);
-// ... use p ...
-delete p;  // easy to forget

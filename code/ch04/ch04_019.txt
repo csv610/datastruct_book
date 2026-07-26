@@ -1,1 +1,0 @@
-null  <-  [10 | $\cdot$ | $\cdot$] <-> [20 | $\cdot$ | $\cdot$] <-> [30 | / | $\cdot$]  ->  null
