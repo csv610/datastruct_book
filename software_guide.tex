@@ -1,0 +1,2058 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  breaklines=true,
+  columns=flexible,
+  literate={_}{{\_}}1
+}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\itshape}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textbf{Software Guide}}
+\fancyhead[R]{\small\textit{Data Structures, Algorithms, and Applications in C++}}
+\fancyfoot[C]{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries Software Guide}\\[6pt]
+{\large Data Structures, Algorithms, and Applications in C++}\\[4pt]
+{\small 76 header-only implementations $\cdot$ dsa namespace $\cdot$ C++23}
+\end{center}
+
+\vspace{6pt}
+\noindent\hrulefill
+\vspace{6pt}
+
+%% ============================================================
+%% PART II: DATA STRUCTURES
+%% ============================================================
+
+\section{Part II --- Data Structures}
+
+% ---- LINEAR LISTS ----
+\subsection{Linear Lists}
+
+\subsubsection{Array List}
+\textbf{Header:} code/include/array\_list.h\\
+\textbf{Class:} dsa::array\_list$<$T$>$\\
+
+Dynamic array with amortized O(1) append. Grows via reallocation. This is the most fundamental sequential container, analogous to std::vector but built from scratch for pedagogical clarity.
+
+\textbf{Why:} You need fast random access and appending, and don't need insertion/deletion in the middle. \par \textbf{Where to use:} Use when building other data structures (stacks, queues, deques), managing collections with index access, or as scratch buffers. Default choice for sequential data.
+
+\textbf{Input:} Elements of type T (must satisfy std::regular)\\
+\textbf{Output:} Index-based access via operator[]; iterators for traversal
+
+\begin{lstlisting}
+dsa::array_list<int> a;
+a.push_back(10);
+a.push_back(20);
+a[0];  // 10
+a.size();  // 2
+\end{lstlisting}
+
+\subsubsection{Linked List}
+\textbf{Header:} code/include/linked\_list.h\\
+\textbf{Class:} dsa::linked\_list$<$T$>$\\
+
+Singly linked list using std::unique\_ptr for automatic memory management. Supports forward and reverse iterators.
+
+\textbf{Why:} You need O(1) insert/delete at known positions without shifting elements, and don't need random access. \par \textbf{Where to use:} Use for adjacency lists in sparse graphs, undo/redo buffers, implementing other containers, and when elements are frequently inserted/deleted in the middle.
+
+\textbf{Input:} Elements of any copyable/movable type\\
+\textbf{Output:} O(1) insert at front; iteration via range-for
+
+\begin{lstlisting}
+dsa::linked_list<int> l;
+l.push_front(3);
+l.push_back(4);
+for (auto x : l) { /* 3, 4 */ }
+\end{lstlisting}
+
+\subsubsection{Doubly Linked List}
+\textbf{Header:} code/include/doubly\_linked\_list.h\\
+\textbf{Class:} dsa::doubly\_linked\_list$<$T$>$\\
+
+Doubly linked list with sentinel node for clean boundary handling. Bidirectional traversal.
+
+\textbf{Why:} You need O(1) insert/delete at both ends AND O(1) delete at arbitrary positions (given iterator). \par \textbf{Where to use:} Use for LRU caches (with hash map), browser history, text editor buffers, and deques. Better than singly linked list when you need backward traversal.
+
+\begin{lstlisting}
+dsa::doubly_linked_list<int> dll;
+dll.push_back(1);
+dll.push_back(2);
+dll.push_front(0);
+dll.front();  // 0
+dll.back();   // 2
+dll.pop_back();
+for (auto x : dll) { /* 0, 1 */ }
+\end{lstlisting}
+
+\subsubsection{Bit Vector}
+\textbf{Header:} code/include/bit\_vector.h\\
+\textbf{Class:} dsa::bit\_vector\\
+
+Compact bit storage with bulk operations. Uses native word-level parallelism via std::popcount.
+
+\textbf{Why:} You need compact storage for boolean/bit flags with fast bulk operations (popcount, find-first). \par \textbf{Where to use:} Use for visited arrays in BFS/DFS, bloom filter internals, database bitmap indexes, permission flags, and any compact boolean set over a small universe.
+
+\begin{lstlisting}
+dsa::BitVector bv(8);
+bv.set(3); bv.set(5);
+bv.count();     // 2
+bv.find_first(); // 3
+bv.flip(3);
+bv.get(3);      // false
+\end{lstlisting}
+
+% ---- SPARSE ----
+\subsubsection{Sparse Matrix}
+\textbf{Header:} code/include/sparse\_matrix.h\\
+\textbf{Class:} dsa::sparse\_matrix\\
+
+Sparse matrix in COO (coordinate) and CSR (compressed sparse row) format. Supports transpose and matrix-vector multiply.
+
+\textbf{Why:} Your matrix is mostly zeros and storing it densely wastes memory and compute. \par \textbf{Where to use:} Use for large-scale scientific computing, ML feature matrices, graph adjacency matrices, and FEM/PDE solvers where nnz << rows*cols.
+
+\begin{lstlisting}
+dsa::SparseMatrix<double> m(3, 3);
+m.set(0, 0, 1.0);
+m.set(1, 2, 3.0);
+auto t = m.transpose();
+std::vector<double> x = {1, 2, 3};
+auto y = m.multiply(x);  // matrix-vector product
+\end{lstlisting}
+
+\subsubsection{Sparse Vector}
+\textbf{Header:} code/include/sparse\_vector.h\\
+\textbf{Class:} dsa::sparse\_vector\\
+
+\textbf{Why:} Your vector is high-dimensional but mostly zeros, and dense storage wastes memory. \par \textbf{Where to use:} Use for TF-IDF vectors in IR, ML feature representations, recommendation system embeddings, and any sparse high-dimensional data.
+
+\begin{lstlisting}
+dsa::SparseVector<double> sv(100);
+sv.set(5, 2.0);
+sv.set(99, 3.0);
+double d = sv.dot(sv);  // 13.0
+auto s = sv.scale(2.0);
+\end{lstlisting}
+
+% ---- STACKS ----
+\subsection{Stacks}
+\textbf{Header:} code/include/stacks.h\\
+\textbf{Classes:} dsa::array\_stack$<$T$>$, dsa::linked\_stack$<$T$>$\\
+
+Two implementations: vector-backed array stack and pointer-based linked stack. LIFO access pattern.
+
+\textbf{Why:} You need LIFO access: last-in, first-out. \par \textbf{Where to use:} Use for expression evaluation, DFS traversal, backtracking, undo systems, parenthesis matching, and converting infix to postfix notation.
+
+\begin{lstlisting}
+dsa::array_stack<int> s;
+s.push(1);
+s.push(2);
+s.top();  // 2
+s.pop();
+s.top();  // 1
+\end{lstlisting}
+
+% ---- QUEUES ----
+\subsection{Queues \& Deques}
+\textbf{Header:} code/include/queues.h\\
+\textbf{Classes:} dsa::circular\_queue$<$T$>$, dsa::linked\_queue$<$T$>$\\
+
+FIFO access pattern. Circular queue uses a fixed-size ring buffer for predictable performance.
+
+\textbf{Why:} You need FIFO access: first-in, first-out. \par \textbf{Where to use:} Use for BFS traversal, task scheduling, print spooling, producer-consumer patterns, and request handling in servers.
+
+\subsubsection{Deque}
+\textbf{Header:} code/include/deque.h\\
+\textbf{Class:} dsa::deque$<$T$>$\\
+
+Double-ended queue (block-based circular buffer). Combines the benefits of arrays and linked lists.
+
+\textbf{Why:} You need O(1) push/pop at both ends AND O(1) random access by index. \par \textbf{Where to use:} Use for sliding window algorithms, BFS with deques, implementing std::deque, and when you need both stack and queue behavior.
+
+\begin{lstlisting}
+dsa::Deque<int> dq;
+dq.push_back(1);
+dq.push_back(2);
+dq.push_front(0);
+dq[0];     // 0
+dq.size(); // 3
+dq.pop_front();
+\end{lstlisting}
+
+% ---- HASHING ----
+\subsection{Hashing}
+
+\subsubsection{Hash Table (Chaining)}
+\textbf{Header:} code/include/hash\_table.h\\
+\textbf{Class:} dsa::hash\_table\_chaining$<$K,V$>$\\
+
+Hash table with separate chaining. Each bucket is a linked list handling collisions gracefully. Supports iterators for traversal.
+
+\textbf{Why:} You need O(1) average-case insert/find/erase by key, and don't need ordering. \par \textbf{Where to use:} Use for symbol tables, caches, frequency counting, database indexes, and any key-value lookup where order doesn't matter.
+
+\begin{lstlisting}
+dsa::hash_table_chaining<std::string,int> h;
+h.insert("one", 1);
+h.find("one");  // 1
+h.erase("one");
+\end{lstlisting}
+
+\subsubsection{Open Addressing Hash}
+\textbf{Header:} code/include/open\_addressing\_hash.h\\
+\textbf{Classes:} linear probing, quadratic probing, double hashing\\
+
+All elements stored in a single array. Three probing strategies for collision resolution. Better cache performance than chaining when load factor is moderate.
+
+\textbf{Why:} You need a hash table with better cache locality than chaining, and can tolerate slightly higher collision costs. \par \textbf{Where to use:} Use when memory is constrained (no pointer overhead), for cache-friendly hash maps, and in real-time systems. Linear probing is simplest; double hashing gives best distribution.
+
+\begin{lstlisting}
+dsa::open_addressing_hash<std::string,int> h;
+h.insert("one", 1);
+h.insert("two", 2);
+auto* val = h.find("one");  // points to 1
+h.erase("two");
+h.contains("two");  // false
+\end{lstlisting}
+
+\subsubsection{Skip List}
+\textbf{Header:} code/include/skip\_list.h\\
+\textbf{Class:} dsa::skip\_list$<$T$>$\\
+
+Randomized ordered structure providing balanced BST performance without rotations. Multiple levels of forward pointers give O(log n) expected time.
+
+\textbf{Why:} You need O(log n) ordered operations with simple implementation, and can accept probabilistic balance. \par \textbf{Where to use:} Use as a simpler alternative to balanced BSTs when exact balance isn't critical. Great for concurrent access (lock-free insert), databases, and when you want expected O(log n) without complex rotations.
+
+\begin{lstlisting}
+dsa::skip_list<int> sl;
+sl.insert(5);
+sl.insert(3);
+sl.insert(7);
+sl.contains(5);  // true
+sl.erase(3);
+auto v = sl.to_sorted_vector();  // [5, 7]
+\end{lstlisting}
+
+% ---- TREES ----
+\subsection{Trees}
+
+\subsubsection{Binary Tree}
+\textbf{Header:} code/include/binary\_tree.h\\
+\textbf{Class:} dsa::binary\_tree$<$T$>$\\
+
+Full binary tree with four traversals (inorder, preorder, postorder, level-order), Morris traversal (O(1) extra space), and BST insert/erase/find.
+
+\textbf{Why:} You need a general tree structure for hierarchical data or as a foundation for other algorithms. \par \textbf{Where to use:} Use as the building block for BSTs, heaps, Huffman trees, expression parsing, and decision trees. Start here before moving to balanced variants.
+
+\begin{lstlisting}
+dsa::binary_tree<int> bt;
+bt.insert(5);
+bt.insert(3);
+bt.insert(7);
+bt.contains(3);  // true
+bt.erase(3);
+\end{lstlisting}
+
+\subsubsection{Expression Tree}
+\textbf{Header:} code/include/expression\_tree.h\\
+\textbf{Class:} dsa::expression\_tree\\
+
+Build from postfix notation, evaluate arithmetic expressions, convert between infix/postfix/preorder notations.
+
+\textbf{Why:} You need to parse, evaluate, or transform arithmetic expressions. \par \textbf{Where to use:} Use in compilers, calculators, symbolic math systems, and query optimizers for expression evaluation and notation conversion.
+
+\begin{lstlisting}
+std::vector<std::string> postfix = {"3", "4", "+", "2", "*"};
+auto* root = dsa::build_expr_tree(postfix);
+double val = dsa::eval_expr_tree(root);  // 14.0
+\end{lstlisting}
+
+% ---- HEAPS ----
+\subsection{Heaps \& Priority Queues}
+
+\subsubsection{Max Heap}
+\textbf{Header:} code/include/max\_heap.h\\
+\textbf{Class:} dsa::max\_heap$<$T$>$\\
+
+Standard binary max-heap implemented as an array. Also provides heap\_sort() for in-place O(n log n) sorting.
+
+\textbf{Why:} You need fast access to the maximum element with O(log n) insert/delete. \par \textbf{Where to use:} Use as the default priority queue, for heap sort, finding k-th largest, scheduling, and Dijkstra's algorithm. Also useful for median maintenance with two heaps.
+
+\begin{lstlisting}
+dsa::max_heap<int> h;
+h.push(3); h.push(1); h.push(4);
+h.top();  // 4
+h.pop();
+h.top();  // 3
+std::vector<int> v = {5, 1, 3, 2};
+dsa::heap_sort(v);  // v = {1, 2, 3, 5}
+\end{lstlisting}
+
+\subsubsection{D-ary Heap}
+\textbf{Header:} code/include/dary\_heap.h\\
+\textbf{Class:} dsa::dary\_heap$<$T,D$>$\\
+
+Generalized d-children heap (default D=4). Higher branching factor improves cache performance for decrease-key operations.
+
+\textbf{Why:} You need a priority queue with many decrease-key operations and better cache performance than binary heap. \par \textbf{Where to use:} Use for Dijkstra's and Prim's algorithms on dense graphs where cache performance matters more than theoretical optimality.
+
+\begin{lstlisting}
+dsa::dary_heap<int, 4> h;
+h.push(3); h.push(1); h.push(4);
+h.top();  // 1  (min-heap)
+h.pop();
+\end{lstlisting}
+
+\subsubsection{Indexed Priority Queue}
+\textbf{Header:} code/include/indexed\_pq.h\\
+\textbf{Classes:} dsa::indexed\_min\_pq$<$T$>$, dsa::indexed\_max\_pq$<$T$>$\\
+
+Priority queue that supports updating priorities by index. Tracks which element is at each position.
+
+\textbf{Why:} You need a priority queue where you can update the priority of any element by its index. \par \textbf{Where to use:} Use for Dijkstra's, Prim's, A* search, and any algorithm requiring decrease-key or increase-key operations on specific elements.
+
+\begin{lstlisting}
+dsa::indexed_min_pq<int> pq(10);
+pq.push(0, 5);
+pq.push(1, 3);
+pq.push(2, 7);
+pq.decrease_key(2, 1);
+int idx = pq.pop();  // 2 (min key = 1)
+\end{lstlisting}
+
+\subsubsection{Min-Max Heap}
+\textbf{Header:} code/include/min\_max\_heap.h\\
+\textbf{Class:} dsa::min\_max\_heap$<$T$>$\\
+
+Double-ended priority queue. Supports efficient access to both minimum and maximum elements simultaneously.
+
+\textbf{Why:} You need O(1) access to BOTH minimum and maximum simultaneously. \par \textbf{Where to use:} Use for median maintenance, sliding window min/max, and double-ended priority queues. Better than two separate heaps when you need both ends.
+
+\begin{lstlisting}
+dsa::min_max_heap<int> mmh;
+mmh.push(3); mmh.push(1); mmh.push(5);
+mmh.min();  // 1
+mmh.max();  // 5
+mmh.pop_min();  // removes 1
+\end{lstlisting}
+
+\subsubsection{Interval Heap}
+\textbf{Header:} code/include/interval\_heap.h\\
+\textbf{Class:} dsa::interval\_heap\\
+
+Double-ended priority queue using two sorted sets, storing interval pairs (lo, hi).
+
+\textbf{Why:} You need a double-ended priority queue that stores interval pairs [lo, hi]. \par \textbf{Where to use:} Use for interval scheduling, deadline management, and event processing where you track both start and end times.
+
+\begin{lstlisting}
+dsa::interval_heap ih;
+ih.push(2, 8);   // interval [2,8]
+ih.push(1, 5);   // interval [1,5]
+ih.min();  // 1
+ih.max();  // 8
+\end{lstlisting}
+
+\subsubsection{Binomial Heap}
+\textbf{Header:} code/include/binomial\_heap.h\\
+\textbf{Class:} dsa::binomial\_heap$<$T$>$\\
+
+Mergeable heap using binomial trees. Efficient meld (merge) operation unlike binary heaps.
+
+\textbf{Why:} You need O(log n) amortized merge of two priority queues, which binary heaps can't do efficiently. \par \textbf{Where to use:} Use for k-way merge in external sorting, Dijkstra's/Prim's on dense graphs, and when you frequently merge two priority queues.
+
+\begin{lstlisting}
+dsa::BinomialHeap<int> h1, h2;
+h1.push(3); h1.push(1);
+h2.push(2);
+h1.merge(h2);
+int top = h1.pop();  // 1
+\end{lstlisting}
+
+\subsubsection{Fibonacci Heap}
+\textbf{Header:} code/include/fibonacci\_heap.h\\
+\textbf{Class:} dsa::fibonacci\_heap$<$T$>$\\
+
+Theoretically optimal decrease-key performance. Amortized O(1) for insert and decrease-key, O(log n) for delete-min.
+
+\textbf{Why:} You need theoretically optimal O(1) amortized decrease-key for dense graph algorithms. \par \textbf{Where to use:} Use when theoretical optimality matters: Dijkstra's in O(E + V log V), Prim's, and computational geometry. Rarely used in practice due to high constant factors.
+
+\begin{lstlisting}
+dsa::FibonacciHeap<int> fh;
+fh.push(5); fh.push(3); fh.push(7);
+int top = fh.pop();  // 3
+fh.push(1);
+top = fh.pop();  // 1
+\end{lstlisting}
+
+\subsubsection{Pairing Heap}
+\textbf{Header:} code/include/pairing\_heap.h\\
+\textbf{Class:} dsa::pairing\_heap$<$T$>$\\
+
+Simple mergeable heap with two-pass meld. Simpler than Fibonacci heaps with comparable practical performance.
+
+\textbf{Why:} You want Fibonacci-heap-like performance with simpler implementation. \par \textbf{Where to use:} Use as a practical alternative to Fibonacci heaps for Dijkstra's, event simulations, and whenever you need merge + decrease-key without the complexity.
+
+\begin{lstlisting}
+dsa::PairingHeap<int> ph;
+ph.push(3); ph.push(1); ph.push(4);
+int top = ph.pop();  // 1
+\end{lstlisting}
+
+\subsubsection{Skew Heap}
+\textbf{Header:} code/include/skew\_heap.h\\
+\textbf{Class:} dsa::skew\_heap$<$T$>$\\
+
+Self-adjusting mergeable heap. No balance information stored; structure adapts through rotations on every operation.
+
+\textbf{Why:} You need a mergeable heap with self-adjusting structure and no balance overhead. \par \textbf{Where to use:} Use for mergeable priority queues when simplicity matters more than worst-case guarantees. Good for shortest path algorithms.
+
+\begin{lstlisting}
+dsa::skew_heap<int> sh1, sh2;
+sh1.push(3); sh1.push(1);
+sh2.push(2);
+sh1.meld(std::move(sh2));
+int top = sh1.pop();  // 1
+\end{lstlisting}
+
+\subsubsection{Leftist Tree}
+\textbf{Header:} code/include/leftist\_tree.h\\
+\textbf{Class:} dsa::leftist\_tree$<$T$>$\\
+
+Mergeable min-heap with the leftist property: the null-path length of the left child is always $\geq$ the right child's.
+
+\textbf{Why:} You need O(log n) merge with the leftist property guaranteeing shortest right path. \par \textbf{Where to use:} Use for k-way merge in external sorting, tournament trees, and when you need guaranteed O(log n) merge with simpler code than binomial/Fibonacci heaps.
+
+\begin{lstlisting}
+dsa::leftist_tree<int> lt1, lt2;
+lt1.push(3); lt1.push(1);
+lt2.push(2);
+lt1.meld(std::move(lt2));
+auto sorted = lt1.drain_sorted();  // [1, 2, 3]
+\end{lstlisting}
+
+% ---- BALANCED TREES ----
+\subsection{Balanced Search Trees}
+
+\subsubsection{AVL Tree}
+\textbf{Header:} code/include/avl\_tree.h\\
+\textbf{Class:} dsa::avl\_tree$<$K,V$>$\\
+
+Height-balanced BST. Balance factor for every node is in \{-1, 0, 1\}. Strictly balanced, giving optimal lookup time.
+
+\textbf{Why:} You need strictly balanced BST with optimal lookup time and can tolerate more rotations on insert/erase. \par \textbf{Where to use:} Use when lookups dominate over insertions. Stricter balance than red-black trees gives faster search but more rotation overhead on updates.
+
+\begin{lstlisting}
+dsa::avl_tree<int,std::string> t;
+t.insert(5, "five");
+t.insert(3, "three");
+t.find(5);  // "five"
+t.inorder(); // [(3,"three"),(5,"five")]
+\end{lstlisting}
+
+\subsubsection{Red-Black Tree}
+\textbf{Header:} code/include/red\_black\_tree.h\\
+\textbf{Class:} dsa::red\_black\_tree$<$K,V$>$\\
+
+2-3-4 tree isomorphic. Less rigidly balanced than AVL but fewer rotations on insert/erase. This is the basis for std::map and std::set.
+
+\textbf{Why:} You need a general-purpose ordered map with O(log n) all operations and fewer rotations than AVL. \par \textbf{Where to use:} Use as the default ordered map/set. Fewer rotations than AVL on insert/erase make it better for write-heavy workloads. This is what std::map uses.
+
+\begin{lstlisting}
+dsa::RedBlackTree<int> rbt;
+rbt.insert(5); rbt.insert(3); rbt.insert(7);
+rbt.contains(5);  // true
+rbt.erase(3);
+auto v = rbt.inorder();  // [5, 7]
+\end{lstlisting}
+
+\subsubsection{Splay Tree}
+\textbf{Header:} code/include/splay\_tree.h\\
+\textbf{Class:} dsa::splay\_tree$<$K,V$>$\\
+
+Self-adjusting BST. Every access splays the element to the root via rotations, exploiting access locality.
+
+\textbf{Why:} Your workload has access locality (recently accessed items are accessed again soon). \par \textbf{Where to use:} Use when access patterns have temporal locality. Splaying brings frequently accessed elements near root, giving amortized O(log n) with good cache behavior.
+
+\begin{lstlisting}
+dsa::SplayTree<int> st;
+st.insert(5); st.insert(3); st.insert(7);
+st.contains(5);  // true, splays 5 to root
+st.erase(3);
+\end{lstlisting}
+
+\subsubsection{Treap}
+\textbf{Header:} code/include/treap.h\\
+\textbf{Class:} dsa::treap$<$K,V$>$\\
+
+BST ordered by key, heap-ordered by random priority. The randomization eliminates adversarial input. Supports split() and merge() for set operations.
+
+\textbf{Why:} You need a balanced BST with O(log n) split/merge operations for set operations. \par \textbf{Where to use:} Use for implicit treaps (sequence manipulation), order-statistics, split/merge set operations, and when you want expected O(log n) without worst-case balance.
+
+\begin{lstlisting}
+dsa::treap<int> t;
+t.insert(5); t.insert(3); t.insert(7);
+t.contains(5);  // true
+auto v = t.inorder();  // [3, 5, 7]
+t.erase(3);
+\end{lstlisting}
+
+\subsubsection{2-3 Tree}
+\textbf{Header:} code/include/two\_three\_tree.h\\
+\textbf{Class:} dsa::two\_three\_tree$<$K$>$\\
+
+All leaves at same depth. Nodes hold 1-2 keys and have 2-3 children. Conceptually simpler than red-black trees.
+
+\textbf{Why:} You want the simplest B-tree variant for learning or for small datasets where disk I/O isn't the bottleneck. \par \textbf{Where to use:} Use as an educational tool for understanding B-trees and disk-based indexing. Good for small in-memory datasets.
+
+\begin{lstlisting}
+dsa::TwoThreeTree<int> t23;
+t23.insert(5); t23.insert(3); t23.insert(7);
+t23.contains(5);  // true
+t23.erase(3);
+auto v = t23.inorder();  // [5, 7]
+\end{lstlisting}
+
+\subsubsection{2-3-4 Tree}
+\textbf{Header:} code/include/two\_three\_four\_tree.h\\
+\textbf{Class:} dsa::two\_three\_four\_tree$<$K$>$\\
+
+B-tree of order 4. Isomorphic to red-black trees. Every internal node has 2-4 children.
+
+\textbf{Why:} You want a B-tree of order 4 with simpler insertion than red-black trees. \par \textbf{Where to use:} Use for database indexing and file systems. Isomorphic to red-black trees but with simpler top-down insertion logic.
+
+\begin{lstlisting}
+dsa::two_three_four_tree<int, std::string> t234;
+t234.insert(5, "five"); t234.insert(3, "three");
+auto* val = t234.find(5);  // "five"
+t234.erase(3);
+\end{lstlisting}
+
+\subsubsection{B-Tree}
+\textbf{Header:} code/include/b\_tree.h\\
+\textbf{Class:} dsa::b\_tree$<$K,V,MaxKeys$>$\\
+
+Generalized balanced search tree tuned for disk I/O. Large branching factor minimizes disk reads.
+
+\textbf{Why:} You need a disk-friendly tree that minimizes I/O by maximizing branching factor. \par \textbf{Where to use:} Use for disk-based indexing where each node fits a disk page. Large branching factor (100s of keys per node) minimizes disk reads.
+
+\begin{lstlisting}
+dsa::b_tree<int> bt(5);  // order 5
+bt.insert(5); bt.insert(3); bt.insert(7);
+bt.contains(5);  // true
+auto v = bt.inorder();  // [3, 5, 7]
+\end{lstlisting}
+
+\subsubsection{B+ Tree}
+\textbf{Header:} code/include/bplus\_tree.h\\
+\textbf{Class:} dsa::bplus\_tree$<$K,V$>$\\
+
+All data in leaves; leaves linked for efficient range scans. The workhorse of database indexing.
+
+\textbf{Why:} You need both point lookups AND efficient range queries on sorted data. \par \textbf{Where to use:} Use when your workload combines point lookups with range scans. Leaves are linked for O(k + log n) range queries. The standard for database indexes.
+
+\begin{lstlisting}
+dsa::bplus_tree<int, std::string> bpt;
+bpt.insert(5, "five"); bpt.insert(3, "three");
+auto* val = bpt.find(5);  // "five"
+auto range = bpt.range(1, 6);  // [(3,"three"),(5,"five")]
+\end{lstlisting}
+
+\subsubsection{(a,b)-Tree}
+\textbf{Header:} code/include/ab\_tree.h\\
+\textbf{Class:} dsa::ab\_tree$<$K$>$\\
+
+B-tree generalization with configurable min/max children bounds $a$ and $b$. Provides fine-grained control over node sizes.
+
+\textbf{Why:} You need fine-grained control over node sizes with configurable min/max children bounds. \par \textbf{Where to use:} Use when you want to tune the B-tree family parameters for specific page sizes or memory layouts.
+
+\begin{lstlisting}
+dsa::ab_tree<int, std::string, 2, 4> abt;
+abt.insert(5, "five"); abt.insert(3, "three");
+auto* val = abt.find(5);  // "five"
+\end{lstlisting}
+
+\subsubsection{Scapegoat Tree}
+\textbf{Header:} code/include/scapegoat\_tree.h\\
+\textbf{Class:} dsa::scapegoat\_tree$<$K$>$\\
+
+Weight-balanced BST. Rebuilds an entire subtree when balance exceeds $\alpha = 0.75$. No balance info stored per node.
+
+\textbf{Why:} You need a self-balancing BST with zero per-node balance metadata. \par \textbf{Where to use:} Use when memory is tight and you can't afford per-node balance fields. Rebuilds subtrees instead of tracking balance.
+
+\begin{lstlisting}
+dsa::scapegoat_tree<int, std::string> sgt;
+sgt.insert(5, "five"); sgt.insert(3, "three");
+auto* val = sgt.find(5);  // "five"
+sgt.erase(3);
+\end{lstlisting}
+
+\subsubsection{AA Tree}
+\textbf{Header:} code/include/aa\_tree.h\\
+\textbf{Class:} dsa::aa\_tree$<$K,V$>$\\
+
+Simplified red-black tree variant where all red links are right links. Only skew and split operations needed.
+
+\textbf{Why:} You want the simplest self-balancing BST with only skew and split operations. \par \textbf{Where to use:} Use when you want a simpler red-black tree implementation. Only two operations (skew + split) make it easier to teach and implement correctly.
+
+\begin{lstlisting}
+dsa::aa_tree<int, std::string> aat;
+aat.insert(5, "five"); aat.insert(3, "three");
+auto* val = aat.find(5);  // "five"
+aat.erase(3);
+\end{lstlisting}
+
+\subsubsection{Left-Leaning Red-Black Tree}
+\textbf{Header:} code/include/llrb\_tree.h\\
+\textbf{Class:} dsa::llrb\_tree$<$K,V$>$\\
+
+Sedgewick's 2008 variant. Enforces that all red links lean left, reducing the number of cases in rotations.
+
+\textbf{Why:} You want a red-black tree variant with fewer rotation cases by enforcing left-leaning red links. \par \textbf{Where to use:} Use when you want a cleaner red-black tree implementation. Sedgewick's variant reduces rotation cases from 7 to 2.
+
+\begin{lstlisting}
+dsa::llrb_tree<int, std::string> llrb;
+llrb.insert(5, "five"); llrb.insert(3, "three");
+auto* val = llrb.find(5);  // "five"
+llrb.erase(3);
+\end{lstlisting}
+
+% ---- MULTI-WAY TREES ----
+\subsubsection{Radix/Patricia Trie}
+\textbf{Header:} code/include/radix\_tree.h\\
+\textbf{Class:} dsa::radix\_trie\\
+
+Compressed trie with merged single-child edges. Edges carry string labels instead of single characters.
+
+\textbf{Why:} Your keys share common prefixes and you need efficient prefix-based operations. \par \textbf{Where to use:} Use for IP routing (longest prefix match), autocomplete, spell-checking, and any prefix-based dictionary. Compressed trie merges single-child edges.
+
+\begin{lstlisting}
+dsa::RadixTree<int> rt;
+rt.insert("hello", 1); rt.insert("help", 2);
+auto* val = rt.find("hello");  // 1
+auto matches = rt.prefix_search("hel");  // [("hello",1),("help",2)]
+\end{lstlisting}
+
+\subsubsection{Suffix Tree}
+\textbf{Header:} code/include/suffix\_tree.h\\
+\textbf{Class:} dsa::suffix\_tree\\
+
+Naive construction for all suffixes of a string. Enables linear-time pattern matching after preprocessing.
+
+\textbf{Why:} You need to answer multiple substring queries on the same text after preprocessing. \par \textbf{Where to use:} Use for longest common substring, repeated substring detection, and pattern matching when you'll query the same text many times.
+
+\begin{lstlisting}
+dsa::SuffixTree st("bananas");
+auto pos = st.search("ana");     // {1, 3}
+auto lrs = st.longest_repeated_substring();  // "ana"
+\end{lstlisting}
+
+\subsubsection{Suffix Array}
+\textbf{Header:} code/include/suffix\_array.h\\
+\textbf{Class:} dsa::suffix\_array\\
+
+Space-efficient alternative to suffix arrays. The sorted array of all suffixes plus LCP (longest common prefix) array.
+
+\textbf{Why:} You need space-efficient full-text indexing with pattern search capability. \par \textbf{Where to use:} Use when memory is a concern: suffix arrays use O(n) space vs O(n$^{2}$) for suffix trees. Good for full-text search and bioinformatics.
+
+\begin{lstlisting}
+dsa::SuffixArray sa("banana");
+auto pos = sa.search("ana");  // {1, 3}
+auto count = sa.count_occurrences("ana");  // 2
+\end{lstlisting}
+
+\subsubsection{Interval Tree}
+\textbf{Header:} code/include/interval\_tree.h\\
+\textbf{Class:} dsa::interval\_tree\\
+
+Augmented BST for interval stabbing queries. Each node stores the maximum endpoint in its subtree.
+
+\textbf{Why:} You need to find all intervals containing a given point (stabbing query). \par \textbf{Where to use:} Use for scheduling (finding overlapping meetings), network monitoring, and any interval stabbing query. Augmented BST with max endpoint.
+
+\begin{lstlisting}
+dsa::interval_tree<int> it;
+it.insert(dsa::interval_tree<int>::interval{1, 5, 0});
+it.insert(dsa::interval_tree<int>::interval{3, 8, 1});
+auto hits = it.query(4);  // both intervals contain 4
+\end{lstlisting}
+
+% ---- SPATIAL ----
+\subsection{Spatial \& Range Structures}
+
+\subsubsection{k-d Tree}
+\textbf{Header:} code/include/kd\_tree.h\\
+\textbf{Class:} dsa::kd\_tree\\
+
+Multi-dimensional nearest-neighbor and range queries. Partitions space by alternating splitting dimensions.
+
+\textbf{Why:} You need nearest-neighbor or range queries in multi-dimensional space. \par \textbf{Where to use:} Use for k-NN in ML, GIS queries, collision detection in games, and particle simulation. Good for low-to-medium dimensions.
+
+\begin{lstlisting}
+dsa::kd_tree<2, double> kd({{0,0,0},{1,1,1},{5,5,2}});
+auto [pt, dist] = kd.nearest({1, 1});
+auto near = kd.range_query({1, 1}, 2.0);
+\end{lstlisting}
+
+\subsubsection{Quadtree}
+\textbf{Header:} code/include/quadtree.h\\
+\textbf{Class:} dsa::quadtree\\
+
+Recursive 2D spatial partitioning with NW/NE/SW/SE children.
+
+\textbf{Why:} Your data is 2D and you need recursive spatial partitioning. \par \textbf{Where to use:} Use for 2D collision detection, image compression, and geographic indexing. Good when points are uniformly distributed.
+
+\begin{lstlisting}
+dsa::quadtree qt({0, 0, 100, 100});
+qt.insert(10, 20, 0);
+qt.insert(50, 60, 1);
+auto near = qt.range_query(10, 20, 5.0);
+\end{lstlisting}
+
+\subsubsection{R-Tree}
+\textbf{Header:} code/include/r\_tree.h\\
+\textbf{Class:} dsa::r\_tree\\
+
+Spatial index for multi-dimensional bounding-box queries. Groups nearby objects using minimum bounding rectangles.
+
+\textbf{Why:} You need to index multi-dimensional objects (not just points) with bounding-box queries. \par \textbf{Where to use:} Use for spatial databases, map applications, and game spatial indexing. Groups nearby objects using minimum bounding rectangles.
+
+\begin{lstlisting}
+dsa::r_tree<2> rt;
+rt.insert({{1, 2, 0}});
+rt.insert({{3, 4, 1}});
+auto pts = rt.range_query({{0,0},{5,5}});
+\end{lstlisting}
+
+\subsubsection{Orthogonal Range Tree}
+\textbf{Header:} code/include/orthogonal\_range\_tree.h\\
+\textbf{Class:} dsa::orthogonal\_range\_tree\\
+
+Segment tree on x-axis, sorted-by-y at each node. Efficient for axis-aligned rectangular range queries.
+
+\textbf{Why:} You need to report all points in an axis-aligned rectangular range. \par \textbf{Where to use:} Use for windowing queries in computational geometry, VLSI checking, and D range reporting. Segment tree on x, sorted by y.
+
+\begin{lstlisting}
+dsa::orthogonal_range_tree<int> ort({{1,2,0},{3,4,1},{5,6,2}});
+auto pts = ort.query(1, 5, 2, 6);  // rectangle query
+\end{lstlisting}
+
+\subsubsection{Segment Tree (Lazy)}
+\textbf{Header:} code/include/segment\_tree\_lazy.h\\
+\textbf{Class:} dsa::segment\_tree\_lazy\\
+
+Segment tree with lazy propagation for range updates + range queries. Supports sum, min, or max with range add/set.
+
+\textbf{Why:} You need BOTH range updates (add/set) AND range queries on an array. \par \textbf{Where to use:} Use when you need O(log n) range update AND range query. Lazy propagation defers updates. Essential for competitive programming.
+
+\begin{lstlisting}
+dsa::segment_tree_lazy stl({1, 2, 3, 4, 5});
+stl.update(1, 3, 10);  // add 10 to indices [1,3]
+int s = stl.query(0, 4);  // sum of all elements
+\end{lstlisting}
+
+\subsubsection{Fenwick Tree (BIT)}
+\textbf{Header:} code/include/fenwick\_segment.h\\
+\textbf{Classes:} dsa::fenwick\_tree, dsa::segment\_tree, dsa::union\_find\\
+
+Binary Indexed Tree for prefix sums. Simpler to implement than segment trees with similar performance.
+
+\textbf{Why:} You need prefix sums with point updates, and want simpler code than segment trees. \par \textbf{Where to use:} Use for counting inversions, prefix sum queries, and 2D range sums. Simpler than segment trees with similar O(log n) performance.
+
+\begin{lstlisting}
+dsa::fenwick_tree<int> ft(10);
+ft.add(0, 5); ft.add(1, 3);
+int p = ft.prefix_sum(1);   // 8
+int r = ft.range_sum(0, 1); // 8
+\end{lstlisting}
+
+\subsubsection{Union-Find}
+\textbf{Header:} code/include/union\_find.h\\
+\textbf{Class:} dsa::union\_find\\
+
+Disjoint-set with path compression + union by size. The inverse Ackermann function $\alpha(n)$ is effectively constant.
+
+\textbf{Why:} You need to efficiently merge sets and check if two elements are in the same set. \par \textbf{Where to use:} Use for Kruskal's MST, connected components in dynamic graphs, cycle detection, and percolation. Nearly O(1) per operation.
+
+\begin{lstlisting}
+dsa::union_find uf(5);
+uf.unite(0, 1);  // merge sets
+uf.unite(1, 2);
+uf.connected(0, 2);  // true
+uf.count();  // 3 components
+\end{lstlisting}
+
+\subsubsection{van Emde Boas Tree}
+\textbf{Header:} code/include/veb\_tree.h\\
+\textbf{Class:} dsa::veb\_tree\\
+
+Near-constant time for integer operations when the universe U is bounded.
+
+\textbf{Why:} You need O(log log U) predecessor/successor on bounded integer keys. \par \textbf{Where to use:} Use when keys are bounded integers and you need near-constant time operations. Expensive in space: O(U) for universe size U.
+
+\begin{lstlisting}
+dsa::veb_tree<256> veb;
+veb.insert(5); veb.insert(3); veb.insert(7);
+veb.successor(4);  // 5
+veb.predecessor(6); // 5
+veb.erase(3);
+\end{lstlisting}
+
+\subsubsection{X-Fast Trie}
+\textbf{Header:} code/include/x\_fast\_trie.h\\
+\textbf{Class:} dsa::x\_fast\_trie\\
+
+Trie-based structure achieving van Emde Boas-like performance with less space.
+
+\textbf{Why:} You want vEB-like O(log log U) performance with less space. \par \textbf{Where to use:} Use as a space-efficient alternative to van Emde Boas trees for integer predecessor/successor queries.
+
+\begin{lstlisting}
+dsa::x_fast_trie<256> xft;
+xft.insert(5); xft.insert(3); xft.insert(7);
+xft.successor(4);  // 5
+xft.predecessor(6); // 5
+xft.erase(3);
+\end{lstlisting}
+
+\subsubsection{Merkle Tree}
+\textbf{Header:} code/include/merkle\_tree.h\\
+\textbf{Class:} dsa::merkle\_tree\\
+
+Hash tree for data integrity verification. Each leaf hashes a data block; each internal node hashes its children.
+
+\textbf{Why:} You need to verify data integrity efficiently across distributed systems. \par \textbf{Where to use:} Use for blockchain, distributed databases, Git, and any system requiring tamper-evident data verification. O(log n) proof per block.
+
+\subsubsection{Bloom Filter}
+\textbf{Header:} code/include/bloom\_filter.h\\
+\textbf{Class:} dsa::bloom\_filter\\
+
+Probabilistic set membership. Space-efficient with tunable false-positive rate. No false negatives.
+
+\textbf{Why:} You need fast set membership testing with low memory, and can tolerate false positives. \par \textbf{Where to use:} Use when you need to filter out definitely-not-present items quickly: URL blacklists, database bloom filters, cache filtering. Never has false negatives.
+
+\begin{lstlisting}
+dsa::bloom_filter bf(1000, 5);
+bf.add("hello");
+bf.might_contain("hello");  // true
+bf.might_contain("world");  // maybe false
+\end{lstlisting}
+
+%% ============================================================
+%% PART III: ALGORITHM DESIGN
+%% ============================================================
+
+\section{Part III --- Algorithm Design Paradigms}
+
+% ---- SORTING ----
+\subsection{Sorting}
+\textbf{Header:} code/include/sorting.h
+
+12 sorting algorithms covering comparison-based, non-comparison, and specialized approaches.
+
+\subsubsection{Insertion Sort}
+\textbf{Function:} dsa::insertion\_sort(span$<$T$>$ a)\\
+
+Builds the sorted array one element at a time by inserting each element into its correct position among the already-sorted prefix.
+
+\textbf{Why:} O(n$^{2}$) is acceptable for small n, or data is nearly sorted (O(n) best case). \par \textbf{Where to use:} Use for small arrays (n < 20), nearly-sorted data, as the base case in hybrid sorts, and online sorting. Best when data is almost sorted.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::insertion_sort(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Merge Sort}
+\textbf{Function:} dsa::merge\_sort(span$<$T$>$ a)\\
+
+Divide-and-conquer: split in half, recursively sort each half, merge. Stable sort with guaranteed O(n log n).
+
+\textbf{Why:} You need guaranteed O(n log n) and/or stable sort, and can afford O(n) extra space. \par \textbf{Where to use:} Use when you need stability (preserving relative order of equal elements), guaranteed O(n log n), or external sorting (data larger than memory).
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::merge_sort(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Quick Sort}
+\textbf{Function:} dsa::quick\_sort(span$<$T$>$ a)\\
+
+Partition around a pivot, recursively sort partitions. Fastest in practice despite worse-case.
+
+\textbf{Why:} You want the fastest average-case sort and can accept O(n$^{2}$) worst case (mitigated by randomization). \par \textbf{Where to use:} Use as the default in-memory sort. Fastest in practice due to cache-friendly partitioning. Randomized pivot makes O(n$^{2}$) extremely unlikely.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::quick_sort(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{3-Way Quick Sort}
+\textbf{Function:} dsa::quick\_sort\_3way(span$<$T$>$ a)\\
+
+Dutch National Flag partition: three-way split into less-than, equal-to, and greater-than pivot.
+
+\textbf{Why:} Your data has many duplicate keys and standard quick sort degrades to O(n$^{2}$). \par \textbf{Where to use:} Use when data has many duplicates: database sorting, histograms, and categorical data. Three-way partition avoids O(n$^{2}$) on equal keys.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 3, 4, 3};
+dsa::quick_sort_3way(a);
+// a = {3, 3, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Quickselect}
+\textbf{Function:} dsa::quick\_select(span$<$T$>$ a, size\_t k)\\
+
+Finds the k-th smallest element without fully sorting.
+
+\textbf{Why:} You need the k-th smallest element without fully sorting the array. \par \textbf{Where to use:} Use for finding medians, top-k queries, percentiles, and order statistics. O(n) average without modifying the input order.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+int median = dsa::quick_select(a, 2);  // 3rd smallest = 3
+\end{lstlisting}
+
+\subsubsection{Shell Sort}
+\textbf{Function:} dsa::shell\_sort(span$<$T$>$ a)\\
+
+Generalization of insertion sort using decreasing gap sequences. Elements far apart are sorted first, then reduced.
+
+\textbf{Why:} You need a simple in-place sort with better than O(n$^{2}$) performance and minimal code. \par \textbf{Where to use:} Use in embedded systems, medium arrays (n ~ 1000), and when code simplicity matters more than optimal performance.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::shell_sort(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Bubble Sort}
+\textbf{Function:} dsa::bubble\_sort(span$<$T$>$ a)\\
+
+Repeatedly swap adjacent out-of-order elements. Stops early if no swaps occur.
+
+\textbf{Why:} You need the simplest possible sort, or want to detect if data is already sorted. \par \textbf{Where to use:} Use for teaching, detecting sorted arrays (O(n) best case), and tiny datasets. Never use in production for large data.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::bubble_sort(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Bottom-Up Merge Sort}
+\textbf{Function:} dsa::merge\_sort\_bottom\_up(span$<$T$>$ a)\\
+
+Iterative merge sort avoiding recursion overhead. Merges subarrays of increasing size.
+
+\textbf{Why:} You need merge sort without recursion overhead. \par \textbf{Where to use:} Use in embedded systems where recursion is costly, and for linked list sorting without random access.
+
+\begin{lstlisting}
+std::vector<int> a = {5, 3, 1, 4, 2};
+dsa::merge_sort_bottom_up(a);
+// a = {1, 2, 3, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Counting Sort}
+\textbf{Function:} dsa::counting\_sort(span$<$int$>$ a)\\
+
+Non-comparison sort using an auxiliary count array.
+
+\textbf{Why:} Your data consists of integers with a known, small range. \par \textbf{Where to use:} Use when integer keys have small range (k << n log n). O(n + k) beats comparison sorts. Also used as subroutine in radix sort.
+
+\begin{lstlisting}
+std::vector<int> a = {4, 2, 5, 2, 1};
+dsa::counting_sort(a);
+// a = {1, 2, 2, 4, 5}
+\end{lstlisting}
+
+\subsubsection{Radix Sort (LSD)}
+\textbf{Function:} dsa::radix\_sort(span$<$int$>$ a)\\
+
+Least-significant-digit first. Sorts by each digit position using counting sort.
+
+\textbf{Why:} You're sorting fixed-length integers and want O(d*n) performance. \par \textbf{Where to use:} Use for fixed-length keys: phone numbers, SSNs, dates. O(d*n) where d = number of digits. Faster than comparison sorts for bounded data.
+
+\begin{lstlisting}
+std::vector<int> a = {170, 45, 75, 90, 802};
+dsa::radix_sort(a);
+// a = {45, 75, 90, 170, 802}
+\end{lstlisting}
+
+\subsubsection{Radix Sort (MSD for Strings)}
+\textbf{Function:} dsa::radix\_sort\_msd(span$<$string$>$ a)\\
+
+Most-significant-digit first, recursive. Naturally handles variable-length strings.
+
+\textbf{Why:} You're sorting variable-length strings by their lexicographic order. \par \textbf{Where to use:} Use for sorting strings: dictionaries, URLs, file paths. MSD radix sort naturally handles variable-length strings.
+
+\begin{lstlisting}
+std::vector<std::string> a = {"banana", "apple", "cherry"};
+dsa::radix_sort_msd(a);
+// a = {"apple", "banana", "cherry"}
+\end{lstlisting}
+
+\subsubsection{Bucket Sort}
+\textbf{Function:} dsa::bucket\_sort(span$<$float$>$ a)\\
+
+Distributes elements into buckets, sorts each bucket, concatenates.
+
+\textbf{Why:} Your data is uniformly distributed floating-point numbers in [0,1). \par \textbf{Where to use:} Use when data is uniformly distributed: floating-point numbers, histogram equalization. O(n) average for uniform input.
+
+\begin{lstlisting}
+std::vector<float> a = {0.7f, 0.1f, 0.4f, 0.2f};
+dsa::bucket_sort(a);
+// a = {0.1f, 0.2f, 0.4f, 0.7f}
+\end{lstlisting}
+
+% ---- GREEDY ----
+\subsection{Greedy Algorithms}
+\textbf{Header:} code/include/greedy.h
+
+\subsubsection{Fractional Knapsack}
+\textbf{Function:} dsa::fractional\_knapsack(capacity, items)\\
+
+Greedy by value-to-weight ratio. Takes fractions of items to maximize value within capacity.
+
+\textbf{Why:} You can take fractions of items to maximize value (items are divisible). \par \textbf{Where to use:} Use when items are divisible: bandwidth sharing, CPU time slicing, commodity trading. Greedy by value/weight ratio gives optimal solution.
+
+\begin{lstlisting}
+std::vector<dsa::frac_item> items =
+    {{10,60},{20,100},{30,120}};
+double val = dsa::fractional_knapsack(50, items);
+// val = 240.0
+\end{lstlisting}
+
+\subsubsection{Huffman Coding}
+\textbf{Function:} dsa::huffman\_encode(freq\_table)\\
+
+Builds an optimal prefix-free binary code tree. Frequent characters get shorter codes.
+
+\textbf{Why:} You need optimal prefix-free encoding for known symbol frequencies. \par \textbf{Where to use:} Use for entropy encoding in compression: ZIP, JPEG, H.264. Gives optimal prefix-free codes. Often combined with LZ77/LZ78.
+
+\begin{lstlisting}
+std::vector<std::pair<char,int>> freq =
+    {{'a',5},{'b',9},{'c',12}};
+auto codes = dsa::huffman_encode(freq);
+// codes: [('a',"00"), ('b',"01"), ('c',"1")]
+\end{lstlisting}
+
+% ---- DIVIDE AND CONQUER ----
+\subsection{Divide \& Conquer}
+\textbf{Header:} code/include/divide\_conquer.h
+
+\subsubsection{Closest Pair of Points}
+\textbf{Function:} dsa::closest\_pair(points)\\
+
+Divides points by x-coordinate, recursively finds closest pair in each half, then checks the strip around the dividing line.
+
+\textbf{Why:} You need to find the closest pair among n points in 2D/3D. \par \textbf{Where to use:} Use for facility location, collision detection, and clustering. O(n log n) beats the naive O(n$^{2}$) for large point sets.
+
+\begin{lstlisting}
+std::vector<std::pair<double,double>> pts =
+    {{0,0},{1,1},{5,5},{6,6}};
+auto [d, p1, p2] = dsa::closest_pair(pts);
+// d = 1.414... (distance between (0,0) and (1,1))
+\end{lstlisting}
+
+\subsubsection{Strassen's Matrix Multiply}
+\textbf{Function:} dsa::strassen\_multiply(A, B)\\
+
+Reduces 8 recursive multiplications to 7 at the cost of extra additions. Asymptotically faster than the naive O(n$^3$).
+
+\textbf{Why:} You need to multiply large matrices faster than O(n$^{3}$). \par \textbf{Where to use:} Use for large matrix multiplication where n > ~64. Reduces from 8 to 7 recursive multiplications. Practical for large matrices due to cache effects.
+
+\begin{lstlisting}
+std::vector<std::vector<double>> A =
+    {{1,2},{3,4}};
+std::vector<std::vector<double>> B =
+    {{5,6},{7,8}};
+auto C = dsa::strassen_multiply(A, B);
+// C = {{19,22},{43,50}}
+\end{lstlisting}
+
+% ---- DYNAMIC PROGRAMMING ----
+\subsection{Dynamic Programming}
+\textbf{Header:} code/include/dynamic\_programming.h
+
+\subsubsection{0/1 Knapsack}
+\textbf{Function:} dsa::knapsack\_01(capacity, items)\\
+
+Classic DP: fill a 2D table where dp[i][w] = best value using first i items with capacity w. Each item taken at most once.
+
+\textbf{Why:} You have items with weights/values and a capacity constraint, and items can't be split. \par \textbf{Where to use:} Use for budget optimization, cargo loading, and investment selection. O(nW) pseudo-polynomial time. Use for small W or exact solutions needed.
+
+\begin{lstlisting}
+std::vector<std::pair<int,int>> items =
+    {{2,3},{3,4},{4,5},{5,6}};
+int val = dsa::knapsack_01(8, items);
+// val = 10
+\end{lstlisting}
+
+\subsubsection{Longest Common Subsequence}
+\textbf{Function:} dsa::lcs(a, b)\\
+
+Finds the longest subsequence present in both strings (not necessarily contiguous).
+
+\textbf{Why:} You need the longest common subsequence (not substring) between two sequences. \par \textbf{Where to use:} Use for diff tools (git diff), version control, DNA alignment, and plagiarism detection. Shows how two sequences differ.
+
+\begin{lstlisting}
+auto s = dsa::lcs("ABCBDAB", "BDCAB");
+// s = "BCAB" or "BDAB"
+\end{lstlisting}
+
+\subsubsection{Edit Distance}
+\textbf{Function:} dsa::edit\_distance(a, b)\\
+
+Minimum number of insertions, deletions, and substitutions to transform one string into another.
+
+\textbf{Why:} You need the minimum number of edits to transform one string into another. \par \textbf{Where to use:} Use for spell checking, DNA alignment, speech recognition, and plagiarism detection. Foundation for fuzzy matching.
+
+\begin{lstlisting}
+int dist = dsa::edit_distance("kitten", "sitting");
+// dist = 3
+\end{lstlisting}
+
+\subsubsection{Longest Increasing Subsequence}
+\textbf{Function:} dsa::lis\_length(a)\\
+
+Finds the length of the longest strictly increasing subsequence using patience sorting.
+
+\textbf{Why:} You need the length of the longest strictly increasing subsequence. \par \textbf{Where to use:} Use for Stock Span, patience sorting, and when you need to find the longest increasing pattern. O(n log n) with patience sorting.
+
+\begin{lstlisting}
+std::vector<int> a = {10,9,2,5,3,7,101,18};
+auto len = dsa::lis_length(a);
+// len = 4  (subsequence: 2,3,7,101)
+\end{lstlisting}
+
+% ---- BACKTRACKING ----
+\subsection{Backtracking}
+\textbf{Header:} code/include/backtracking.h
+
+\subsubsection{N-Queens}
+\textbf{Function:} dsa::n\_queens(n)\\
+
+Place N queens on an N x N board so no two attack each other. Uses column and diagonal tracking for efficient pruning.
+
+\textbf{Why:} You need to find all valid configurations satisfying constraints (classic CSP). \par \textbf{Where to use:} Use for constraint satisfaction, puzzle solving, circuit board layout, and as a teaching example for backtracking with pruning.
+
+\begin{lstlisting}
+auto sols = dsa::n_queens(4);
+// sols.size() = 2
+// sols[0] = {".Q..","...Q","Q...","..Q."}
+\end{lstlisting}
+
+\subsubsection{Subset Sum}
+\textbf{Function:} dsa::subset\_sum(nums, target)\\
+
+Determines if any subset of integers sums to a given target. Uses DP table (not pure backtracking).
+
+\textbf{Why:} You need to determine if any subset sums to a target value. \par \textbf{Where to use:} Use for partition problems, fair division, and cryptographic applications. O(n*target) pseudo-polynomial time.
+
+\begin{lstlisting}
+bool ok = dsa::subset_sum({3, 34, 4, 12, 5, 2}, 9);
+// ok = true  (4 + 5 = 9)
+\end{lstlisting}
+
+\subsubsection{Traveling Salesman}
+\textbf{Function:} dsa::tsp(dist)\\
+
+Exact TSP solution via bitmask dynamic programming. Visits all cities exactly once and returns to start.
+
+\textbf{Why:} You need the optimal tour visiting all cities exactly once (small n). \par \textbf{Where to use:} Use for small instances (n <= 20) of routing problems. For larger instances, use heuristics (nearest neighbor, 2-opt, genetic algorithms).
+
+\begin{lstlisting}
+std::vector<std::vector<int>> d =
+    {{0,10,15,20},{10,0,35,25},
+     {15,35,0,30},{20,25,30,0}};
+int cost = dsa::tsp(d);
+// cost = 80
+\end{lstlisting}
+
+% ---- PROBABILISTIC ----
+\subsection{Probabilistic Structures}
+\textbf{Header:} code/include/probabilistic.h
+
+\subsubsection{Reservoir Sampling}
+\textbf{Function:} dsa::reservoir\_sample(k, stream)\\
+
+Selects k items uniformly at random from a stream of unknown length. Each item has equal probability k/n of being selected.
+
+\textbf{Why:} You need k random items from a stream of unknown length in one pass. \par \textbf{Where to use:} Use for streaming random sampling, database sampling, A/B testing, and Monte Carlo. Each item has equal probability k/n.
+
+\begin{lstlisting}
+std::vector<int> stream = {1,2,3,4,5,6,7,8,9,10};
+auto sample = dsa::reservoir_sample(3, stream);
+// sample.size() == 3, uniformly random
+\end{lstlisting}
+
+\subsubsection{HyperLogLog}
+\textbf{Class:} dsa::hyperloglog(precision)\\
+
+Probabilistic cardinality estimator. Uses the observation that hash values with many leading zeros are rare.
+
+\textbf{Why:} You need to count distinct elements in a stream with sublinear space. \par \textbf{Where to use:} Use for unique visitor counting, network flow monitoring, and SELECT DISTINCT estimation. O(1) per element, tunable accuracy.
+
+\begin{lstlisting}
+dsa::hyperloglog hll(10);
+hll.add("hello"); hll.add("world");
+hll.add("hello");  // duplicate
+hll.count();  // ~2 (approximate cardinality)
+\end{lstlisting}
+
+\subsubsection{Count-Min Sketch}
+\textbf{Class:} dsa::count\_min\_sketch(width, depth)\\
+
+Probabilistic frequency estimator. Over-estimates but never under-estimates counts.
+
+\textbf{Why:} You need to estimate frequencies in a stream, and can tolerate over-estimation. \par \textbf{Where to use:} Use for network flow counting, stream frequency estimation, and heavy-hitter detection. Never under-estimates, may over-estimate.
+
+\begin{lstlisting}
+dsa::count_min_sketch cms(1024, 5);
+cms.add("hello", 3);
+cms.add("world", 2);
+cms.estimate("hello");  // >= 3
+\end{lstlisting}
+
+%% ============================================================
+%% PART IV: STRINGS & SPECIALIZED
+%% ============================================================
+
+\section{Part IV --- Strings \& Specialized Topics}
+
+% ---- EXACT MATCHING ----
+\subsection{Exact String Matching}
+\textbf{Header:} code/include/exact\_matching.h
+
+Five pattern matching algorithms. All return vector$<$size\_t$>$ of match start positions.
+
+\subsubsection{Morris-Pratt}
+\textbf{Function:} dsa::morris\_pratt\_search(text, pattern)\\
+
+Precomputes prefix function to avoid redundant comparisons. The text pointer never moves backward.
+
+\textbf{Why:} You need O(n+m) pattern matching with simple prefix function. \par \textbf{Where to use:} Use as the conceptual stepping stone to KMP. Text pointer never moves backward. Simpler than KMP but skips fewer characters.
+
+\begin{lstlisting}
+auto pos = dsa::morris_pratt_search(
+    "ABABDABACDABABCABAB", "ABABCABAB");
+// pos = {9}
+\end{lstlisting}
+
+\subsubsection{Knuth-Morris-Pratt (KMP)}
+\textbf{Function:} dsa::kmp\_search(text, pattern)\\
+
+Optimized prefix function uses pattern lookahead to skip more characters on mismatch.
+
+\textbf{Why:} You need the standard O(n+m) pattern matching algorithm. \par \textbf{Where to use:} Use as the default linear-time pattern matcher. KMP's prefix function skips more characters than Morris-Pratt on mismatch.
+
+\begin{lstlisting}
+auto pos = dsa::kmp_search(
+    "ABABDABACDABABCABAB", "ABABCABAB");
+// pos = {9}
+\end{lstlisting}
+
+\subsubsection{Karp-Rabin}
+\textbf{Function:} dsa::karp\_rabin(pattern, base, mod)\\
+
+Uses rolling hash to compare pattern against text windows in O(1). Only verifies on hash match.
+
+\textbf{Why:} You want average-case O(n+m) with simple rolling hash, and can accept O(nm) worst case. \par \textbf{Where to use:} Use for plagiarism detection, multiple pattern search, and when simplicity matters. Rolling hash gives O(1) window comparison.
+
+\begin{lstlisting}
+auto matches = dsa::karp_rabin("ABCABC", "ABC");
+// matches = {0, 3}
+\end{lstlisting}
+
+\subsubsection{Galil-Seiferas}
+\textbf{Function:} dsa::galil\_seiferas\_search(text, pattern)\\
+
+Uses critical factorization for linear-time matching with skip optimization.
+
+\textbf{Why:} You need optimal O(n+m) matching with skip optimization via critical factorization. \par \textbf{Where to use:} Use for long repeated patterns where skip optimization matters. Theoretically optimal but rarely used in practice.
+
+\begin{lstlisting}
+auto pos = dsa::galil_seiferas_search("ABCABC", "ABC");
+// pos = {0, 3}
+\end{lstlisting}
+
+\subsubsection{Boyer-Moore-Horspool}
+\textbf{Function:} dsa::boyer\_moore\_horspool(pattern)\\
+
+Simplified Boyer-Moore using only bad-character shift. Compares right-to-left, skips large portions of text.
+
+\textbf{Why:} You want the fastest practical string search for large alphabets. \par \textbf{Where to use:} Use as the default practical string search. Bad-character shift skips large portions of text. Sublinear average-case.
+
+\begin{lstlisting}
+dsa::boyer_moore_horspool bm("needle");
+auto pos = bm.search("haystack needle here");
+// pos = {8}
+\end{lstlisting}
+
+% ---- STRING SEARCH ----
+\subsection{String Search \& Pattern Matching}
+\textbf{Header:} code/include/string\_search.h
+
+\subsubsection{Z-Algorithm}
+\textbf{Function:} dsa::z\_function(s)\\
+
+For each position i, computes z[i] = length of longest substring starting at i that matches the prefix.
+
+\textbf{Why:} Pattern matching (concatenate pattern + \$ + text, find z-values equal to pattern length), shortest unique substring, and run-length detection.
+
+\begin{lstlisting}
+auto z = dsa::z_function("aabxaab");
+auto pos = dsa::z_search("aabxaabxcaab", "aab");
+// pos = {0, 9}
+\end{lstlisting}
+
+\subsubsection{Boyer-Moore (Good Suffix)}
+\textbf{Function:} dsa::boyer\_moore(text, pattern)\\
+
+Uses both bad-character and good-suffix heuristics for maximum skip distance.
+
+\textbf{Why:} You want the fastest practical string search using both bad-character and good-suffix heuristics. \par \textbf{Where to use:} Use as the fastest practical string search. Both heuristics give maximum skip distance. Sublinear average-case.
+
+\begin{lstlisting}
+dsa::boyer_moore bm("needle");
+auto pos = bm.search("haystack needle here");
+// pos = {8}
+\end{lstlisting}
+
+\subsubsection{Manacher's Palindrome}
+\textbf{Function:} dsa::manacher(s)\\
+
+Finds all odd-length palindromes centered at each position in linear time using symmetry exploitation.
+
+\textbf{Why:} You need to find all palindromic substrings in linear time. \par \textbf{Where to use:} Use for longest palindromic substring, palindrome detection in DNA, and text compression. O(n) time exploits palindrome symmetry.
+
+\begin{lstlisting}
+auto lps = dsa::longest_palindrome("babad");
+// lps = "bab" or "aba"
+\end{lstlisting}
+
+% ---- APPROXIMATE MATCHING ----
+\subsection{Approximate String Matching}
+\textbf{Header:} code/include/approximate\_matching.h
+
+\subsubsection{Levenshtein Distance}
+\textbf{Function:} dsa::levenshtein(a, b)\\
+
+Minimum edit distance: insertions, deletions, and substitutions.
+
+\textbf{Why:} You need the minimum edit distance (insertions + deletions + substitutions). \par \textbf{Where to use:} Use for spell checking, DNA alignment, speech recognition, and record deduplication. The standard edit distance metric.
+
+\begin{lstlisting}
+int dist = dsa::levenshtein("kitten", "sitting");
+// dist = 3
+\end{lstlisting}
+
+\subsubsection{Hamming Distance}
+\textbf{Function:} dsa::hamming\_distance(a, b)\\
+
+Number of positions where corresponding characters differ. Only defined for equal-length strings.
+
+\textbf{Why:} You need to count positions where two equal-length strings differ. \par \textbf{Where to use:} Use for fixed-length string comparison: error-correcting codes, hash comparison, DNA mutation counting. Only for equal-length strings.
+
+\begin{lstlisting}
+auto dist = dsa::hamming_distance("karolin", "kathrin");
+// dist = 3
+\end{lstlisting}
+
+\subsubsection{Myers' Bit-Parallel}
+\textbf{Function:} dsa::myers\_bit\_parallel(text, pattern, threshold)\\
+
+Simulates the DP edit distance matrix using bit operations. Extremely fast for small patterns and thresholds.
+
+\textbf{Why:} You need approximate pattern matching with small edit distance threshold. \par \textbf{Where to use:} Use for bioinformatics alignment, spell checking, and approximate grep. Bit-parallel simulation is extremely fast for small patterns.
+
+\begin{lstlisting}
+auto pos = dsa::myers_approximate(
+    "hello world", "helo", 1);
+// pos = {0}  (distance 1: 'l' missing)
+\end{lstlisting}
+
+\subsubsection{Shift-Or (Approximate)}
+\textbf{Function:} dsa::shift\_or\_approximate(text, pattern, threshold)\\
+
+Bit-parallel approximate matching using the Shift-Or framework.
+
+\textbf{Why:} You need approximate pattern matching using bit-parallel DP. \par \textbf{Where to use:} Use for fast approximate matching with Hamming distance. Bit-parallel approach processes multiple positions simultaneously.
+
+\begin{lstlisting}
+auto pos = dsa::shift_or_approximate(
+    "hello world", "helo", 1);
+// pos = {0}
+\end{lstlisting}
+
+% ---- MULTIPLE MATCHING ----
+\subsection{Multiple Pattern Matching}
+\textbf{Header:} code/include/multiple\_matching.h
+
+\subsubsection{Aho-Corasick}
+\textbf{Function:} dsa::aho\_corasick\_search(text, patterns)\\
+
+Builds an automaton from all patterns simultaneously. Scans text once, finding all pattern occurrences.
+
+\textbf{Why:} You need to find ALL occurrences of MULTIPLE patterns in a single text scan. \par \textbf{Where to use:} Use for multi-pattern matching: antivirus scanning, intrusion detection, bioinformatics. Builds one automaton from all patterns.
+
+\begin{lstlisting}
+dsa::aho_corasick ac({"he", "she", "his", "hers"});
+auto matches = ac.search("ahishers");
+// matches: (1,"his"), (1,"he"), (4,"she"), (4,"he"), (4,"hers")
+\end{lstlisting}
+
+\subsubsection{Commentz-Walter}
+\textbf{Function:} dsa::commentz\_walter\_search(text, patterns)\\
+
+Multi-pattern search combining Shift-Or with Aho-Corasick concepts.
+
+\textbf{Why:} You need multi-pattern search with variable-length patterns. \par \textbf{Where to use:} Use as an alternative to Aho-Corasick when pattern lengths vary significantly. Combines Shift-Or with Aho-Corasick concepts.
+
+\begin{lstlisting}
+dsa::commentz_walter cw({"he", "she", "his", "hers"});
+auto matches = cw.search("ahishers");
+// matches: (position, pattern_id) for each match
+\end{lstlisting}
+
+% ---- TEXT DECOMPOSITION ----
+\subsection{Text Decomposition}
+\textbf{Header:} code/include/text\_decomposition.h
+
+\subsubsection{Lyndon Factorization}
+\textbf{Function:} dsa::lyndon\_factorization(s)\\
+
+Duval's algorithm decomposes a string into Lyndon words (lexicographically strictly smallest rotations).
+
+\textbf{Why:} You need to decompose a string into Lyndon words. \par \textbf{Where to use:} Use for minimal string rotation (Booth's), suffix array construction (DC3/SA-IS), and string periodicity analysis.
+
+\begin{lstlisting}
+auto factors = dsa::lyndon_factorization("banana");
+// factors: "b" "an" "an" "a" (Lyndon factorization)
+bool is_ld = dsa::is_lyndon_word("an");
+// is_ld = true
+\end{lstlisting}
+
+\subsubsection{Critical Factorization}
+\textbf{Function:} dsa::critical\_factorization(s)\\
+
+Finds the critical index that enables optimal two-way string matching.
+
+\textbf{Why:} You need the critical index for optimal two-way string matching. \par \textbf{Where to use:} Use as preprocessing for Crochemore-Perrin two-way algorithm. Enables O(n+m) matching with left-to-right text scan.
+
+\begin{lstlisting}
+auto [pos, period] = dsa::critical_factorization("abcabc");
+// pos = 3, period = 3
+\end{lstlisting}
+
+% ---- COMPRESSION ----
+\subsection{String Compression}
+\textbf{Header:} code/include/string\_compression.h
+
+Four classic compression algorithms with encode/decode pairs.
+
+\subsubsection{Run-Length Encoding}
+\textbf{Functions:} dsa::rle\_encode(s), dsa::rle\_decode(s)\\
+
+Replaces consecutive repeated characters with character + count.
+
+\textbf{Why:} Your data has long runs of repeated characters. \par \textbf{Where to use:} Use for run-length data: fax, BMP images, sensor data. Simple but only effective when runs are long. Often combined with other methods.
+
+\begin{lstlisting}
+auto enc = dsa::rle_encode("AAABBBCCD");
+// enc = "A3B3C2D1"
+auto dec = dsa::rle_decode(enc);
+// dec = "AAABBBCCD"
+\end{lstlisting}
+
+\subsubsection{LZ77}
+\textbf{Functions:} dsa::lz77\_encode(s), dsa::lz77\_decode(tokens)\\
+
+Sliding-window dictionary compression. References previous occurrences via (offset, length) tuples.
+
+\textbf{Why:} You need sliding-window dictionary compression. \par \textbf{Where to use:} Use as the foundation of DEFLATE (gzip, PNG, ZIP). References previous occurrences via (offset, length) tuples.
+
+\begin{lstlisting}
+auto tokens = dsa::lz77_encode("ABCABCABC");
+auto orig = dsa::lz77_decode(tokens);
+// orig == "ABCABCABC"
+\end{lstlisting}
+
+\subsubsection{LZ78}
+\textbf{Functions:} dsa::lz78\_encode(s), dsa::lz78\_decode(tokens)\\
+
+Dictionary-based compression building an explicit dictionary during encoding.
+
+\textbf{Why:} You need dictionary-based compression with explicit dictionary building. \par \textbf{Where to use:} Use for LZW variant compression: GIF, Unix compress. Builds dictionary explicitly during encoding.
+
+\begin{lstlisting}
+auto tokens = dsa::lz78_encode("TOBEORNOTTOBE");
+auto orig = dsa::lz78_decode(tokens);
+// orig == "TOBEORNOTTOBE"
+\end{lstlisting}
+
+\subsubsection{LZW}
+\textbf{Functions:} dsa::lzw\_encode(s), dsa::lzw\_decode(codes)\\
+
+Adaptive dictionary compression. Dictionary is built implicitly during both encoding and decoding.
+
+\textbf{Why:} You need adaptive dictionary compression where dictionary is built during both encode and decode. \par \textbf{Where to use:} Use for GIF, TIFF, PDF compression. Dictionary is built implicitly, no need to transmit it separately.
+
+\begin{lstlisting}
+auto codes = dsa::lzw_encode("TOBEORNOTTOBE");
+auto orig  = dsa::lzw_decode(codes);
+// orig == "TOBEORNOTTOBE"
+\end{lstlisting}
+
+% ---- BWT ----
+\subsection{Burrows-Wheeler Transform}
+\textbf{Header:} code/include/bwt.h\\
+\textbf{Functions:} dsa::bwt\_encode(s), dsa::bwt\_decode(s)\\
+
+Reorders a string so that similar characters cluster together, enabling high compression ratios.
+
+\textbf{Why:} You need to reorder a string so similar characters cluster together for better compression. \par \textbf{Where to use:} Use as preprocessing for bzip2 compression. Enables high compression ratios by clustering similar characters.
+
+\begin{lstlisting}
+auto encoded = dsa::bwt_encode("banana");
+auto decoded = dsa::bwt_decode(encoded);
+// decoded == "banana"
+\end{lstlisting}
+
+\subsubsection{FM-Index}
+\textbf{Class:} dsa::fm\_index\\
+
+Compressed full-text index using BWT. Supports substring search and counting without decompression.
+
+\textbf{Why:} You need to search compressed text without decompressing. \par \textbf{Where to use:} Use for compressed full-text search: genome search, bioinformatics. Supports substring search and counting on compressed data.
+
+\begin{lstlisting}
+dsa::fm_index fm("banana");
+auto count = fm.count("ana");  // 2
+auto pos = fm.search("ana");   // {1, 3}
+\end{lstlisting}
+
+% ---- SUFFIX ARRAYS ----
+\subsection{Suffix Array Search}
+\textbf{Header:} code/include/suffix\_array\_search.h
+
+\subsubsection{Kasai LCP}
+\textbf{Function:} dsa::kasai\_lcp(s, sa)\\
+
+Constructs the LCP (longest common prefix) array from a suffix array in linear time.
+
+\textbf{Why:} You need the LCP array from a suffix array. \par \textbf{Where to use:} Use for longest repeated substring, distinct substring counting, and as input to many string algorithms. O(n) construction.
+
+\begin{lstlisting}
+std::string s = "banana";
+std::vector<size_t> sa = {5, 3, 1, 0, 4, 2};
+auto lcp = dsa::kasai_lcp(s, sa);
+// lcp = {-, 1, 3, 0, 0, 2} (lcp[0] undefined)
+\end{lstlisting}
+
+\subsubsection{SA Search}
+\textbf{Function:} dsa::sa\_search(sa, s, pattern)\\
+
+Binary search on suffix array to find pattern occurrences.
+
+\textbf{Why:} You need to find pattern occurrences using binary search on a suffix array. \par \textbf{Where to use:} Use for full-text search on suffix arrays. O(m log n) per query. Simpler than suffix tree for static texts.
+
+\begin{lstlisting}
+std::string s = "banana";
+std::vector<size_t> sa = {5, 3, 1, 0, 4, 2};
+auto pos = dsa::sa_search(sa, s, "ana");
+// pos = {1, 3}
+\end{lstlisting}
+
+% ---- NFA ----
+\subsection{NFA Regex Matching}
+\textbf{Header:} code/include/nfa.h\\
+\textbf{Function:} dsa::nfa\_match(pattern, text)\\
+
+Thompson's NFA construction for regular expression matching. Supports *, +, ?, |, and ().
+
+\textbf{Why:} You need regular expression matching with *, +, ?, |, and (). \par \textbf{Where to use:} Use for regex matching: input validation, log filtering, web scraping. Thompson's NFA construction gives O(nm) matching.
+
+\begin{lstlisting}
+bool ok = dsa::nfa_match("(a|b)*abb", "aababb");
+// ok = true
+\end{lstlisting}
+
+% ---- GRAPH ----
+\subsection{Graph Algorithms}
+\textbf{Header:} code/include/graph.h\\
+\textbf{Class:} dsa::graph$<$Weight$>$
+
+Adjacency-list graph with both directed and undirected edge support.
+
+\subsubsection{DFS / BFS}
+\textbf{Functions:} g.dfs(start, visitor), g.bfs(start, visitor)\\
+
+DFS uses a stack (recursive); BFS uses a queue. Both visit every reachable vertex exactly once.
+
+\textbf{Applications (DFS):} Topological sorting, cycle detection, connected components, maze solving, path finding in puzzles, and backtracking search.
+
+\textbf{Applications (BFS):} Shortest paths in unweighted graphs, level-order tree traversal, peer-to-peer network discovery, web crawlers, and social network degree-of-separation.
+
+\begin{lstlisting}
+dsa::graph<int> g(4);
+g.add_edge(0, 1); g.add_edge(1, 2); g.add_edge(2, 3);
+g.dfs(0, [](int v) { /* visit v */ });
+g.bfs(0, [](int v) { /* visit v */ });
+\end{lstlisting}
+
+\subsubsection{Connected Components}
+\textbf{Function:} g.connected\_components()\\
+
+Assigns a component ID to each vertex using BFS. Vertices in the same component are mutually reachable.
+
+\textbf{Why:} You need to find all connected components in an undirected graph. \par \textbf{Where to use:} Use for friend group analysis, image processing, network reliability, and dependency analysis. Assigns component IDs via BFS.
+
+\begin{lstlisting}
+dsa::graph<int> g(4);
+g.add_edge(0, 1); g.add_edge(2, 3);
+auto cc = g.connected_components();
+// cc = {0,0,1,1}  (two components)
+\end{lstlisting}
+
+\subsubsection{Dijkstra}
+\textbf{Function:} g.dijkstra(start)\\
+
+Finds shortest paths from a source vertex with non-negative edge weights using a min-priority queue.
+
+\textbf{Why:} You need shortest paths from a source with non-negative edge weights. \par \textbf{Where to use:} Use for GPS, IP routing, map applications, and robot path planning. O((V+E) log V) with priority queue.
+
+\begin{lstlisting}
+dsa::graph<int> g(5);
+g.add_edge(0, 1, 10);
+g.add_edge(1, 3, 10);
+auto dist = g.dijkstra(0);
+// dist[3] = 20
+\end{lstlisting}
+
+\subsubsection{Bellman-Ford}
+\textbf{Function:} g.bellman\_ford(start)\\
+
+Shortest paths from source, handling negative edge weights. Detects negative cycles.
+
+\textbf{Why:} You need shortest paths and the graph may have negative edge weights. \par \textbf{Where to use:} Use when negative edges exist: arbitrage detection, currency exchange. Detects negative cycles. O(VE) time.
+
+\begin{lstlisting}
+dsa::graph<int> g(3);
+g.add_edge(0, 1, 4); g.add_edge(1, 2, -2);
+auto dist = g.bellman_ford(0);
+// dist = {0, 4, 2}
+\end{lstlisting}
+
+\subsubsection{Floyd-Warshall}
+\textbf{Function:} g.floyd\_warshall()\\
+
+All-pairs shortest paths via dynamic programming. Simple triple-nested loop.
+
+\textbf{Why:} You need all-pairs shortest paths in a dense graph. \par \textbf{Where to use:} Use for all-pairs shortest paths in dense graphs, transitive closure, and small road networks. O(V$^{3}$) simple DP.
+
+\begin{lstlisting}
+dsa::graph<int> g(3);
+g.add_edge(0, 1, 3); g.add_edge(1, 2, 1);
+auto all = g.floyd_warshall();
+// all[0][2] = 4
+\end{lstlisting}
+
+\subsubsection{Topological Sort}
+\textbf{Function:} g.topological\_sort()\\
+
+Linear ordering of vertices in a DAG such that every edge goes from earlier to later.
+
+\textbf{Why:} You need a linear ordering of vertices in a DAG respecting edge constraints. \par \textbf{Where to use:} Use for dependency resolution: build systems, course prerequisites, task scheduling. O(V+E) topological sort.
+
+\begin{lstlisting}
+dsa::graph<int> g(4);
+g.add_edge(0, 1); g.add_edge(0, 2); g.add_edge(1, 3);
+auto order = g.topological_sort();
+// order = {0, 1, 2, 3} or {0, 2, 1, 3}
+\end{lstlisting}
+
+\subsubsection{Cycle Detection}
+\textbf{Function:} g.has\_cycle()\\
+
+DFS-based detection using three coloring states (Unvisited, InStack, Done).
+
+\textbf{Why:} You need to detect if a directed graph contains a cycle. \par \textbf{Where to use:} Use for deadlock detection, circular dependency checking, and infinite loop detection. DFS-based with three coloring states.
+
+\begin{lstlisting}
+dsa::graph<int> g(3);
+g.add_edge(0, 1); g.add_edge(1, 2);
+g.has_cycle();  // false
+g.add_edge(2, 0);
+g.has_cycle();  // true
+\end{lstlisting}
+
+\subsubsection{Bipartiteness Check}
+\textbf{Function:} g.is\_bipartite()\\
+
+2-coloring via BFS. Returns the coloring or empty if the graph is not bipartite.
+
+\textbf{Why:} You need to 2-color a graph or detect odd-length cycles. \par \textbf{Where to use:} Use for matching problems, graph coloring lower bounds, and bipartiteness checking. BFS-based 2-coloring.
+
+\begin{lstlisting}
+dsa::graph<int> g(4);
+g.add_edge(0, 1); g.add_edge(1, 2); g.add_edge(2, 3);
+auto color = g.is_bipartite();
+// color = {0, 1, 0, 1}  (bipartite)
+\end{lstlisting}
+
+\subsubsection{Transitive Closure}
+\textbf{Function:} g.transitive\_closure()\\
+
+Boolean reachability matrix: reach[i][j] is true iff j is reachable from i.
+
+\textbf{Why:} You need to know if vertex j is reachable from vertex i. \par \textbf{Where to use:} Use for reachability queries, dependency analysis, and type hierarchy checking. O(V$^{3}$) Boolean matrix.
+
+\begin{lstlisting}
+dsa::graph<int> g(3);
+g.add_edge(0, 1); g.add_edge(1, 2);
+auto tc = g.transitive_closure();
+// tc[0][2] = true
+\end{lstlisting}
+
+\subsubsection{DAG Shortest Path}
+\textbf{Function:} g.dag\_shortest\_path(start)\\
+
+Processes vertices in topological order for optimal single-pass shortest path.
+
+\textbf{Why:} You need shortest paths in a DAG efficiently. \par \textbf{Where to use:} Use for project scheduling, critical path, and DAG optimization. O(V+E) single pass in topological order.
+
+\begin{lstlisting}
+dsa::graph<int> g(4);
+g.add_edge(0, 1, 1); g.add_edge(0, 2, 4);
+g.add_edge(1, 3, 2); g.add_edge(2, 3, 1);
+auto dist = g.dag_shortest_path(0);
+// dist = {0, 1, 4, 3}
+\end{lstlisting}
+
+\subsubsection{Eulerian Cycle}
+\textbf{Function:} g.eulerian\_cycle()\\
+
+Hierholzer's algorithm for finding a cycle that uses every edge exactly once. Requires in-degree = out-degree for all vertices.
+
+\textbf{Why:} You need a cycle that uses every edge exactly once. \par \textbf{Where to use:} Use for genome assembly, Chinese postman problem, and graph drawing. Requires in-degree = out-degree for all vertices.
+
+\begin{lstlisting}
+dsa::graph<int> g(3);
+g.add_edge(0, 1); g.add_edge(1, 2); g.add_edge(2, 0);
+auto cycle = g.eulerian_cycle();
+// cycle = {0, 1, 2, 0}  (or rotation)
+\end{lstlisting}
+
+% ---- MST ----
+\subsection{Minimum Spanning Tree}
+
+\subsubsection{Kruskal's MST}
+\textbf{Header:} code/include/graph.h\\
+\textbf{Function:} dsa::kruskal\_mst(n, edges)\\
+
+Sorts edges by weight, greedily adds cheapest edges that don't form cycles (using Union-Find).
+
+\textbf{Why:} You need the minimum weight spanning tree using greedy edge selection. \par \textbf{Where to use:} Use for network design, clustering, and Steiner tree approximation. Sort edges greedily with Union-Find for cycle detection.
+
+\begin{lstlisting}
+std::vector<dsa::weighted_edge> edges =
+    {{0,1,4},{1,2,2},{0,2,3}};
+auto mst = dsa::kruskal_mst(3, edges);
+// mst has 2 edges, total weight = 5
+\end{lstlisting}
+
+\subsubsection{Boruvka's MST}
+\textbf{Header:} code/include/graph.h\\
+\textbf{Function:} dsa::boruvka\_mst(n, edges)\\
+
+Each component picks its cheapest outgoing edge. Parallelizable.
+
+\textbf{Why:} You need a parallelizable MST algorithm. \par \textbf{Where to use:} Use for parallel MST computation. Each component picks cheapest outgoing edge. Parallelizable unlike Prim's.
+
+\begin{lstlisting}
+std::vector<dsa::weighted_edge> edges =
+    {{0,1,4},{1,2,2},{0,2,3}};
+auto mst = dsa::boruvka_mst(3, edges);
+// mst has 2 edges, total weight = 5
+\end{lstlisting}
+
+\subsubsection{Prim's MST}
+\textbf{Header:} code/include/prim.h\\
+\textbf{Function:} dsa::prim(graph, source)\\
+
+Grows a single tree from a source vertex by always adding the cheapest edge connecting the tree to a non-tree vertex.
+
+\textbf{Why:} You need MST growing from a single source vertex. \par \textbf{Where to use:} Use for network design, cluster analysis. Grows tree by always adding cheapest edge to non-tree vertex.
+
+\begin{lstlisting}
+dsa::prim_mst pm(4);
+pm.add_edge(0, 1, 4); pm.add_edge(1, 2, 2);
+pm.add_edge(2, 3, 3); pm.add_edge(0, 3, 5);
+auto res = pm.compute();
+// res.total_weight = 9
+\end{lstlisting}
+
+% ---- SCC ----
+\subsection{Strongly Connected Components}
+\textbf{Header:} code/include/scc.h
+
+\subsubsection{Kosaraju's Algorithm}
+\textbf{Function:} dsa::kosaraju(graph)\\
+
+Two-pass DFS: first pass gets finish order on original graph, second pass finds components on transpose.
+
+\textbf{Why:} You need to find strongly connected components in a directed graph. \par \textbf{Where to use:} Use for dependency analysis, web page clustering, and graph simplification. Two-pass DFS on original and transpose.
+
+\begin{lstlisting}
+dsa::kosaraju_scc ks(5);
+ks.add_edge(0, 1); ks.add_edge(1, 2);
+ks.add_edge(2, 0); ks.add_edge(2, 3);
+ks.add_edge(3, 4);
+auto sccs = ks.find_sccs();
+// sccs = {{0,1,2}, {3}, {4}}
+\end{lstlisting}
+
+\subsubsection{Tarjan's Algorithm}
+\textbf{Function:} dsa::tarjan(graph)\\
+
+Single-pass DFS using a stack. Finds SCCs by tracking discovery times and low-link values.
+
+\textbf{Why:} You need SCCs with a single DFS pass (no transpose graph needed). \par \textbf{Where to use:} Use for SCCs when you want single-pass simplicity. Uses discovery times and low-link values.
+
+\begin{lstlisting}
+dsa::tarjan_scc ts(5);
+ts.add_edge(0, 1); ts.add_edge(1, 2);
+ts.add_edge(2, 0); ts.add_edge(2, 3);
+ts.add_edge(3, 4);
+auto sccs = ts.find_sccs();
+// sccs = {{4}, {3}, {0,1,2}}
+\end{lstlisting}
+
+% ---- MAX FLOW ----
+\subsection{Maximum Flow \& Matching}
+
+\subsubsection{Dinic's Algorithm}
+\textbf{Header:} code/include/dinic.h\\
+\textbf{Class:} dsa::dinic$<$FlowUnit$>$\\
+
+Builds level graphs via BFS, then finds blocking flows via DFS. Much faster in practice than Ford-Fulkerson on unit-capacity networks.
+
+\textbf{Why:} You need maximum flow with good practical performance. \par \textbf{Where to use:} Use as the default max-flow algorithm. BFS level graphs + DFS blocking flows. Much faster than Ford-Fulkerson in practice.
+
+\begin{lstlisting}
+dsa::dinic<int> d(4);
+d.add_edge(0, 1, 10);
+d.add_edge(0, 2, 10);
+d.add_edge(1, 3, 10);
+d.add_edge(2, 3, 10);
+int flow = d.max_flow(0, 3);
+// flow = 20
+\end{lstlisting}
+
+\subsubsection{Ford-Fulkerson}
+\textbf{Header:} code/include/flow\_matching.h\\
+\textbf{Class:} dsa::ford\_fulkerson(n)\\
+
+Augments along augmenting paths until no more exist. Complexity depends on max flow value.
+
+\textbf{Why:} You want the simplest augmenting-path max-flow algorithm. \par \textbf{Where to use:} Use for understanding max-flow concepts. Simple but O(E * max\_flow) time. Use Dinic's or Edmonds-Karp for better bounds.
+
+\begin{lstlisting}
+dsa::ford_fulkerson ff(4);
+ff.add_edge(0, 1, 10); ff.add_edge(0, 2, 10);
+ff.add_edge(1, 3, 10); ff.add_edge(2, 3, 10);
+int flow = ff.max_flow(0, 3);
+// flow = 20
+\end{lstlisting}
+
+\subsubsection{Edmonds-Karp}
+\textbf{Header:} code/include/flow\_matching.h\\
+\textbf{Class:} dsa::edmonds\_karp(n)\\
+
+Ford-Fulkerson using BFS for shortest augmenting path. Guaranteed polynomial time.
+
+\textbf{Why:} You want Ford-Fulkerson with guaranteed polynomial time. \par \textbf{Where to use:} Use when you want BFS shortest augmenting path. O(VE$^2$) guaranteed. Simpler than Dinic's for small graphs.
+
+\begin{lstlisting}
+dsa::edmonds_karp ek(4);
+ek.add_edge(0, 1, 10); ek.add_edge(0, 2, 10);
+ek.add_edge(1, 3, 10); ek.add_edge(2, 3, 10);
+int flow = ek.max_flow(0, 3);
+// flow = 20
+\end{lstlisting}
+
+\subsubsection{Hopcroft-Karp (Bipartite Matching)}
+\textbf{Header:} code/include/flow\_matching.h\\
+\textbf{Class:} dsa::bipartite\_matching(n\_left, n\_right)\\
+
+Finds maximum matching in bipartite graphs by finding multiple augmenting paths per BFS phase.
+
+\textbf{Why:} You need maximum matching in a bipartite graph. \par \textbf{Where to use:} Use for job assignment, resource allocation, and matching problems. O(E sqrt(V)) via multiple augmenting paths per BFS phase.
+
+\begin{lstlisting}
+dsa::bipartite_matching bm(3, 3);
+bm.add_edge(0, 0);
+bm.add_edge(0, 1);
+bm.add_edge(1, 1);
+bm.add_edge(2, 2);
+int sz = bm.max_matching();
+// sz = 3
+\end{lstlisting}
+
+\subsubsection{Hungarian Algorithm}
+\textbf{Header:} code/include/hungarian.h\\
+\textbf{Function:} dsa::hungarian(cost\_matrix)\\
+
+Finds minimum-cost perfect matching in a bipartite graph (assignment problem).
+
+\textbf{Why:} You need minimum-cost perfect matching in a bipartite graph. \par \textbf{Where to use:} Use for assignment problems: workers to tasks, exam seating, ride-sharing. O(n$^{3}$) optimal solution.
+
+\begin{lstlisting}
+std::vector<std::vector<int>> cost =
+    {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+auto res = dsa::hungarian_min(cost);
+// res.cost = 15, res.assignment = {0,1,2}
+\end{lstlisting}
+
+%% ============================================================
+%% ADDITIONAL ALGORITHMS
+%% ============================================================
+
+\section{Additional Algorithms}
+
+\subsubsection{de Bruijn Graph \& Sequence}
+\textbf{Header:} code/include/de\_bruijn.h\\
+\textbf{Function:} dsa::de\_bruijn\_sequence(k, n)\\
+
+Generates a cyclic sequence where every possible substring of length n over an alphabet of size k appears exactly once.
+
+\textbf{Why:} You need a cyclic sequence containing every possible substring of length n. \par \textbf{Where to use:} Use for genome assembly, lock combinations, and pseudo-random number generation. Every n-length substring appears exactly once.
+
+\begin{lstlisting}
+auto seq = dsa::de_bruijn_sequence(2, 3);
+// seq contains all 3-bit binary substrings
+\end{lstlisting}
+
+\subsubsection{Landau-Vishkin}
+\textbf{Header:} code/include/additional\_algorithms.h\\
+\textbf{Function:} dsa::landau\_vishkin(a, b, k)\\
+
+Computes edit distance only up to threshold k. Returns early if distance exceeds k.
+
+\textbf{Why:} You need edit distance only up to threshold k, and want early termination. \par \textbf{Where to use:} Use for spelling correction, near-duplicate detection, and DNA comparison when you only care about small differences.
+
+\begin{lstlisting}
+auto matches = dsa::landau_vishkin(
+    "hello world", "helo word", 3);
+// matches = {positions within edit distance 3}
+\end{lstlisting}
+
+\subsubsection{Hirschberg LCS}
+\textbf{Header:} code/include/additional\_algorithms.h\\
+\textbf{Function:} dsa::hirschberg\_lcs(a, b)\\
+
+Space-efficient LCS computation. Divides and conquers using linear-space needleman-wunsch.
+
+\textbf{Why:} You need LCS with O(min(m,n)) space instead of O(mn). \par \textbf{Where to use:} Use for sequence alignment on memory-constrained devices, diff algorithms, and bioinformatics where space is limited.
+
+\begin{lstlisting}
+auto lcs = dsa::hirschberg_lcs("ABCBDAB", "BDCAB");
+// lcs = "BCAB" (O(min(m,n)) space)
+\end{lstlisting}
+
+\subsubsection{Shortest Common Superstring}
+\textbf{Header:} code/include/additional\_algorithms.h\\
+\textbf{Function:} dsa::shortest\_common\_superstring(strings)\\
+
+Finds the shortest string containing all input strings as substrings.
+
+\textbf{Why:} You need the shortest string containing all input strings as substrings. \par \textbf{Where to use:} Use for genome assembly from overlapping fragments and text reconstruction. Greedy approximation.
+
+\begin{lstlisting}
+auto scs = dsa::shortest_common_superstring(
+    {"ABC", "BCA", "CAB"});
+// scs = "ABCAB" (shortest containing all)
+\end{lstlisting}
+
+\subsubsection{Crochemore-Perrin Two-Way}
+\textbf{Header:} code/include/additional\_algorithms.h\\
+\textbf{Function:} dsa::crochemore\_perrin(text, pattern)\\
+
+Optimal two-way pattern matching using critical factorization. Text is scanned left-to-right.
+
+\textbf{Why:} You need optimal O(n+m) two-way pattern matching. \par \textbf{Where to use:} Use for optimal string matching with left-to-right text scan. Critical factorization enables O(n+m) with minimal preprocessing.
+
+\begin{lstlisting}
+auto pos = dsa::crochemore_perrin(
+    "ABCABCABC", "ABCABC");
+// pos = {0, 3}
+\end{lstlisting}
+
+%% ============================================================
+%% QUICK REFERENCE TABLE
+%% ============================================================
+
+\section{Quick Reference}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Header} & \textbf{Category} & \textbf{Complexity} \\
+\midrule
+sorting.h & Sorting (12 algos) & O(n log n) avg \\
+graph.h & Graph (15+ algos) & O(V+E)--O(V$^3$) \\
+dynamic\_programming.h & DP (4 algos) & O(nW)--O(mn) \\
+greedy.h & Greedy (2 algos) & O(n log n) \\
+divide\_conquer.h & D\&C (2 algos) & O(n log n)--O(n$^{2.8}$) \\
+backtracking.h & Backtracking (3) & exponential \\
+exact\_matching.h & String (5 algos) & O(n+m) \\
+approximate\_matching.h & String (4) & O(nm) \\
+multiple\_matching.h & String (2) & O(n+m+z) \\
+string\_compression.h & Compression (4) & O(n) \\
+dinic.h & Max Flow & O(V$^2$ E) \\
+flow\_matching.h & Flow/Match (3) & O(VE$^2$) \\
+probabilistic.h & Probabilistic (3) & O(1)/elem \\
+bloom\_filter.h & Probabilistic & O(k)/elem \\
+avl\_tree.h & Balanced BST & O(log n) \\
+red\_black\_tree.h & Balanced BST & O(log n) \\
+b\_tree.h & Multi-way tree & O(log n) \\
+fenwick\_segment.h & Range query & O(log n) \\
+segment\_tree\_lazy.h & Range query & O(log n) \\
+union\_find.h & Disjoint set & O(alpha(n)) \\
+kd\_tree.h & Spatial & O(sqrt(n)) NN \\
+bwt.h & BWT/FM-index & O(n log n) \\
+nfa.h & Regex & O(nm) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vfill
+\begin{center}
+\small\textit{All implementations live in namespace dsa, use C++23 features,
+and are header-only.}\\
+\textit{Build: cd code \&\& cmake -B build \&\& cmake --build build \&\& ctest --test-dir build}
+\end{center}
+
+\end{document}
