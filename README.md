@@ -23,9 +23,9 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 ```
 DataStruct/
 ├── tex/               # LaTeX source files
-│   ├── book.tex       # Master document
+│   ├── datastruct_book.tex  # Master document
 │   ├── chapters/      # Per-chapter .tex files
-│   └── book.pdf       # Compiled PDF (873 pages)
+│   └── datastruct_book.pdf  # Compiled PDF (873 pages)
 ├── code/              # C++ implementations and tests
 │   ├── include/       # Header-only data structure libraries
 │   ├── tests/         # Unit tests and usage examples
@@ -164,10 +164,10 @@ make clean    # Remove build artifacts
 
 ```bash
 cd tex
-pdflatex book.tex
-makeindex book
-pdflatex book.tex
-pdflatex book.tex
+pdflatex datastruct_book.tex
+makeindex datastruct_book
+pdflatex datastruct_book.tex
+pdflatex datastruct_book.tex
 ```
 
 ## License

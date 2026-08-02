@@ -20,17 +20,37 @@ TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_
          test_new_sorting test_dary_heap test_indexed_pq test_new_graph \
          test_gabow_scc test_nfa test_hungarian
 
-.PHONY: all test clean
+.PHONY: all test clean tidy
 
 all: $(TESTS)
 
-test: $(TESTS)
+test: tidy $(TESTS)
 	@for t in $(TESTS); do echo "Running $$t..."; ./$$t; done
+
+tidy:
+	@echo "Checking code style and quality with clang-tidy..."
+	@for t in $(TESTS); do \
+		if [ -f "tests/$$t.cpp" ]; then \
+			if command -v clang-tidy >/dev/null 2>&1; then \
+				echo "Running clang-tidy for $$t"; \
+				clang-tidy -p . --config-file=.clang-tidy "tests/$$t.cpp" -- 2>/dev/null; \
+			else \
+				echo "clang-tidy not found, skipping style checks"; \
+			fi; \
+		elif [ -f "tests/$$t.cpp" ]; then \
+			if command -v clang-tidy >/dev/null 2>&1; then \
+				echo "Running clang-tidy for $$t"; \
+				clang-tidy -p . --config-file=.clang-tidy "tests/$$t.cpp" -- 2>/dev/null; \
+			else \
+				echo "clang-tidy not found, skipping style checks"; \
+			fi; \
+		fi; \
+	done
 
 test_array_list: tests/test_ch04_array_list.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
-test_linked_list: tests/test_linked_list.cpp
+test_linked_list: tests/test_ch05_linked_list.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 test_deque: tests/test_deque.cpp

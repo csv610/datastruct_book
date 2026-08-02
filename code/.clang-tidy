@@ -1,0 +1,42 @@
+# clang-tidy configuration for C++23 codebase
+# Common checks for data structures and algorithms
+Checks: -
+    -*compatibility*,         # Code compatibility checks
+    -*modernize*,
+    -*performance*,
+    -*portability*,
+    -*cppcoreguidelines*,
+    -*llvmlibc-c*,
+    -*llvmlibc*,
+    -*zombie*,
+    -*clang-analyzer*,
+    -*bugprone*,
+    -*misc*,
+    -*readability*,
+
+# Disable some strict checks that may be too aggressive
+Disable:
+    -*misc-non-copyable-objects*,
+    -*misc-default-constructor-init-list*,
+    -*cppcoreguidelines-avoid-magic-numbers*,
+    -*cppcoreguidelines-prefer-assign*,
+    -*performance-unnecessary-value-param*,
+    -*performance-inefficient-string-construction*,
+
+# Filter for C++23
+HeaderFilterRegex: "(include|tests)"
+
+# Standard C++ version
+Language: c++
+
+# Exclude system headers
+SystemHeaders: exclude
+
+# Use clang's suggestions
+CheckOptions:
+  - key:             modernize-use-auto.no_traits
+    value:          true
+  - key:             modernize-loop-convert
+    value:          false
+  - key:             cppcoreguidelines-avoid-goto
+    value:          false
