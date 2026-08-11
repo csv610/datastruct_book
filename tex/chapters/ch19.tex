@@ -68,6 +68,8 @@ private:
 
 \section{Cuckoo Filters}
 
+\textbf{Library implementation:} \texttt{cuckoo\_filter.h} provides \texttt{insert}, \texttt{contains}, and \texttt{erase}; insertion can fail when the configured table is full.
+
 A \textbf{cuckoo filter}\index{cuckoo filter} (Fan et al., 2014) is a Bloom filter alternative that supports \textbf{deletion} with better space efficiency for low false positive rates. The name comes from ``cuckoo hashing'' — items that collide are displaced to alternate locations, like a cuckoo bird evicting eggs.
 
 \subsection{Core Idea}
@@ -269,6 +271,8 @@ private:
 \end{lstlisting}
 
 \section{Heavy Hitters (Misra-Gries)}
+
+\textbf{Library implementation:} \texttt{heavy\_hitters.h} provides bounded-space candidate tracking via \texttt{dsa::misra\_gries}; a second pass is needed for exact frequencies.
 
 Find the most frequent items in a stream — items that appear more than $\frac{n}{k}$ times. The Misra-Gries algorithm uses O(k) counters to identify all heavy hitters.
 
@@ -1632,4 +1636,3 @@ These trade-offs are essential for streaming data, big data analytics, distribut
 \item Ted Dunning, "The T-Digest: Efficient Estimates of Distributions" — 2013.
 \item Graham Cormode, S. Muthukrishnan, Korn, and Fang, "Towards a Science of Data Streaming" — (survey of streaming algorithms).
 \end{itemize}
-

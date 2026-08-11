@@ -727,6 +727,8 @@ Round 3: s -> C: C->J2 only, J2->t saturated.
 
 \section{Minimum Cost Maximum Flow: Full Treatment}
 
+\textbf{Library implementation:} \texttt{min\_cost\_flow.h} provides \texttt{dsa::min\_cost\_max\_flow}, including signed costs and a flow limit.
+
 In many real networks, edges have both a \textbf{capacity} and a \textbf{per-unit cost}. The minimum cost maximum flow problem\index{minimum cost flow} asks: among all flows achieving the maximum possible value, find the one that minimizes total cost.
 
 \textbf{Formal definition:} Given a directed graph G = (V, E) with capacity c(u,v), cost per unit w(u,v), source s, sink t, and desired flow value F, find a flow f that delivers F units from s to t at minimum total cost $\Sigma $ f(u,v) $\cdot $ w(u,v).
@@ -1091,4 +1093,3 @@ D is NOT eliminated.
 \item Mehdi Stoer and Frank Wagner, "A Simple Min-Cut Algorithm" — JACM, 1997.
 \item John E. Hopcroft and Richard M. Karp, "An n\textasciicircum{}(5/2) Algorithm for Maximum Matchings in Bipartite Graphs" — SIAM Journal on Computing, 1973.
 \end{itemize}
-

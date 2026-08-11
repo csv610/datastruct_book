@@ -18,7 +18,9 @@ TESTS := test_array_list test_deque test_red_black_tree test_sparse_matrix test_
          test_exact_matching test_text_decomposition test_multiple_matching \
          test_additional_algorithms test_suffix_array_search \
          test_new_sorting test_dary_heap test_indexed_pq test_new_graph \
-         test_gabow_scc test_nfa test_hungarian
+         test_gabow_scc test_nfa test_hungarian \
+         test_graph_advanced test_min_cost_flow test_persistent_segment_tree \
+         test_cuckoo_filter test_heavy_hitters test_wavelet_tree
 
 .PHONY: all test clean tidy
 
@@ -216,6 +218,24 @@ test_nfa: tests/test_nfa.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 test_hungarian: tests/test_hungarian.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_graph_advanced: tests/test_graph_advanced.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_min_cost_flow: tests/test_min_cost_flow.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_persistent_segment_tree: tests/test_persistent_segment_tree.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_cuckoo_filter: tests/test_cuckoo_filter.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_heavy_hitters: tests/test_heavy_hitters.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+test_wavelet_tree: tests/test_wavelet_tree.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:

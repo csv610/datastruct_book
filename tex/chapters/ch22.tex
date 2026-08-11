@@ -93,6 +93,8 @@ private:
 
 \section{Wavelet Tree}\label{sec22:wavelet-tree}
 
+\textbf{Library implementation:} \texttt{wavelet\_tree.h} provides byte-string \texttt{access}, \texttt{rank}, \texttt{select}, and range-count queries.
+
 The \textbf{wavelet tree} (Grossi, Gupta, and Vitter, 2003) is a multi-level binary partition of an alphabet that supports rank, select, and range count queries in $O(\log \sigma)$ time, where $\sigma$ is the alphabet size. Each node of the tree stores a bitvector marking which elements of the current sub-alphabet go left (lower half) versus right (upper half).
 
 \subsection{Structure}

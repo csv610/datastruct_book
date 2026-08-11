@@ -513,6 +513,8 @@ struct social_graph {
 
 An \textbf{articulation point} (cut vertex) is a vertex whose removal disconnects the graph. A \textbf{bridge} (cut edge) is an edge whose removal disconnects the graph. Finding these is critical for analyzing network reliability.
 
+\textbf{Library implementation:} \texttt{graph.h} exposes \texttt{g.articulation\_points()} and \texttt{g.bridges()} for undirected simple graphs.
+
 \subsection{DFS Tree}
 
 During DFS, we build a tree of discovery edges. A vertex $u$ is an articulation point if:
@@ -641,6 +643,8 @@ std::vector<int> eulerian_circuit(std::vector<std::list<int>>& adj, int n) {
 \end{itemize}
 
 \section{A* Search}
+
+\textbf{Library implementation:} \texttt{a\_star.h} provides \texttt{dsa::a\_star(g, start, goal, heuristic)} with optional path reconstruction.
 
 A* is Dijkstra's algorithm with a heuristic function that estimates the distance to the goal, guiding the search toward promising vertices.
 
@@ -2314,4 +2318,3 @@ For interview code: use \texttt{vector<vector<int>> adj} for adjacency list, or 
 \item Peter Hart, Nils Nilsson, and Bertram Raphael, "A Formal Basis for the Heuristic Determination of Minimum Cost Paths" — IEEE Trans. SSC, 1968 (A* search).
 \item D. J. Welsh and M. B. Powell, "An Upper Bound for the Chromatic Number of a Graph and its Application to Timetabling Problems" — The Computer Journal, 1967 (graph coloring).
 \end{itemize}
-

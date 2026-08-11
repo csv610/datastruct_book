@@ -403,6 +403,8 @@ Given two versions of a persistent BST, merge can be implemented by inserting al
 
 \section{Persistent Segment Tree}\label{sec21:persistent-segment-tree}
 
+\textbf{Library implementation:} \texttt{persistent\_segment\_tree.h} supports point updates and half-open range-sum queries by version.
+
 A persistent segment tree stores a version history of a segment tree. Each update creates O(log n) new nodes along one root-to-leaf path, sharing all other subtrees with previous versions. This was introduced briefly in Chapter 14; here we extend it with a version tree and range queries across versions.
 
 \begin{lstlisting}[language=C++]

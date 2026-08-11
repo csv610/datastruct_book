@@ -89,7 +89,13 @@ ctest
 | `radix_tree.h` | Radix/Patricia trie (compressed) |
 | `expression_tree.h` | Expression tree (build, evaluate, infix/postfix) |
 | `huffman.h` | Huffman coding tree (in greedy.h) |
-| `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST |
+| `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST, articulation points, bridges |
+| `a_star.h` | A* shortest-path search with path reconstruction |
+| `min_cost_flow.h` | Successive-shortest-augmenting-path min-cost max-flow |
+| `persistent_segment_tree.h` | Immutable versions with point updates and range sums |
+| `cuckoo_filter.h` | Approximate membership with deletion support |
+| `heavy_hitters.h` | Misra-Gries streaming heavy-hitter candidates |
+| `wavelet_tree.h` | Access, rank, select, and range counting over byte strings |
 | `scc.h` | Strongly connected components (Kosaraju + Tarjan) |
 | `prim.h` | Prim's MST (min-heap) |
 | `suffix_array.h` | Suffix array, LCP, substring search |

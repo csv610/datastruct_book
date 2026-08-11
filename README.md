@@ -13,7 +13,7 @@ A comprehensive textbook covering fundamental and advanced data structures, algo
 ## Key Features
 
 - **C++23 throughout** — RAII, smart pointers, `std::print`, `std::mdspan`, `std::expected`, `std::ranges::to`, concepts, ranges
-- **Coverage gaps filled** — Probabilistic structures (Bloom filters, HyperLogLog), segment trees with lazy propagation, suffix arrays, Dinic's max-flow
+- **Coverage gaps filled** — Probabilistic structures, advanced graph algorithms, min-cost flow, persistent and wavelet trees, and streaming sketches
 - **Performance measurement** — `std::chrono`, Google Benchmark, profiling tools as a first-class topic
 - **STL connections** — Every manual implementation compared with its standard library equivalent
 - **Three-level exercises** — Drill, application, and research problems per chapter
@@ -54,7 +54,7 @@ DataStruct/
 | 9 | Trees & Binary Trees | Traversals, Huffman coding, expression trees |
 | 10 | Priority Queues | Heaps, heap sort, leftist trees, event-driven simulation |
 | 11 | Search Trees | BST, AVL, red-black, B-tree, treap |
-| 12 | Graphs | Adjacency list/matrix, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, SCC |
+| 12 | Graphs | Adjacency list/matrix, BFS, DFS, Dijkstra, A*, Bellman-Ford, Floyd-Warshall, SCC, articulation points, bridges |
 | 13 | Strings & Tries | Tries, KMP, Rabin-Karp, suffix arrays, LCP |
 | 14 | Segment/Fenwick/Union-Find | Range queries, BIT, DSU with inverse Ackermann |
 
@@ -65,8 +65,10 @@ DataStruct/
 | 16 | Divide and Conquer | Merge sort, quick sort, closest pair, Strassen's |
 | 17 | Dynamic Programming | 0/1 knapsack, LCS, edit distance, Floyd-Warshall |
 | 18 | Backtracking & Branch and Bound | n-Queens, subset sum, TSP, 15-puzzle |
-| 19 | Probabilistic Structures | Bloom filters, Count-Min sketch, HyperLogLog, reservoir sampling |
-| 20 | Maximum Flow & Matching | Ford-Fulkerson, Edmonds-Karp, Dinic's, bipartite matching |
+| 19 | Probabilistic Structures | Bloom and cuckoo filters, Count-Min sketch, heavy hitters, HyperLogLog, reservoir sampling |
+| 20 | Maximum Flow & Matching | Ford-Fulkerson, Edmonds-Karp, Dinic's, min-cost max-flow, bipartite matching |
+| 21 | Persistent Range Structures | Persistent segment trees and versioned queries |
+| 22 | Succinct and Indexed Structures | Wavelet trees, rank/select, range counting |
 
 ### Appendices
 - **A** — C++ STL Quick Reference
@@ -134,7 +136,13 @@ make clean    # Remove build artifacts
 | `dynamic_programming.h` | 0/1 knapsack, LCS, edit distance, LIS |
 | `backtracking.h` | N-Queens, subset sum, TSP (bitmask DP) |
 | `probabilistic.h` | HyperLogLog, Count-Min sketch, reservoir sampling |
-| `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST |
+| `graph.h` | Adjacency list graph, BFS, DFS, Dijkstra, Bellman-Ford, Floyd-Warshall, topological sort, cycle detection, Kruskal's MST, articulation points, bridges |
+| `a_star.h` | A* shortest-path search with path reconstruction |
+| `min_cost_flow.h` | Successive-shortest-augmenting-path min-cost max-flow |
+| `persistent_segment_tree.h` | Immutable versions with point updates and range sums |
+| `cuckoo_filter.h` | Approximate membership with deletion support |
+| `heavy_hitters.h` | Misra-Gries streaming heavy-hitter candidates |
+| `wavelet_tree.h` | Access, rank, select, and range counting over byte strings |
 | `scc.h` | Strongly connected components (Kosaraju + Tarjan) |
 | `prim.h` | Prim's MST (min-heap) |
 | `suffix_array.h` | Suffix array, LCP, substring search |

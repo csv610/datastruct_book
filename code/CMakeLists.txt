@@ -82,6 +82,12 @@ set(TESTS
     test_gabow_scc
     test_nfa
     test_hungarian
+    test_graph_advanced
+    test_min_cost_flow
+    test_persistent_segment_tree
+    test_cuckoo_filter
+    test_heavy_hitters
+    test_wavelet_tree
     test_union_find
     test_interval_tree
     test_kd_tree

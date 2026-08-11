@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <queue>
 #include <stack>
 #include <stdexcept>
@@ -333,7 +334,61 @@ public:
         return cycle;
     }
 
+    // ---- Articulation points and bridges (undirected simple graphs) ----
+    std::vector<std::size_t> articulation_points() const {
+        const auto result = connectivity_analysis();
+        return result.first;
+    }
+
+    std::vector<std::pair<std::size_t, std::size_t>> bridges() const {
+        const auto result = connectivity_analysis();
+        return result.second;
+    }
+
 private:
+    using connectivity_result = std::pair<
+        std::vector<std::size_t>,
+        std::vector<std::pair<std::size_t, std::size_t>>>;
+
+    connectivity_result connectivity_analysis() const {
+        const std::size_t n = adj_.size();
+        std::vector<std::size_t> discovery(n, n), low(n, n);
+        std::vector<bool> cut(n, false);
+        std::vector<std::pair<std::size_t, std::size_t>> result;
+        std::size_t timer = 0;
+
+        std::function<void(std::size_t, std::size_t)> visit =
+            [&](std::size_t v, std::size_t parent) {
+                discovery[v] = low[v] = timer++;
+                std::size_t children = 0;
+                for (const auto& e : adj_[v]) {
+                    if (e.to == parent) continue;
+                    if (discovery[e.to] == n) {
+                        ++children;
+                        visit(e.to, v);
+                        low[v] = std::min(low[v], low[e.to]);
+                        if (parent != n && low[e.to] >= discovery[v])
+                            cut[v] = true;
+                        if (low[e.to] > discovery[v])
+                            result.push_back({std::min(v, e.to),
+                                              std::max(v, e.to)});
+                    } else {
+                        low[v] = std::min(low[v], discovery[e.to]);
+                    }
+                }
+                if (parent == n && children > 1) cut[v] = true;
+            };
+
+        for (std::size_t v = 0; v < n; ++v)
+            if (discovery[v] == n) visit(v, n);
+
+        std::vector<std::size_t> points;
+        for (std::size_t v = 0; v < n; ++v)
+            if (cut[v]) points.push_back(v);
+        std::sort(result.begin(), result.end());
+        return {std::move(points), std::move(result)};
+    }
+
     std::vector<std::vector<edge>> adj_;
 };
 

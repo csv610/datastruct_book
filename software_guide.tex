@@ -2015,6 +2015,20 @@ auto pos = dsa::crochemore_perrin(
 %% QUICK REFERENCE TABLE
 %% ============================================================
 
+\section{New Industrially Relevant Implementations}
+
+The following additions connect the guide's algorithms to reusable, tested C++23 headers. They are deliberately small canonical APIs that can be adapted to production systems.
+
+\begin{itemize}
+\item \texttt{a\_star.h}: \texttt{dsa::a\_star(graph, start, goal, heuristic)} returns an optional distance and reconstructed path. Use non-negative edge weights and an admissible heuristic for optimality.
+\item \texttt{graph.h}: \texttt{articulation\_points()} and \texttt{bridges()} use Tarjan low-link analysis on undirected simple graphs, useful for network-dependency and failure analysis.
+\item \texttt{min\_cost\_flow.h}: \texttt{dsa::min\_cost\_max\_flow} supports capacities, signed edge costs, flow limits, and returns both total flow and cost.
+\item \texttt{persistent\_segment\_tree.h}: \texttt{update(version, index, value)} creates a new version while preserving older versions; \texttt{query(version, left, right)} uses half-open ranges.
+\item \texttt{cuckoo\_filter.h}: \texttt{dsa::cuckoo\_filter} provides expected constant-time approximate membership checks and deletion. It may return false positives, never false negatives after a successful insertion, and insertion can fail when full.
+\item \texttt{heavy\_hitters.h}: \texttt{dsa::misra\_gries} tracks candidate frequent keys in bounded space; candidates require a second pass or exact counter for final frequency guarantees.
+\item \texttt{wavelet\_tree.h}: \texttt{dsa::wavelet\_tree} supports byte-string access, rank, select, and range counting, useful for indexed text and compressed analytics.
+\end{itemize}
+
 \section{Quick Reference}
 
 \begin{center}
@@ -2025,6 +2039,8 @@ auto pos = dsa::crochemore_perrin(
 \midrule
 sorting.h & Sorting (12 algos) & varies by algorithm \\
 graph.h & Graph (15+ algos) & varies by algorithm \\
+a\_star.h & A* search & typical $O((V+E)\log V)$ \\
+min\_cost\_flow.h & Min-cost max-flow & successive shortest paths \\
 dynamic\_programming.h & DP (4 algos) & varies by algorithm \\
 greedy.h & Greedy (2 algos) & varies by algorithm \\
 divide\_conquer.h & D\&C (2 algos) & varies by algorithm \\
@@ -2037,14 +2053,18 @@ dinic.h & Max Flow & algorithm-dependent \\
 flow\_matching.h & Flow/Match (3) & algorithm-dependent \\
 probabilistic.h & Probabilistic (3) & sublinear space \\
 bloom\_filter.h & Probabilistic & expected constant \\
+cuckoo\_filter.h & Probabilistic membership & expected constant \\
+heavy\_hitters.h & Streaming candidates & (O(1)) amortized update \\
 avl\_tree.h & Balanced BST & \(O(\log n)\) \\
 red\_black\_tree.h & Balanced BST & \(O(\log n)\) \\
 b\_tree.h & Multi-way tree & \(O(\log n)\) \\
 fenwick\_segment.h & Range query & \(O(\log n)\) \\
 segment\_tree\_lazy.h & Range query & \(O(\log n)\) \\
+persistent\_segment\_tree.h & Versioned range query & \(O(\log n)\) update/query \\
 union\_find.h & Disjoint set & \(O(\alpha(n))\) amortized \\
 kd\_tree.h & Spatial & varies by query \\
 bwt.h & BWT/FM-index & varies by query \\
+wavelet\_tree.h & Indexed text & \(O(\log \sigma)\) rank \\
 nfa.h & Regex & linear in text length \\
 \bottomrule
 \end{tabular}
