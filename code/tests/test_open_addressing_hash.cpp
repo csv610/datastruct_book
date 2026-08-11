@@ -8,9 +8,12 @@ int main() {
     {
         dsa::open_addressing_hash<std::string, int> h(8);
         assert(h.empty());
-        assert(h.insert("apple", 1));
-        assert(h.insert("banana", 2));
-        assert(h.insert("cherry", 3));
+        const bool apple_inserted = h.insert("apple", 1);
+        const bool banana_inserted = h.insert("banana", 2);
+        const bool cherry_inserted = h.insert("cherry", 3);
+        assert(apple_inserted);
+        assert(banana_inserted);
+        assert(cherry_inserted);
         assert(h.size() == 3);
         assert(h.contains("apple"));
         assert(!h.contains("grape"));
@@ -21,12 +24,14 @@ int main() {
         *h.find("banana") = 99;
         assert(*h.find("banana") == 99);
 
-        assert(h.erase("apple"));
+        const bool apple_erased = h.erase("apple");
+        assert(apple_erased);
         assert(!h.contains("apple"));
         assert(h.size() == 2);
 
         // Duplicate insert updates
-        h.insert("cherry", 42);
+        const bool cherry_updated = h.insert("cherry", 42);
+        assert(cherry_updated);
         assert(*h.find("cherry") == 42);
         assert(h.size() == 2);
     }
